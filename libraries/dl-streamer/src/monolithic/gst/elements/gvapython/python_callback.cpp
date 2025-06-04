@@ -62,17 +62,34 @@ gboolean callPython(GstBuffer *buffer, GstCaps *caps, PyObjectWrapper &py_frame_
 // Returns:
 //   A PyObject* pointer to the imported module, or NULL on error.
 PyObject *import_module_full_path(const char *module_name, const char *file_path) {
+
     // Allocate memory for the file path with .py extension
     char *pStr = new char[strlen(file_path) + 3];
-    sprintf(pStr, "%s.py", file_path);
+
+    sprintf(pStr, "%s", file_path);
+    if (access(pStr, F_OK) != 0) {
+        sprintf(pStr, "%s.py", file_path);
+        if (access(pStr, F_OK) != 0) {
+            GST_ERROR("Error: Python module file not found: %s\n", pStr);
+            if (pStr)
+                delete[] pStr;
+
+            return NULL;
+        }
+    }
 
     // Prepare Python code to import the module safely
     char python_code[4096];
     snprintf(python_code, sizeof(python_code),
              "import importlib.util\n"
+             "import importlib.machinery\n"
              "import sys\n"
              "import os\n"
              "\n"
+             "def create_spec_any_extension(module_name, file_path):\n"
+             "    loader = importlib.machinery.SourceFileLoader(module_name, file_path)\n"
+             "    spec = importlib.machinery.ModuleSpec(module_name, loader, origin = file_path)\n"
+             "    return spec\n"
              "module_name = '%s'\n"
              "file_path = r'%s'\n"
              "\n"
@@ -82,7 +99,7 @@ PyObject *import_module_full_path(const char *module_name, const char *file_path
              "        raise FileNotFoundError(f'Python module file not found: {file_path}')\n"
              "    \n"
              "    # Create spec\n"
-             "    spec = importlib.util.spec_from_file_location(module_name, file_path)\n"
+             "    spec = create_spec_any_extension(module_name, file_path)\n"
              "    if spec is None:\n"
              "        raise ImportError(f'Cannot create spec for {file_path}')\n"
              "    \n"
@@ -107,6 +124,8 @@ PyObject *import_module_full_path(const char *module_name, const char *file_path
              "    error_msg = f'{type(e).__name__}: {str(e)}'\n",
              module_name, pStr);
 
+    // Execute the generated Python code
+    // in the __main__ module's namespace
     PyObject *main_module = PyImport_AddModule("__main__");
     PyObject *main_dict = PyModule_GetDict(main_module);
 
