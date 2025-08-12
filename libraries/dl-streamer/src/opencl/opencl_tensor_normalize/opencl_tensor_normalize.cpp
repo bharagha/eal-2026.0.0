@@ -210,15 +210,15 @@ class OpenclTensorNormalize : public BaseTransform {
 
 extern "C" {
 
-DLS_EXPORT ElementDesc opencl_tensor_normalize = {.name = "opencl_tensor_normalize",
-                                                  .description =
-                                                      "Convert U8 tensor to U8 or F32 tensor with normalization",
-                                                  .author = "Intel Corporation",
-                                                  .params = nullptr,
-                                                  .input_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Tensors, MemoryType::OpenCL}}),
-                                                  .output_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Tensors, MemoryType::OpenCL}}),
-                                                  .create = create_element<OpenclTensorNormalize>,
-                                                  .flags = ELEMENT_FLAG_SHARABLE};
+DLS_EXPORT ElementDesc opencl_tensor_normalize = {
+    .name = "opencl_tensor_normalize",
+    .description = "Convert U8 tensor to U8 or F32 tensor with normalization",
+    .author = "Intel Corporation",
+    .params = nullptr,
+    .input_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Tensors, MemoryType::OpenCL}}),
+    .output_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Tensors, MemoryType::OpenCL}}),
+    .create = create_element<OpenclTensorNormalize>,
+    .flags = ELEMENT_FLAG_SHARABLE};
 }
 
 } // namespace dlstreamer
