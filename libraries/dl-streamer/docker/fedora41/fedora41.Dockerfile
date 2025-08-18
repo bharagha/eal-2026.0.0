@@ -50,7 +50,7 @@ ARG DLSTREAMER_BUILD_NUMBER
 ENV DLSTREAMER_DIR=/home/dlstreamer/dlstreamer
 ENV GSTREAMER_DIR=/opt/intel/dlstreamer/gstreamer
 ENV INTEL_OPENVINO_DIR=/opt/intel/openvino_$OPENVINO_VERSION
-ENV LIBVA_DRIVERS_PATH=/usr/lib64/dri-nonfree
+ENV LIBVA_DRIVERS_PATH=/usr/lib64/dri
 ENV LIBVA_DRIVER_NAME=iHD
 ENV GST_VA_ALL_DRIVERS=1
 
@@ -468,7 +468,8 @@ RUN \
 
 ENV LIBVA_DRIVER_NAME=iHD
 ENV GST_PLUGIN_PATH=/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/
-ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/lib:/opt/opencv:/opt/rdkafka:/opt/ffmpeg:/usr/local/libENV LIBVA_DRIVERS_PATH=/usr/lib64/dri-nonfree
+ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/lib:/opt/opencv:/opt/rdkafka:/opt/ffmpeg:/usr/local/libENV
+ENV LIBVA_DRIVERS_PATH=/usr/lib64/dri
 ENV GST_VA_ALL_DRIVERS=1
 ENV MODEL_PROC_PATH=/opt/intel/dlstreamer/samples/gstreamer/model_proc
 ENV PATH=/python3venv/bin:/opt/intel/dlstreamer/gstreamer/bin:/opt/intel/dlstreamer/bin:$PATH
