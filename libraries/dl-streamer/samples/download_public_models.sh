@@ -209,8 +209,14 @@ source "$VENV_DIR/bin/activate"
 pip install --no-cache-dir --upgrade pip
 
 # Install OpenVINO module
-pip install --no-cache-dir openvino==2024.6.0 || handle_error $LINENO
-pip install --no-cache-dir openvino-dev==2024.6.0 || handle_error $LINENO
+. /etc/os-release
+
+if [[ "$ID" == "fedora" ]]; then
+  pip install --no-cache-dir openvino==2025.2.0 || handle_error $LINENO
+else
+  pip install --no-cache-dir openvino==2024.6.0 || handle_error $LINENO
+  pip install --no-cache-dir openvino-dev==2024.6.0 || handle_error $LINENO
+fi
 
 pip install --no-cache-dir onnx || handle_error $LINENO
 pip install --no-cache-dir seaborn || handle_error $LINENO
