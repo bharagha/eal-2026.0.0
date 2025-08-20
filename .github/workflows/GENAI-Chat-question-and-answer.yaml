@@ -284,7 +284,7 @@ jobs:
 
 
 #Run Unit test cases
-  run-unit-tests:
+  run-unit-tests-frontend:
     runs-on: ubuntu-22.04-32core-128GB
     permissions:
       contents: read
@@ -300,10 +300,12 @@ jobs:
         run: |
           cd sample-applications/chat-question-and-answer/ui/react/
           npm ci
-      
-      - name: Run unit tests
-        run: |
-          cd sample-applications/chat-question-and-answer/ui/react/
+                    npm install
+          npm install -D vitest@2.1.9
+          npm run test
+          npm run test:ui
+          npm run coverage
+          npx vitest run --reporter=html --outputFile=chatqna-ui-results.html --coverage --coverage.reporter=html --coverage.reportsDirectory=chat-qna-ui-coverage-html
           npm run test -- --watchAll=false --coverage
           
       - name: Upload test results
@@ -328,6 +330,7 @@ jobs:
         run: |
           cd sample-applications/chat-question-and-answer/
           # Backend Coverage (including all production Python files)
+          pip install poetry
           poetry install
           poetry add --group dev pytest-cov
           poetry run pytest tests/unit_tests/ \
