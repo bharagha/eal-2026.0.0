@@ -183,60 +183,63 @@ jobs:
           path: gitleaks-chatqna.json
 
 # Python linting with pylint
-  pylint-scan:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
-      
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12'
-      
-      - name: Install dependencies and pylint
-        run: |
-          pip install pylint
-          # Install project dependencies if requirements.txt exists
-          if [ -f "metro-ai-suite/smart-nvr/requirements.txt" ]; then
-            pip install -r metro-ai-suite/smart-nvr/requirements.txt || true
-          fi
-      
-      - name: Run pylint
-        run: |
-          mkdir -p security-results
-          echo "=== Pylint Scan Results ===" > security-results/pylint-report-smart-nvr.txt
-          echo "Scan Date: $(date)" >> security-results/pylint-report-smart-nvr.txt
-          echo "" >> security-results/pylint-report-smart-nvr.txt
-          
-          # Create a basic pylint config
-          cat > .pylintrc << EOF
-          [MESSAGES CONTROL]
-          disable=C0111,C0103,R0903,R0913,W0613,W0622,R0801,R0902,R0914,R0915,R0912,C0301,C0302
-          
-          [FORMAT]
-          max-line-length=120
-          
-          [REPORTS]
-          output-format=text
-          reports=yes
-          EOF
-          
-          # Find all Python files and lint them
-          find metro-ai-suite/smart-nvr/ -type f -name "*.py" -exec pylint --rcfile=.pylintrc {} + >> security-results/pylint-report-smart-nvr.txt 2>&1 || true
-          
-          echo "Pylint scan completed"
-      
-      - name: Upload pylint Report
-        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
-        with:
-          name: pylint-report
-          path: security-results/pylint-report-smart-nvr.txt
+pylint-scan:
+  runs-on: ubuntu-22.04-32core-128GB
+  permissions:
+    contents: read
+  steps:
+    - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+    
+    - name: Setup Python
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+      with:
+        python-version: '3.12'
+    
+    - name: Install Poetry
+      run: |
+        pip install poetry
+        
+    - name: Install dependencies and pylint
+      run: |
+        cd sample-applications/chat-question-and-answer/
+        poetry install
+        poetry add --group dev pylint
+    
+    - name: Run pylint
+      run: |
+        cd sample-applications/chat-question-and-answer/
+        mkdir -p security-results
+        echo "=== Pylint Scan Results ===" > security-results/pylint-report-chat-qna.txt
+        echo "Scan Date: $(date)" >> security-results/pylint-report-chat-qna.txt
+        echo "" >> security-results/pylint-report-chat-qna.txt
+        
+        # Create a basic pylint config
+        cat > .pylintrc << EOF
+        [MESSAGES CONTROL]
+        disable=C0111,C0103,R0903,R0913,W0613,W0622,R0801,R0902,R0914,R0915,R0912,C0301,C0302
+        
+        [FORMAT]
+        max-line-length=120
+        
+        [REPORTS]
+        output-format=text
+        reports=yes
+        EOF
+        
+        # Find all Python files and lint them
+        find app/ -type f -name "*.py" -exec poetry run pylint --rcfile=.pylintrc {} + >> security-results/pylint-report-chat-qna.txt 2>&1 || true
+        
+        echo "Pylint scan completed"
+    
+    - name: Upload pylint Report
+      uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+      with:
+        name: pylint-report-chat-qna
+        path: sample-applications/chat-question-and-answer/security-results/pylint-report-chat-qna.txt
 
 # ShellCheck scanning job
   shellcheck-scan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04-32core-128GB
     permissions:
       contents: read
     steps:
@@ -250,15 +253,15 @@ jobs:
       - name: Run ShellCheck
         run: |
           mkdir -p security-results
-          echo "=== ShellCheck Scan Results ===" > security-results/shellcheck-report-smart-nvr.txt
-          echo "Scan Date: $(date)" >> security-results/shellcheck-report-smart-nvr.txt
-          echo "" >> security-results/shellcheck-report-smart-nvr.txt
+          echo "=== ShellCheck Scan Results ===" > security-results/shellcheck-report-chat-qna.txt
+          echo "Scan Date: $(date)" >> security-results/shellcheck-report-chat-qna.txt
+          echo "" >> security-results/shellcheck-report-chat-qna.txt
           
           # Find all shell scripts and check them
-          find metro-ai-suite/smart-nvr/ -type f \( -name "*.sh" -o -name "*.bash" \) -print0 | while IFS= read -r -d '' file; do
-            echo "Checking: $file" >> security-results/shellcheck-report-smart-nvr.txt
-            shellcheck "$file" >> security-results/shellcheck-report-smart-nvr.txt 2>&1 || true
-            echo "---" >> security-results/shellcheck-report-smart-nvr.txt
+          find sample-applications/chat-question-and-answer/ -type f \( -name "*.sh" -o -name "*.bash" \) -print0 | while IFS= read -r -d '' file; do
+            echo "Checking: $file" >> security-results/shellcheck-report-chat-qna.txt
+            shellcheck "$file" >> security-results/shellcheck-report-chat-qna.txt 2>&1 || true
+            echo "---" >> security-results/shellcheck-report-chat-qna.txt
           done
           
           echo "ShellCheck scan completed"
@@ -266,5 +269,66 @@ jobs:
       - name: Upload ShellCheck Report
         uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
         with:
-          name: shellcheck-report
-          path: security-results/shellcheck-report-smart-nvr.txt
+          name: shellcheck-report-chat-qna
+          path: security-results/shellcheck-report-chat-qna.txt
+
+
+#Run Unit test cases
+  run-unit-tests:
+    runs-on: ubuntu-22.04-32core-128GB
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+      
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: |
+          cd sample-applications/chat-question-and-answer/ui/react/
+          npm ci
+      
+      - name: Run unit tests
+        run: |
+          cd sample-applications/chat-question-and-answer/ui/react/
+          npm run test -- --watchAll=false --coverage
+          
+      - name: Upload test results
+        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+        with:
+          name: chat-qna-frontend-results
+
+#Run Unit test cases for Backend
+  run-unit-tests-backend:
+    runs-on: ubuntu-22.04-32core-128GB
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+
+      - name: Set up Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+    
+      - name: Run unit tests
+        run: |
+          cd sample-applications/chat-question-and-answer/
+          # Backend Coverage (including all production Python files)
+          poetry install
+          poetry add --group dev pytest-cov
+          poetry run pytest tests/unit_tests/ \
+            --cov=app \
+            --cov=ovms_config \
+            --cov-report=html:coverage-backend \
+            --cov-report=xml:coverage-backend.xml \
+            --cov-report=term-missing \
+            --cov-branch
+
+      - name: Upload test results
+        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+        with:
+          name: chat-qna-backend-test-results
