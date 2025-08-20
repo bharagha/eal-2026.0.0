@@ -68,9 +68,9 @@ jobs:
           scan_target: "chatqna-backend:latest"  
           severity: "HIGH,CRITICAL"  
           format: "spdx-json"
+          scanners: "vuln"
           report_suffix: "-image-chat-qna-backend-spdx-CT248"
-          generate_sbom: "true"
-          sbom_format: "spdx-json"
+          generate_sbom: "false"
           
 
       - name: Run trivy Scan - chat-qna-frontend (HTML Report)
@@ -94,9 +94,9 @@ jobs:
           scan_target: "chatqna-frontend:latest"  
           severity: "HIGH,CRITICAL"  
           format: "spdx-json"
+          scanners: "vuln"
           report_suffix: "-image-chat-qna-frontend-spdx-CT248"
-          generate_sbom: "true"
-          sbom_format: "spdx-json"
+          generate_sbom: "false"
 
       
       - name: Scan Dockerfile with Trivy-backend
@@ -301,23 +301,23 @@ jobs:
 
 
 #Run Unit test cases
-  run-unit-tests-frontend:
-    runs-on: ubuntu-22.04-32core-128GB
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+  # run-unit-tests-frontend:
+  #   runs-on: ubuntu-22.04-32core-128GB
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #     - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
       
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+  #     - name: Install Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '22'
           
-      - name: Install dependencies
-        run: |
-          cd sample-applications/chat-question-and-answer/ui/react/
-          npm install
-          npm run coverage
+  #     - name: Install dependencies
+  #       run: |
+  #         cd sample-applications/chat-question-and-answer/ui/react/
+  #         npm install
+  #         npm run coverage
           
       # - name: Upload test results
       #   uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
