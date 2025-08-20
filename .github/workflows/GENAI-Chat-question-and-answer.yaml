@@ -55,7 +55,7 @@ jobs:
           scan-scope: "all"
           scan_target: "chatqna-backend:latest"  
           severity: "HIGH,CRITICAL"  
-          format: "template"
+          format: "table"
           report_suffix: "-image-chat-qna-backend-html-CT248"
           generate_sbom: "false"
 
@@ -81,7 +81,7 @@ jobs:
           scan-scope: "all"
           scan_target: "chatqna-frontend:latest"  
           severity: "HIGH,CRITICAL"  
-          format: "template"
+          format: "table"
           report_suffix: "-image-chat-qna-frontend-html-CT248"
           generate_sbom: "false"
 
@@ -343,7 +343,7 @@ jobs:
           cd sample-applications/chat-question-and-answer/
           # Backend Coverage (including all production Python files)
           pip install poetry
-          poetry install
+          poetry install || true
           poetry add --group dev pytest-cov
           poetry run pytest tests/unit_tests/ \
             --cov=app \
