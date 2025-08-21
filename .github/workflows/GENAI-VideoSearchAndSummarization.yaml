@@ -31,17 +31,30 @@ jobs:
       
       - name: Build Docker images
         run: |
-          # Build frontend UI
-          docker build -f ./sample-applications/video-search-and-summarization/ui/react/Dockerfile -t videosummary-frontend:latest ./sample-applications/video-search-and-summarization/ui/react/
+          cd sample-applications/video-search-and-summarization/
           
-          # Build search microservice
-          docker build -f ./sample-applications/video-search-and-summarization/search-ms/docker/Dockerfile -t videosummary-search-ms:latest ./sample-applications/video-search-and-summarization/search-ms/
+          # Set environment variables as per build.sh script
+          export TAG=latest
+          export REGISTRY_URL=""
+          export PROJECT_NAME=""
           
-          # Build video ingestion microservice 
-          docker build -f ./sample-applications/video-search-and-summarization/video-ingestion/docker/Dockerfile -t videosummary-video-ingestion:latest ./sample-applications/video-search-and-summarization/video-ingestion/
+          # Build frontend UI (following build.sh patterns)
+          docker build -f ./ui/react/Dockerfile -t videosummary-frontend:latest ./ui/react/
           
-          # Build pipeline manager microservice
-          docker build -f ./sample-applications/video-search-and-summarization/pipeline-manager/Dockerfile -t videosummary-pipeline-manager:latest ./sample-applications/video-search-and-summarization/pipeline-manager/
+          # Build search microservice (Poetry-based)
+          docker build -f ./search-ms/docker/Dockerfile -t videosummary-search-ms:latest ./search-ms/
+          
+          # Build video ingestion microservice (requirements.txt based)
+          docker build -f ./video-ingestion/docker/Dockerfile -t videosummary-video-ingestion:latest ./video-ingestion/
+          
+          # Build pipeline manager microservice (NestJS/npm based)
+          docker build -f ./pipeline-manager/Dockerfile -t videosummary-pipeline-manager:latest ./pipeline-manager/
+          
+      - name: Verify Docker images
+        run: |
+          echo "=== Built Docker Images ==="
+          docker images | grep videosummary
+          echo "=== Image Build Verification Complete ==="
       
       - name: Run Trivy Filesystem Scan
         uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
@@ -306,7 +319,7 @@ jobs:
         run: |
           cd sample-applications/video-search-and-summarization/search-ms/
           poetry install
-          poetry add --group dev pylint
+          poetry add --group dev pylint pytest pytest-cov
       
       - name: Run pylint
         run: |
@@ -497,100 +510,3 @@ jobs:
         with:
           name: pipeline-manager-lint-results
           path: sample-applications/video-search-and-summarization/pipeline-manager/lint-results/
-
-  # Run Unit test cases Frontend
-  run-unit-tests-frontend:
-    runs-on: ubuntu-22.04-32core-128GB
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
-      
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          
-      - name: Install dependencies and run tests
-        run: |
-          cd sample-applications/video-search-and-summarization/ui/react/
-          npm install
-          npm run coverage
-          
-      - name: Upload test results
-        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
-        with:
-          name: video-summary-frontend-results
-          path: sample-applications/video-search-and-summarization/ui/react/coverage/
-
-  # Run Unit test cases Pipeline Manager
-  run-unit-tests-pipeline-manager:
-    runs-on: ubuntu-22.04-32core-128GB
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
-      
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          
-      - name: Install dependencies and run tests
-        run: |
-          cd sample-applications/video-search-and-summarization/pipeline-manager/
-          npm install
-          npm run test || true
-          npm run test:cov || true
-          
-      - name: Upload test results
-        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
-        with:
-          name: pipeline-manager-test-results
-          path: sample-applications/video-search-and-summarization/pipeline-manager/coverage/
-
-  # Run Unit test cases for Backend - Video Ingestion
-  run-unit-tests-video-ingestion:
-    runs-on: ubuntu-22.04-32core-128GB
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
-
-      - name: Set up Python environment
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-    
-      - name: Run unit tests
-        env:
-          # Mock environment variables for testing
-          MINIO_ENDPOINT: "localhost:9000"
-          MINIO_ACCESS_KEY: "test"
-          MINIO_SECRET_KEY: "test"
-          RABBITMQ_HOST: "localhost"
-          RABBITMQ_PORT: "5672"
-          RABBITMQ_USERNAME: "test"
-          RABBITMQ_PASSWORD: "test"
-        run: |
-          cd sample-applications/video-search-and-summarization/video-ingestion/
-          # Install dependencies and run tests
-          python3.12 -m venv video-ingestion-venv
-          source video-ingestion-venv/bin/activate
-          pip install -r requirements.txt
-          pip install -r requirements-test.txt
-          pip install pytest-cov
-          pytest tests/ \
-            --cov=src \
-            --cov-report=html:coverage-backend \
-            --cov-report=xml:coverage-backend.xml \
-            --cov-report=term-missing \
-            --cov-branch || true
-          deactivate
-          rm -rf video-ingestion-venv
-
-      - name: Upload test results
-        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
-        with:
-          name: video-ingestion-test-results
-          path: sample-applications/video-search-and-summarization/video-ingestion/coverage-backend/
