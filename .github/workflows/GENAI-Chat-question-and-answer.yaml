@@ -322,12 +322,12 @@ jobs:
           mkdir -p lint-results
           
           # Use project's npm scripts (for project-specific config)
-          npm run lint > lint-results/npm-lint-output.txt 2>&1 || true
-          npm run prettier > lint-results/prettier-check.txt 2>&1 || true
+          npm run lint > lint-results/npm-lint-output.txt 2>&1
+          npm run prettier > lint-results/prettier-check.txt 2>&1
           
           # Also generate structured reports with global ESLint
-          npx eslint . --format json --output-file lint-results/eslint-report.json || true
-          npx eslint . --format html --output-file lint-results/eslint-report.html || true
+          npx eslint . --format json --output-file lint-results/eslint-report.json
+          npx eslint . --format html --output-file lint-results/eslint-report.html
 
 
 # #Run Unit test cases Frontend
