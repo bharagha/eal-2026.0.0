@@ -318,55 +318,23 @@ jobs:
           cd sample-applications/chat-question-and-answer/ui/react/
           npm install
       
-      # - name: Run linting with reports
-      #   run: |
-      #     cd sample-applications/chat-question-and-answer/ui/react/
-      #     mkdir -p lint-results
-          
-      #     # Use project's npm scripts (for project-specific config)
-      #     npm run lint > lint-results/npm-lint-output.txt 2>&1
-      #     npm run prettier > lint-results/prettier-check.txt 2>&1
-          
-      #     # Also generate structured reports with global ESLint
-      #     npx eslint . --format json --output-file lint-results/eslint-report.json
-      #     npx eslint . --format html --output-file lint-results/eslint-report.html
-
       - name: Run linting with reports
         run: |
           cd sample-applications/chat-question-and-answer/ui/react/
           mkdir -p lint-results
           
-          # Capture exit codes but don't fail immediately
-          set +e  # Disable exit on error
-          
+          # Use project's npm scripts (for project-specific config)
           npm run lint > lint-results/npm-lint-output.txt 2>&1
-          LINT_EXIT_CODE=$?
-          
           npm run prettier > lint-results/prettier-check.txt 2>&1
-          PRETTIER_EXIT_CODE=$?
-          
-          npx eslint . --format json --output-file lint-results/eslint-report.json
-          ESLINT_JSON_EXIT=$?
-          
-          npx eslint . --format html --output-file lint-results/eslint-report.html
-          ESLINT_HTML_EXIT=$?
-          
-          # Re-enable exit on error
-          set -e
-          
-          # Report results
-          echo "Lint exit code: $LINT_EXIT_CODE"
-          echo "Prettier exit code: $PRETTIER_EXIT_CODE"
-          echo "ESLint JSON exit code: $ESLINT_JSON_EXIT"
-          echo "ESLint HTML exit code: $ESLINT_HTML_EXIT"
-          
-          # Fail if any linting failed
-          if [ $LINT_EXIT_CODE -ne 0 ] || [ $PRETTIER_EXIT_CODE -ne 0 ]; then
-            echo "❌ Linting failed! Check the reports for details."
-            exit 1
-          else
-            echo "✅ All linting checks passed!"
-          fi
+      
+      - name: Upload lint results
+        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+        with:
+          name: frontend-lint-results
+          path: sample-applications/chat-question-and-answer/ui/react/lint-results/
+        
+
+
 
 # #Run Unit test cases Frontend
 #   run-unit-tests-frontend:
