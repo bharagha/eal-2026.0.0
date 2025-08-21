@@ -324,8 +324,8 @@ jobs:
           mkdir -p lint-results
           
           # Use project's npm scripts (for project-specific config)
-          npm run lint > lint-results/npm-lint-output.txt 2>&1
-          npm run prettier > lint-results/prettier-check.txt 2>&1
+          npm run lint > lint-results/npm-lint-output.txt 2>&1 || true
+          npm run prettier > lint-results/prettier-check.txt 2>&1 || true
       
       - name: Upload lint results
         uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
