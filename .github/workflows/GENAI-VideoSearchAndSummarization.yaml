@@ -14,7 +14,7 @@ concurrency:
 on:
   pull_request:
     branches:
-      - chat-qna-workflow
+      - main
     paths:
       - 'sample-applications/video-search-and-summarization/**'
 
