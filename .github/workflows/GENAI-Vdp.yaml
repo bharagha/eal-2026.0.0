@@ -108,15 +108,31 @@ jobs:
           report_suffix: "-image-milvus-dataprep-spdx-CT249"
           generate_sbom: "false"
 
-      - name: Scan Dockerfiles with Trivy
+      - name: Scan VDMS Dockerfile with Trivy
         uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
         with:
           scan_type: "config"
-          scan_target: "microservices/visual-data-preparation-for-retrieval/"
+          scan_target: "microservices/visual-data-preparation-for-retrieval/vdms/docker/"
           severity: "HIGH,CRITICAL"
           format: "json"
           misconfig_scanners: "dockerfile"
-          report_suffix: "-config-visual-data-preparation-CT222"
+          report_suffix: "-config-vdms-dockerfile-CT222"
+
+      - name: Scan Milvus Dockerfile with Trivy
+        uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
+        with:
+          scan_type: "config"
+          scan_target: "microservices/visual-data-preparation-for-retrieval/milvus/src/"
+          severity: "HIGH,CRITICAL"
+          format: "json"
+          misconfig_scanners: "dockerfile"
+          report_suffix: "-config-milvus-dockerfile-CT223"
+           
+      - name: Upload Report
+        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+        with:
+          name: trivy-report-visual-data-preparation
+          path: security-results/trivy*
            
       - name: Upload Report
         uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
