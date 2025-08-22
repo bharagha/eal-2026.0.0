@@ -34,7 +34,7 @@ jobs:
           cd microservices/vlm-openvino-serving/
           
           # Build VLM OpenVINO serving microservice (Poetry-based FastAPI)
-          docker build -f ./Dockerfile -t vlm-openvino-serving:latest .
+          docker build -f ./docker/Dockerfile -t vlm-openvino-serving:latest .
           
       - name: Verify Docker image
         run: |
@@ -83,7 +83,7 @@ jobs:
         uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
         with:
           scan_type: "config"
-          scan_target: "microservices/vlm-openvino-serving/"
+          scan_target: "microservices/vlm-openvino-serving/docker/"
           severity: "HIGH,CRITICAL"
           format: "json"
           misconfig_scanners: "dockerfile"
