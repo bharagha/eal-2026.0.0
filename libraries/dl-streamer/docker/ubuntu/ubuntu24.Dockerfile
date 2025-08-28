@@ -297,6 +297,12 @@ RUN \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+ARG OPENVINO_GENAI_VER=openvino_genai_ubuntu24_2025.2.0.0_x86_64
+ARG OPENVINO_GENAI_PKG=https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.2/linux/${OPENVINO_GENAI_VER}.tar.gz
+
+RUN curl -L ${OPENVINO_GENAI_PKG} | tar -xz && \
+    mv ${OPENVINO_GENAI_VER} openvino_genai && \
+    source openvino_genai/setupvars.sh
 
 WORKDIR "$DLSTREAMER_DIR"
 
@@ -332,6 +338,7 @@ RUN \
        -DENABLE_VAAPI=ON \
        -DENABLE_SAMPLES=ON \
        -DENABLE_REALSENSE=ON \
+       -DENABLE_GENAI=ON \
        .. && \
        make -j "$(nproc)" && \
        usermod -a -G video dlstreamer && \
