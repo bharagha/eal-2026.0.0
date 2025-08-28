@@ -297,12 +297,12 @@ RUN \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# OpenVINO Gen AI
 ARG OPENVINO_GENAI_VER=openvino_genai_ubuntu24_2025.2.0.0_x86_64
 ARG OPENVINO_GENAI_PKG=https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.2/linux/${OPENVINO_GENAI_VER}.tar.gz
 
 RUN curl -L ${OPENVINO_GENAI_PKG} | tar -xz && \
-    mv ${OPENVINO_GENAI_VER} openvino_genai && \
-    source openvino_genai/setupvars.sh
+    mv ${OPENVINO_GENAI_VER} /opt/openvino_genai
 
 WORKDIR "$DLSTREAMER_DIR"
 
@@ -331,6 +331,7 @@ ENV PYTHONPATH=${GSTREAMER_DIR}/lib/python3/dist-packages:${DLSTREAMER_DIR}/pyth
 
 # Build DLStreamer
 RUN \
+    source /opt/openvino_genai/setupvars.sh && \
     cmake \
        -DCMAKE_BUILD_TYPE="${BUILD_ARG}" \
        -DENABLE_PAHO_INSTALLATION=ON \
@@ -449,6 +450,13 @@ COPY --from=deb-builder /*.deb /debs/
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+# OpenVINO Gen AI
+ARG OPENVINO_GENAI_VER=openvino_genai_ubuntu24_2025.2.0.0_x86_64
+ARG OPENVINO_GENAI_PKG=https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.2/linux/${OPENVINO_GENAI_VER}.tar.gz
+
+RUN curl -L ${OPENVINO_GENAI_PKG} | tar -xz && \
+    mv ${OPENVINO_GENAI_VER} /opt/openvino_genai
+
 RUN \
     apt-get update && \
     apt-get install -y -q --no-install-recommends ./debs/*.deb && \
@@ -481,4 +489,4 @@ USER dlstreamer
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD [ "bash", "-c", "pgrep bash > /dev/null || exit 1" ]
 
-CMD ["/bin/bash"]
+CMD ["/bin/bash", "-c", "source /opt/openvino_genai/setupvars.sh > /dev/null && /bin/bash"]

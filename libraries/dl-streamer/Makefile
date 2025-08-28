@@ -38,6 +38,9 @@ dependencies:
 
 .PHONY: build
 build: dependencies ## Compile Deep Learning Streamer
+  LINUX_DISTRIBUTION := $(shell lsb_release -ds | cut -d " " -f1)
+  ifeq ($(LINUX_DISTRIBUTION), Ubuntu)
+	source /opt/openvino_genai/setupvars.sh
 	cmake \
 		-B build \
 		-DCMAKE_PREFIX_PATH:PATH="${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install;${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/opencv-bin" \
@@ -48,7 +51,21 @@ build: dependencies ## Compile Deep Learning Streamer
 		-DENABLE_RDKAFKA_INSTALLATION=ON \
 		-DENABLE_VAAPI=ON \
 		-DENABLE_SAMPLES=ON \
-		-DENABLE_TESTS=OFF 
+		-DENABLE_GENAI=ON \
+		-DENABLE_TESTS=OFF
+	else
+	cmake \
+		-B build \
+		-DCMAKE_PREFIX_PATH:PATH="${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install;${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/opencv-bin" \
+		-DCMAKE_INCLUDE_PATH:PATH=${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install/include \
+		-DCMAKE_LIBRARY_PATH:PATH=${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install/lib \
+		-DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+		-DENABLE_PAHO_INSTALLATION=ON \
+		-DENABLE_RDKAFKA_INSTALLATION=ON \
+		-DENABLE_VAAPI=ON \
+		-DENABLE_SAMPLES=ON \
+		-DENABLE_TESTS=OFF
+	endif
 	cmake --build build
 
 .PHONY: install
