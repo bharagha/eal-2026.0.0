@@ -46,9 +46,9 @@ if [ "$NUMBER_STREAMS" -lt "$NUMBER_PROCESSES" ]; then
 fi
 
 # Decode parameters
-if [ "$DECODE_DEVICE" == "CPU" ]; then
+if [ "$INFERENCE_DEVICE" == "CPU" ]; then
     DECODE_ELEMENT+=" ! video/x-raw"
-elif [ "$DECODE_DEVICE" == "GPU" ]; then
+elif [ "$INFERENCE_DEVICE" == "GPU" ]; then
     DECODE_ELEMENT+="! vapostproc"
     DECODE_ELEMENT+=" ! video/x-raw\(memory:VAMemory\)"
 elif [ "$DECODE_DEVICE" != "AUTO" ]; then
@@ -62,7 +62,7 @@ if [ "$DECODE_DEVICE" == "GPU" ] && [ "$INFERENCE_DEVICE" == "GPU" ]; then
     PARAMS+="batch-size=64 nireq=4 pre-process-backend=va-surface-sharing" # scale-method=fast
 fi
 if [ "$DECODE_DEVICE" == "GPU" ] && [ "$INFERENCE_DEVICE" == "CPU" ]; then
-    PARAMS+="pre-process-backend=va"
+    PARAMS+="pre-process-backend=opencv"
 fi
 if [ "$INFERENCE_DEVICE" == "CPU" ] && [ "$NUMBER_PROCESSES" -gt 1 ]; then # limit number inference threads per process
     CORES=$(nproc)

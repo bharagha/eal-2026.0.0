@@ -54,15 +54,16 @@ if [ "$NUMBER_STREAMS" -lt "$NUMBER_PROCESSES" ]; then
 fi
 
 # Decode parameters
-if [ "$DECODE_DEVICE" == "CPU" ]; then
+if [ "$INFERENCE_DEVICE" == "CPU" ]; then
     DECODE_ELEMENT+=" ! video/x-raw"
-elif [ "$DECODE_DEVICE" == "GPU" ]; then
+elif [ "$INFERENCE_DEVICE" == "GPU" ]; then
     DECODE_ELEMENT+="! vapostproc"
     DECODE_ELEMENT+=" ! video/x-raw\(memory:VAMemory\)"
 elif [ "$DECODE_DEVICE" != "AUTO" ]; then
   echo "Incorrect parameter DECODE_DEVICE. Supported values: CPU, GPU, AUTO"
   exit
 fi
+
 
 # Inference parameters
 PARAMS=''
