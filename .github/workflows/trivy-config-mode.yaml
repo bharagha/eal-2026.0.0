@@ -87,14 +87,22 @@ jobs:
           output_report_path: ${{ inputs.output-report-path }}
           severity_levels: ${{ inputs.severity-levels }}
           trivy_report_format: ${{ inputs.trivy-report-format }}
+          trivy_config_path: ${{ inputs.trivy_config_path }}
         run: |
           echo "🔍 Scanning: ${dockerfile_path}"
           echo "📁 Saving report to: ${output_report_path}"
-          trivy config \
-            --severity "${severity_levels}" \
-            --format "${trivy_report_format}" \
-            --output "${output_report_path}" \
-            "${dockerfile_path}"
+          trivy_cmd="trivy config \
+            --severity \"${severity_levels}\" \
+            --format \"${trivy_report_format}\" \
+            --output \"${output_report_path}\" \
+            \"${dockerfile_path}\""
+          
+          # Add Trivy config path if provided
+          if [ -n "$trivy_config_path" ]; then
+            trivy_cmd="$trivy_cmd --config \"$trivy_config_path\""
+          fi
+          
+          eval $trivy_cmd
 
           echo "📄 Report preview:"
           head -n 100 "${output_report_path}"
