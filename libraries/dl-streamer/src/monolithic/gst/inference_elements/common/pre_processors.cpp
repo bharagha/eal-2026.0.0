@@ -6,14 +6,17 @@
 
 #include <algorithm>
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 #include <opencv2/imgproc.hpp>
 
+#include "gst/analytics/analytics.h"
 #include "pre_processor_info_parser.hpp"
 #include "pre_processors.h"
 #include "region_of_interest.h"
+#include "tensor.h"
 #include "utils.h"
 
 using namespace InferenceBackend;
@@ -130,12 +133,14 @@ Image getImage(const InputBlob::Ptr &blob) {
     return image;
 }
 
-InputPreprocessingFunction createFaceAlignmentFunction(GstStructure *params, GstVideoRegionOfInterestMeta *roi_meta) {
+InputPreprocessingFunction createFaceAlignmentFunction(GstStructure *params, GstVideoRegionOfInterestMeta *roi_meta,
+                                                       GstBuffer *buffer) {
     std::vector<float> reference_points;
     std::vector<float> landmarks_points;
     // look for tensor data with corresponding format
-    GVA::RegionOfInterest roi(roi_meta);
-    for (auto tensor : roi.tensors()) {
+    for (GList *l = roi_meta->params; l; l = g_list_next(l)) {
+        GstStructure *s = GST_STRUCTURE(l->data);
+        GVA::Tensor tensor(s);
         if (tensor.format() == "landmark_points") {
             landmarks_points = tensor.data<float>();
             break;
@@ -161,21 +166,22 @@ InputPreprocessingFunction createFaceAlignmentFunction(GstStructure *params, Gst
     return [](const InputBlob::Ptr &) {};
 }
 
-InputPreprocessingFunction createImageInputFunction(GstStructure *params, GstVideoRegionOfInterestMeta *roi) {
-    return createFaceAlignmentFunction(params, roi);
+InputPreprocessingFunction createImageInputFunction(GstStructure *params, GstVideoRegionOfInterestMeta *roi,
+                                                    GstBuffer *buffer) {
+    return createFaceAlignmentFunction(params, roi, buffer);
 }
 
 InputPreprocessingFunction getInputPreprocFunctrByLayerType(const std::string &format,
                                                             const ImageInference::Ptr &inference,
                                                             GstStructure *preproc_params,
-                                                            GstVideoRegionOfInterestMeta *roi) {
+                                                            GstVideoRegionOfInterestMeta *roi, GstBuffer *buffer) {
     InputPreprocessingFunction result;
     if (format == "sequence_index")
         result = createSequenceIndexFunction();
     else if (format == "image_info")
         result = createImageInfoFunction(preproc_params, inference);
     else
-        result = createImageInputFunction(preproc_params, roi);
+        result = createImageInputFunction(preproc_params, roi, buffer);
 
     return result;
 }
@@ -185,14 +191,14 @@ InputPreprocessingFunction getInputPreprocFunctrByLayerType(const std::string &f
 std::map<std::string, InputLayerDesc::Ptr>
 GetInputPreprocessors(const std::shared_ptr<InferenceBackend::ImageInference> &inference,
                       const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
-                      GstVideoRegionOfInterestMeta *roi) {
+                      GstVideoRegionOfInterestMeta *roi, GstBuffer *buffer) {
     // ITT_TASK(__FUNCTION__);
     std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> preprocessors;
     for (const ModelInputProcessorInfo::Ptr &preproc : model_input_processor_info) {
         preprocessors[preproc->format] = std::make_shared<InputLayerDesc>(InputLayerDesc());
         preprocessors[preproc->format]->name = preproc->layer_name;
         preprocessors[preproc->format]->preprocessor =
-            getInputPreprocFunctrByLayerType(preproc->format, inference, preproc->params, roi);
+            getInputPreprocFunctrByLayerType(preproc->format, inference, preproc->params, roi, buffer);
 
         preprocessors[preproc->format]->input_image_preroc_params =
             (preproc->format == "image") ? PreProcParamsParser(preproc->params).parse() : nullptr;

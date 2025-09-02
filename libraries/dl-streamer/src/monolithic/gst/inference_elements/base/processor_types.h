@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "gst/gstbuffer.h"
 #ifdef __cplusplus
 
 #include "common/post_processor.h"
@@ -48,7 +49,8 @@ typedef InputPreprocessingFunction (*InputPreprocessingFunctionGetter)(
     GstVideoRegionOfInterestMeta *roi_meta);
 typedef std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> (*InputPreprocessorsFactory)(
     const std::shared_ptr<InferenceBackend::ImageInference> &inference,
-    const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info, GstVideoRegionOfInterestMeta *roi);
+    const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info, GstVideoRegionOfInterestMeta *roi,
+    GstBuffer *buffer);
 typedef void (*PreProcFunction)(GstStructure *preproc, InferenceBackend::Image &image);
 typedef bool (*FilterROIFunction)(GvaBaseInference *gva_base_inference, guint64 current_num_frame, GstBuffer *buffer,
                                   GstVideoRegionOfInterestMeta *roi);

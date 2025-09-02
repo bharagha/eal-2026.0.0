@@ -118,27 +118,22 @@ void ROICoordinatesRestorer::updateCoordinatesToFullFrame(double &x_min, double 
     /* In case of gvadetect with inference-region=roi-list we get coordinates relative to ROI.
      * We need to convert them to coordinates relative to the full frame. */
     if (attach_type == AttachType::TO_ROI) {
+        GMutexLockGuard guard(frame.meta_mutex);
+        GstAnalyticsODMtd od_meta;
+        if (findObjectDetectionMeta(frame, &od_meta)) {
+            gint od_meta_x;
+            gint od_meta_y;
+            gint od_meta_w;
+            gint od_meta_h;
 
-        if (NEW_METADATA) {
-            GMutexLockGuard guard(frame.meta_mutex);
-            GstAnalyticsODMtd od_meta;
-            if (findObjectDetectionMeta(frame, &od_meta)) {
-                gint od_meta_x;
-                gint od_meta_y;
-                gint od_meta_w;
-                gint od_meta_h;
-
-                if (!gst_analytics_od_mtd_get_location(&od_meta, &od_meta_x, &od_meta_y, &od_meta_w, &od_meta_h,
-                                                       nullptr)) {
-                    throw std::runtime_error("Error when trying to read the location of the object detection metadata");
-                }
-
-                x_min = (od_meta_x + od_meta_w * x_min) / frame.width;
-                y_min = (od_meta_y + od_meta_h * y_min) / frame.height;
-                x_max = (od_meta_x + od_meta_w * x_max) / frame.width;
-                y_max = (od_meta_y + od_meta_h * y_max) / frame.height;
+            if (!gst_analytics_od_mtd_get_location(&od_meta, &od_meta_x, &od_meta_y, &od_meta_w, &od_meta_h, nullptr)) {
+                throw std::runtime_error("Error when trying to read the location of the object detection metadata");
             }
-            return;
+
+            x_min = (od_meta_x + od_meta_w * x_min) / frame.width;
+            y_min = (od_meta_y + od_meta_h * y_min) / frame.height;
+            x_max = (od_meta_x + od_meta_w * x_max) / frame.width;
+            y_max = (od_meta_y + od_meta_h * y_max) / frame.height;
         }
 
         GstVideoRegionOfInterestMeta *meta = findRoiMeta(frame);

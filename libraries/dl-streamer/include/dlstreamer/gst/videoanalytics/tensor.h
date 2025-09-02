@@ -592,7 +592,7 @@ class Tensor {
      * @brief Convert tensor to GST analytic metadata
      * @return if conversion succesfull, 'mtd' is a handle to created metadata
      */
-    bool convert_to_meta(GstAnalyticsMtd *mtd, GstAnalyticsODMtd *od_mtd, GstAnalyticsRelationMeta *meta) {
+    bool convert_to_meta(GstAnalyticsMtd *mtd, GstAnalyticsODMtd *od_mtd, GstAnalyticsRelationMeta *meta) const {
 
         if (name() == "keypoints") {
             GstAnalyticsKeypointGroupMtd *keypoint_group_mtd = mtd;
