@@ -11,6 +11,7 @@
 #include "common/pre_processor_info_parser.hpp"
 #include "common/pre_processors.h"
 #include "config.h"
+#include "glib.h"
 #include "gmutex_lock_guard.h"
 #include "gst_allocator_wrapper.h"
 #include "gva_base_inference_priv.hpp"
@@ -37,6 +38,7 @@
 #include <openvino/runtime/properties.hpp>
 #include <regex>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -488,7 +490,7 @@ void UpdateConfigWithLayerInfo(const std::vector<ModelInputProcessorInfo::Ptr> &
 }
 
 void ApplyImageBoundaries(std::shared_ptr<InferenceBackend::Image> &image, GstVideoRegionOfInterestMeta *meta,
-                          InferenceRegionType inference_region) {
+                          InferenceRegionType inference_region, GstBuffer *buffer) {
     if (!meta) {
         throw std::invalid_argument("Region of interest meta is null.");
     }
@@ -500,7 +502,18 @@ void ApplyImageBoundaries(std::shared_ptr<InferenceBackend::Image> &image, GstVi
     const auto image_width = image->width;
     const auto image_height = image->height;
 
-    GVA::RegionOfInterest roi(meta);
+    GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
+
+    if (!relation_meta) {
+        throw std::runtime_error("Failed to get analytics relation meta");
+    }
+
+    GstAnalyticsODMtd od_mtd;
+    if (!gst_analytics_relation_meta_get_od_mtd(relation_meta, meta->id, &od_mtd)) {
+        throw std::runtime_error("Failed to get ODMtd from analytics relation meta");
+    }
+
+    GVA::RegionOfInterest roi(od_mtd, meta);
     const GVA::Rect<double> normalized_bbox = roi.normalized_rect();
 
     const constexpr double zero = 0;
@@ -947,7 +960,7 @@ void InferenceImpl::PushOutput() {
 
         for (const std::shared_ptr<InferenceFrame> &inference_roi : (*frame).inference_rois) {
             gint meta_id = 0;
-            if (NEW_METADATA && inference_roi->roi.id >= 0) {
+            if (inference_roi->roi.id >= 0) {
                 GMutexLockGuard guard(&inference_roi->gva_base_inference->meta_mutex);
                 GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(inference_roi->buffer);
                 if (!relation_meta) {
@@ -964,9 +977,8 @@ void InferenceImpl::PushOutput() {
                 }
 
                 get_od_id(od_mtd, &meta_id);
-            } else {
-                get_object_id(&inference_roi->roi, &meta_id);
             }
+
             for (const GstStructure *roi_classification : inference_roi->roi_classifications) {
                 UpdateClassificationHistory(meta_id, (*frame).filter, roi_classification);
             }
@@ -1072,7 +1084,7 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
             if (!image)
                 break;
 
-            ApplyImageBoundaries(image, &meta, gva_base_inference->inference_region);
+            ApplyImageBoundaries(image, &meta, gva_base_inference->inference_region, buffer);
             auto result = MakeInferenceResult(gva_base_inference, model, &meta, image, buffer);
             // Because image is a shared pointer with custom deleter which performs buffer unmapping
             // we need to manually reset it after we passed it to the last InferenceResult
@@ -1082,8 +1094,8 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
                 image.reset();
             std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> input_preprocessors;
             if (!model.input_processor_info.empty() && gva_base_inference->input_prerocessors_factory)
-                input_preprocessors =
-                    gva_base_inference->input_prerocessors_factory(model.inference, model.input_processor_info, &meta);
+                input_preprocessors = gva_base_inference->input_prerocessors_factory(
+                    model.inference, model.input_processor_info, &meta, buffer);
             model.inference->SubmitImage(std::move(result), input_preprocessors);
         }
     } catch (const std::exception &e) {
@@ -1136,57 +1148,58 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
         case ROI_LIST: {
             /* iterates through buffer's meta and pushes it in vector if inference needed. */
             gpointer state = NULL;
-            if (NEW_METADATA) {
-                GMutexLockGuard guard(&gva_base_inference->meta_mutex);
-                GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
-                if (relation_meta) {
-                    GstAnalyticsODMtd od_meta;
-                    while (gst_analytics_relation_meta_iterate(relation_meta, &state,
-                                                               gst_analytics_od_mtd_get_mtd_type(), &od_meta)) {
-                        auto roi = GstVideoRegionOfInterestMeta();
+            // GMutexLockGuard guard(&gva_base_inference->meta_mutex);
+            // GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
+            // if (relation_meta) {
+            //     GstAnalyticsODMtd od_meta;
+            //     while (gst_analytics_relation_meta_iterate(relation_meta, &state,
+            //     gst_analytics_od_mtd_get_mtd_type(),
+            //                                                &od_meta)) {
+            //         auto roi = GstVideoRegionOfInterestMeta();
 
-                        gint x;
-                        gint y;
-                        gint w;
-                        gint h;
+            //         gint x;
+            //         gint y;
+            //         gint w;
+            //         gint h;
 
-                        if (!gst_analytics_od_mtd_get_location(&od_meta, &x, &y, &w, &h, nullptr)) {
-                            throw std::runtime_error(
-                                "Error when trying to read the location of the object detection metadata");
-                        }
+            //         if (!gst_analytics_od_mtd_get_location(&od_meta, &x, &y, &w, &h, nullptr)) {
+            //             throw std::runtime_error(
+            //                 "Error when trying to read the location of the object detection metadata");
+            //         }
 
-                        roi.x = x;
-                        roi.y = y;
-                        roi.w = w;
-                        roi.h = h;
+            //         roi.x = x;
+            //         roi.y = y;
+            //         roi.w = w;
+            //         roi.h = h;
 
-                        roi.roi_type = gst_analytics_od_mtd_get_obj_type(&od_meta);
-                        roi.id = od_meta.id;
+            //         roi.roi_type = gst_analytics_od_mtd_get_obj_type(&od_meta);
+            //         roi.id = od_meta.id;
 
-                        GstAnalyticsODExtMtd od_ext_meta;
-                        if (gst_analytics_relation_meta_get_direct_related(
-                                relation_meta, od_meta.id, GST_ANALYTICS_REL_TYPE_RELATE_TO,
-                                gst_analytics_od_ext_mtd_get_mtd_type(), nullptr, &od_ext_meta)) {
-                            roi.params = gst_analytics_od_ext_mtd_get_params(&od_ext_meta);
-                        }
+            //         GstAnalyticsODExtMtd od_ext_meta;
+            //         if (gst_analytics_relation_meta_get_direct_related(
+            //                 relation_meta, od_meta.id, GST_ANALYTICS_REL_TYPE_RELATE_TO,
+            //                 gst_analytics_od_ext_mtd_get_mtd_type(), nullptr, &od_ext_meta)) {
+            //             roi.params = gst_analytics_od_ext_mtd_get_params(&od_ext_meta);
+            //         }
 
-                        if (!gva_base_inference->is_roi_inference_needed ||
-                            gva_base_inference->is_roi_inference_needed(gva_base_inference,
-                                                                        gva_base_inference->frame_num, buffer, &roi)) {
-                            metas.push_back(roi);
-                        }
-                    }
-                }
-            } else {
-                GstVideoRegionOfInterestMeta *meta = NULL;
-                while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
-                    if (!gva_base_inference->is_roi_inference_needed ||
-                        gva_base_inference->is_roi_inference_needed(gva_base_inference, gva_base_inference->frame_num,
-                                                                    buffer, meta)) {
-                        metas.push_back(*meta);
-                    }
+            //         if (!gva_base_inference->is_roi_inference_needed ||
+            //             gva_base_inference->is_roi_inference_needed(gva_base_inference,
+            //             gva_base_inference->frame_num,
+            //                                                         buffer, &roi)) {
+            //             metas.push_back(roi);
+            //         }
+            //     }
+            // }
+
+            GstVideoRegionOfInterestMeta *meta = NULL;
+            while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
+                if (!gva_base_inference->is_roi_inference_needed ||
+                    gva_base_inference->is_roi_inference_needed(gva_base_inference, gva_base_inference->frame_num,
+                                                                buffer, meta)) {
+                    metas.push_back(*meta);
                 }
             }
+
             break;
         }
         case FULL_FRAME: {

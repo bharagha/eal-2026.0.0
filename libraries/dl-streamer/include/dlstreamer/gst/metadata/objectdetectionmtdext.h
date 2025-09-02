@@ -11,7 +11,7 @@
 #include <gst/analytics/gstanalyticsmeta.h>
 #include <gst/gst.h>
 
-const int NEW_METADATA = 0;
+const int NEW_METADATA = 1;
 
 #if _MSC_VER
 #define DLS_EXPORT __declspec(dllexport)
