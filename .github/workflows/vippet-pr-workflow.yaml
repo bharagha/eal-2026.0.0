@@ -38,28 +38,17 @@ jobs:
   trivy-config-scan:
     permissions:
       contents: read
-    name: SCAN Trivy ${{ matrix.name }}
+    name: Trivy Dockerfiles Scan
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: vippet-app
-            path: tools/visual-pipeline-and-platform-evaluation-tool/Dockerfile.vippet
-            output: reports/trivy-vippet-app.json
-          - name: vippet-collector
-            path: tools/visual-pipeline-and-platform-evaluation-tool/collector/Dockerfile
-            output: reports/trivy-vippet-collector.json
-          - name: vippet-videogenerator
-            path: tools/visual-pipeline-and-platform-evaluation-tool/video_generator/Dockerfile
-            output: reports/trivy-vippet-videogenerator.json
     uses: ./.github/workflows/trivy-config-mode.yaml
     with:
-      dockerfile-path: ${{ matrix.path }}
+      dockerfile-path: 'tools/visual-pipeline-and-platform-evaluation-tool/'
       trivy-config-path: 'tools/visual-pipeline-and-platform-evaluation-tool/trivy.yaml'
       trivy-report-format: 'json'
       severity-levels: 'HIGH,CRITICAL'
-      output-report-path: ${{ matrix.output }}
-      name: ${{ matrix.name }}
+      output-report-path: vippet-trivy-dockerfiles.json
+      name: ViPPET Dockerfiles Scan
   final-check:
     permissions:
       contents: read
