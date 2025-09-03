@@ -135,14 +135,6 @@ void ROICoordinatesRestorer::updateCoordinatesToFullFrame(double &x_min, double 
             x_max = (od_meta_x + od_meta_w * x_max) / frame.width;
             y_max = (od_meta_y + od_meta_h * y_max) / frame.height;
         }
-
-        GstVideoRegionOfInterestMeta *meta = findRoiMeta(frame);
-        if (meta) {
-            x_min = (meta->x + meta->w * x_min) / frame.width;
-            y_min = (meta->y + meta->h * y_min) / frame.height;
-            x_max = (meta->x + meta->w * x_max) / frame.width;
-            y_max = (meta->y + meta->h * y_max) / frame.height;
-        }
     }
 }
 
