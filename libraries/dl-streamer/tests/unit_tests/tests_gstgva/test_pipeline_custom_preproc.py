@@ -57,7 +57,7 @@ appsrc name=mysrc
 C_VAAPI_PIPELINE_STR = f"""
 appsrc name=mysrc
 ! jpegparse ! vaapijpegdec ! video/x-raw(memory:VASurface)
-! gvaclassify inference-region=full-frame pre-process-backend=vaapi device=CPU model={C_MODEL_PATH} model-proc={C_MODEL_PROC_PATH}
+! gvaclassify inference-region=full-frame pre-process-backend=vaapi device=GPU model={C_MODEL_PATH} model-proc={C_MODEL_PROC_PATH}
 ! appsink name=mysink emit-signals=true sync=false
 """
 
