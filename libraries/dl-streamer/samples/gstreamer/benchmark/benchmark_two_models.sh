@@ -71,7 +71,7 @@ if [ "$DECODE_DEVICE" == "GPU" ] && [ "$INFERENCE_DEVICE" == "GPU" ]; then
     PARAMS+="pre-process-backend=va-surface-sharing"
 fi
 if [ "$DECODE_DEVICE" == "GPU" ] && [ "$INFERENCE_DEVICE" == "CPU" ]; then
-    PARAMS+="pre-process-backend=va"
+    PARAMS+="pre-process-backend=opencv"
 fi
 if [ "$INFERENCE_DEVICE" == "CPU" ] && [ "$NUMBER_PROCESSES" -gt 1 ]; then # limit number inference threads per process
     CORES=$(nproc)
