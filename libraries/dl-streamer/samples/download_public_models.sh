@@ -166,10 +166,10 @@ fi
 set -u  # Re-enable nounset option: treat any attempt to use an unset variable as an error
 
 if [ "$ID" == "fedora" ]; then
-  export PYTHON=/usr/bin/python3.10
-  $PYTHON -m ensurepip --upgrade || handle_error $LINENO
+  export PYTHON_CREATE_VENV=/usr/bin/python3.10
+  $PYTHON_CREATE_VENV -m ensurepip --upgrade || handle_error $LINENO
 else
-  export PYTHON=python3
+  export PYTHON_CREATE_VENV=python3
 fi
 
 # Set the name of the virtual environment directory
@@ -178,7 +178,7 @@ VENV_DIR_QUANT="$HOME/.virtualenvs/dlstreamer-quantization"
 # Create a Python virtual environment if it doesn't exist
 if [ ! -d "$VENV_DIR_QUANT" ]; then
   echo "Creating virtual environment in $VENV_DIR_QUANT..."
-  $PYTHON -m venv "$VENV_DIR_QUANT" || handle_error $VENV_DIR_QUANT
+  $PYTHON_CREATE_VENV -m venv "$VENV_DIR_QUANT" || handle_error $VENV_DIR_QUANT
 fi
 
 # Activate the virtual environment
@@ -188,7 +188,8 @@ source "$VENV_DIR_QUANT/bin/activate"
 # Upgrade pip in the virtual environment
 pip install --no-cache-dir --upgrade pip
 
-# Install OpenVINO module
+# Install OpenVINO module with compatible numpy version
+pip install --no-cache-dir "numpy<2.5.0,>=1.16.6" || handle_error $LINENO
 pip install --no-cache-dir openvino==2025.2.0 || handle_error $LINENO
 
 pip install --no-cache-dir onnx || handle_error $LINENO
@@ -198,7 +199,7 @@ pip install --no-cache-dir --upgrade nncf || handle_error $LINENO
 
 # Check and upgrade ultralytics if necessary
 if [[ "${MODEL:-}" =~ yolo.* || "${MODEL:-}" == "all" ]]; then
-  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu ultralytics==8.3.153 || handle_error $LINENO
+  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu "ultralytics==8.3.153" "numpy<2.5.0" || handle_error $LINENO
 fi
 
 # Set the name of the virtual environment directory
@@ -207,7 +208,7 @@ VENV_DIR="$HOME/.virtualenvs/dlstreamer"
 # Create a Python virtual environment if it doesn't exist
 if [ ! -d "$VENV_DIR" ]; then
   echo "Creating virtual environment in $VENV_DIR..."
-  $PYTHON -m venv "$VENV_DIR" || handle_error $LINENO
+  $PYTHON_CREATE_VENV -m venv "$VENV_DIR" || handle_error $LINENO
 fi
 
 # Activate the virtual environment
@@ -217,7 +218,8 @@ source "$VENV_DIR/bin/activate"
 # Upgrade pip in the virtual environment
 pip install --no-cache-dir --upgrade pip
 
-# Install OpenVINO module
+# Install OpenVINO module with compatible numpy version
+pip install --no-cache-dir "numpy<2.0.0,>=1.16.6" || handle_error $LINENO
 pip install --no-cache-dir openvino==2024.6.0 || handle_error $LINENO
 pip install --no-cache-dir openvino-dev==2024.6.0 || handle_error $LINENO
 
@@ -228,7 +230,7 @@ pip install --no-cache-dir --upgrade nncf || handle_error $LINENO
 
 # Check and upgrade ultralytics if necessary
 if [[ "${MODEL:-}" =~ yolo.* || "${MODEL:-}" == "all" ]]; then
-  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu ultralytics==8.3.153 || handle_error $LINENO
+  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu "ultralytics==8.3.153" "numpy<2.0.0" || handle_error $LINENO
 fi
 
 # Install dependencies for CLIP models
@@ -264,7 +266,7 @@ quantize_yolo_model() {
 
     source "$VENV_DIR_QUANT/bin/activate"
     cd "$MODELS_PATH"
-    $PYTHON - <<EOF "$MODEL_NAME" "$DATASET_MANIFEST"
+    python3 - <<EOF "$MODEL_NAME" "$DATASET_MANIFEST"
 import openvino as ov
 import nncf
 import torch
@@ -415,7 +417,7 @@ export_yolov5_model() {
     cd "$model_path"
     source "$VENV_DIR/bin/activate"
 
-    $PYTHON - <<EOF
+    python3 - <<EOF
 import os
 from ultralytics import YOLO
 from openvino.runtime import Core, save_model
@@ -503,8 +505,8 @@ for MODEL_NAME in "${YOLOv5_MODELS[@]}"; do
       curl -L -O "https://github.com/ultralytics/yolov5/releases/download/v7.0/${MODEL_NAME}.pt"
       source "$VENV_DIR/bin/activate"
 
-      $PYTHON export.py --weights "${MODEL_NAME}.pt" --include openvino --img-size 640 --dynamic
-      $PYTHON - <<EOF "${MODEL_NAME}"
+      python3 export.py --weights "${MODEL_NAME}.pt" --include openvino --img-size 640 --dynamic
+      python3 - <<EOF "${MODEL_NAME}"
 import sys, os
 from openvino.runtime import Core
 from openvino.runtime import save_model
@@ -522,8 +524,8 @@ EOF
 
 # # Quantization to INT8 temporarily disabled - causes error which breaks execution
 #       mkdir -p "$MODEL_DIR/INT8"
-#       $PYTHON export.py --weights "${MODEL_NAME}.pt" --include openvino --img-size 640 --dynamic --int8
-#       $PYTHON - <<EOF "${MODEL_NAME}"
+#       python3 export.py --weights "${MODEL_NAME}.pt" --include openvino --img-size 640 --dynamic --int8
+#       python3 - <<EOF "${MODEL_NAME}"
 # import sys, os
 # from openvino.runtime import Core
 # from openvino.runtime import save_model
@@ -571,7 +573,7 @@ if [ "$MODEL" == "yolov7" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all"
     echo "Downloading and converting: ${MODEL_DIR}"
     git clone https://github.com/WongKinYiu/yolov7.git
     cd yolov7
-    $PYTHON export.py --weights  yolov7.pt  --grid --dynamic-batch
+    python3 export.py --weights  yolov7.pt  --grid --dynamic-batch
     ovc yolov7.onnx --compress_to_fp16=True
     mv yolov7.xml "$MODEL_DIR/FP16"
     mv yolov7.bin "$MODEL_DIR/FP16"
@@ -601,7 +603,7 @@ export_yolo_model() {
     cd "$MODEL_DIR"
     source "$VENV_DIR/bin/activate"
 
-    $PYTHON - <<EOF "$MODEL_NAME" "$MODEL_TYPE"
+    python3 - <<EOF "$MODEL_NAME" "$MODEL_TYPE"
 from ultralytics import YOLO
 import openvino, sys, shutil, os
 
@@ -713,7 +715,7 @@ if [[ "$MODEL" == "yolov8_license_plate_detector" ]] || [[ "$MODEL" == "all" ]];
     cd "$MODEL_DIR"
 
     curl -L -k -o ${MODEL_NAME}.zip 'https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/license-plate-reader.zip'
-    $PYTHON -c "
+    python3 -c "
 import zipfile
 import os
 with zipfile.ZipFile('${MODEL_NAME}.zip', 'r') as zip_ref:
@@ -750,7 +752,7 @@ if [[ "$MODEL" == "centerface" ]] || [[ "$MODEL" == "all" ]]; then
     mv centerface.bin "$MODEL_DIR"
     cd ../../..
     rm -rf CenterFace
-    $PYTHON - <<EOF
+    python3 - <<EOF
 import openvino
 import sys, os
 
@@ -798,7 +800,7 @@ if [ "$MODEL" == "hsemotion" ] || [ "$MODEL" == "all" ]; then
     mv enet_b0_8_va_mtl.bin "$MODEL_DIR/$MODEL_NAME.bin"
     cd ../../../..
     rm -rf face-emotion-recognition
-    $PYTHON - <<EOF
+    python3 - <<EOF
 import openvino
 import sys, os
 
@@ -837,7 +839,7 @@ for MODEL_NAME in "${CLIP_MODELS[@]}"; do
       curl -L -o $IMAGE_PATH $IMAGE_URL
       echo "Image downloaded to $IMAGE_PATH"
       source "$VENV_DIR/bin/activate"
-      $PYTHON - <<EOF "$MODEL_NAME" "$IMAGE_PATH"
+      python3 - <<EOF "$MODEL_NAME" "$IMAGE_PATH"
 from transformers import CLIPProcessor, CLIPVisionModel
 import PIL
 import openvino as ov
@@ -897,7 +899,7 @@ if [[ "$MODEL" == "deeplabv3" ]] || [[ "$MODEL" == "all" ]]; then
     omz_downloader --name "$MODEL_NAME"
     omz_converter --name "$MODEL_NAME"
     cd "$MODEL_DIR"
-    $PYTHON - <<EOF "$DST_FILE1"
+    python3 - <<EOF "$DST_FILE1"
 import openvino
 import sys, os, shutil
 
@@ -932,7 +934,7 @@ if [[ "$MODEL" == "ch_PP-OCRv4_rec_infer" ]] || [[ "$MODEL" == "all" ]]; then
     cd "$MODEL_DIR"
 
     curl -L -k -o ${MODEL_NAME}.zip 'https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/license-plate-reader.zip'
-    $PYTHON -c "
+    python3 -c "
 import zipfile
 import os
 with zipfile.ZipFile('${MODEL_NAME}.zip', 'r') as zip_ref:
