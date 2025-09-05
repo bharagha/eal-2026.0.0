@@ -167,6 +167,11 @@ def prepare_video_and_constants(
                 f"{MODELS_PATH}/public/yolov8_license_plate_detector/FP32/yolov8_license_plate_detector.xml"
             )
             constants["OBJECT_DETECTION_MODEL_PROC"] = ""
+        case "Human Pose Estimation 0001 (FP16)":
+            constants["OBJECT_DETECTION_MODEL_PATH"] = (
+                f"{MODELS_PATH}/intel/human-pose-estimation-0001/FP16/human-pose-estimation-0001.xml"
+            )
+            constants["OBJECT_DETECTION_MODEL_PROC"] = f"{MODELS_PATH}/intel/human-pose-estimation-0001/human-pose-estimation-0001.json"
         case _:
             raise ValueError("Unrecognized Object Detection Model")
 

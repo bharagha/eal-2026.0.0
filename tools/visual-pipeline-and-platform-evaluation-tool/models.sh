@@ -121,7 +121,7 @@ with open(json_path, 'w') as f:
         echo "Model mobilenet-v2-pytorch already exists. Skipping download."
     fi
 
-    # TEMPORARY: download vehicle-attributes-recognition-barrier-0039 until the download script supports it
+    # Download vehicle-attributes-recognition-barrier-0039 model
     if [ ! -d /output/intel/vehicle-attributes-recognition-barrier-0039 ]; then
         omz_downloader --name vehicle-attributes-recognition-barrier-0039 --output_dir /output
         omz_converter --name vehicle-attributes-recognition-barrier-0039 --output_dir /output \
@@ -133,7 +133,7 @@ with open(json_path, 'w') as f:
         echo "Model vehicle-attributes-recognition-barrier-0039 already exists. Skipping download."
     fi
 
-    # TEMPORARY: download human-pose-estimation-0001 until the download script supports it
+    # Download human-pose-estimation-0001 model
     if [ ! -d /output/intel/human-pose-estimation-0001 ]; then
         omz_downloader --name human-pose-estimation-0001 --output_dir /output
         omz_converter --name human-pose-estimation-0001 --output_dir /output \
