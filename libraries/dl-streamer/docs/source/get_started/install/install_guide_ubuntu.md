@@ -244,27 +244,6 @@ C. List available versions
 sudo apt show -a intel-dlstreamer
 ```
 
-### [Optional] Step 7: OpenVINO Gen AI installation
-
-To use [gvagenai element](https://docs.openedgeplatform.intel.com/oep/edge-ai-libraries/dl-streamer/elements/gvagenai.html) there is need to:
-
-A. Follow instructions to download [OpenVINO Gen AI archive](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-genai.html)
-
-B. Move the extracted directory to /opt/intel/openvino_genai
-
-For example:
-
-```bash
-mv ./openvino_genai_2025.2.0.0 /opt/intel/openvino_genai
-```
-
-C. Run command:
-
-```bash
-source /opt/intel/openvino_genai/setupvars.sh
-```
-
-
 ## Option #2: Install Docker image from Docker Hub and run it
 
 ### Step 1: Installation of prerequisites
