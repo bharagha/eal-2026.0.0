@@ -18,6 +18,14 @@ BUILD_TYPE 			?= Release
 
 DOCKER_PRIVATE_REGISTRY := # Empty on purpose
 
+LINUX_DISTRIBUTION := $(shell lsb_release -ds | cut -d " " -f1)
+ifeq ($(LINUX_DISTRIBUTION), Ubuntu)
+	. /opt/openvino_genai/setupvars.sh
+	ENABLE_GENAI := ON
+else
+	ENABLE_GENAI := OFF
+endif
+
 export PATH 					:= ${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install/bin:${PROJECT_DIRECTORY}/build/intel64/${BUILD_TYPE}/bin:${HOME}/.local/bin:${HOME}/python3venv/bin:${PATH}
 export GST_PLUGIN_PATH 			:= ${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/gstreamer-bin/lib/gstreamer-1.0:${PROJECT_DIRECTORY}/build/intel64/${BUILD_TYPE}/lib:/usr/lib/x86_64-linux-gnu/gstreamer-1.0
 export LIBRARY_PATH 			:= ${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install/lib:${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/gstreamer-bin/lib:${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/opencv-bin/lib:${PROJECT_DIRECTORY}/build/intel64/${BUILD_TYPE}/lib:/usr/lib
@@ -38,9 +46,6 @@ dependencies:
 
 .PHONY: build
 build: dependencies ## Compile Deep Learning Streamer
-  LINUX_DISTRIBUTION := $(shell lsb_release -ds | cut -d " " -f1)
-  ifeq ($(LINUX_DISTRIBUTION), Ubuntu)
-	source /opt/openvino_genai/setupvars.sh
 	cmake \
 		-B build \
 		-DCMAKE_PREFIX_PATH:PATH="${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install;${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/opencv-bin" \
@@ -51,21 +56,8 @@ build: dependencies ## Compile Deep Learning Streamer
 		-DENABLE_RDKAFKA_INSTALLATION=ON \
 		-DENABLE_VAAPI=ON \
 		-DENABLE_SAMPLES=ON \
-		-DENABLE_GENAI=ON \
+		-DENABLE_GENAI=${ENABLE_GENAI} \
 		-DENABLE_TESTS=OFF
-	else
-	cmake \
-		-B build \
-		-DCMAKE_PREFIX_PATH:PATH="${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install;${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/opencv-bin" \
-		-DCMAKE_INCLUDE_PATH:PATH=${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install/include \
-		-DCMAKE_LIBRARY_PATH:PATH=${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install/lib \
-		-DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-		-DENABLE_PAHO_INSTALLATION=ON \
-		-DENABLE_RDKAFKA_INSTALLATION=ON \
-		-DENABLE_VAAPI=ON \
-		-DENABLE_SAMPLES=ON \
-		-DENABLE_TESTS=OFF
-	endif
 	cmake --build build
 
 .PHONY: install
