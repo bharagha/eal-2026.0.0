@@ -60,7 +60,7 @@ elif [ "$INFERENCE_DEVICE" == "GPU" ]; then
     DECODE_ELEMENT+=" ! video/x-raw\(memory:VAMemory\)"
 fi
 
-if [ "$DECODE_DEVICE" != "AUTO" ] && [ "$INFERENCE_DEVICE" != "CPU" ] && [ "$INFERENCE_DEVICE" != "GPU" ]; then
+if [ "$DECODE_DEVICE" != "AUTO" ] && [ "$DECODE_DEVICE" != "CPU" ] && [ "$DECODE_DEVICE" != "GPU" ]; then
   echo "Incorrect parameter DECODE_DEVICE. Supported values: CPU, GPU, AUTO"
   exit
 fi
