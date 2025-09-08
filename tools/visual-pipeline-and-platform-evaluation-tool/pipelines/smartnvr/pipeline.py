@@ -333,26 +333,35 @@ class PipelineElementsSelector:
     def __init__(self, parameters: dict, elements: list):
         self.parameters = parameters
         self.elements = elements
+        self.gpu_id = -1
+        self.vaapi_suffix = None
 
         # Calculate vaapi_suffix once
         device = parameters.get("object_detection_device", "")
-        # If there is more than one GPU, device names are like GPU.0, GPU.1, ...
-        # If there is only one GPU, device name is just GPU
-        if device.startswith("GPU.") and int(device.split(".")[1]) > 0:
-            gpu_index = int(device.split(".")[1])
-            self.vaapi_suffix = str(
-                128 + gpu_index
-            )  # means that there is more than one GPU and GPU.N was selected (N>0), 128 + 1 = 129, 128 + 2 = 130, etc.
-        else:
-            self.vaapi_suffix = (
-                None  # means that either CPU, NPU, GPU, or GPU.0 was selected
-            )
 
-        # Compositor
-        # If vaapi_suffix is set, try to find varenderD{suffix}compositor first, e.g. varenderD129compositor for GPU.1
-        # If not found, fallback to vacompositor or compositor
+        # Determine gpu_id and vaapi_suffix
+        # If there is only one GPU, device name is just GPU
+        # If there is more than one GPU, device names are like GPU.0, GPU.1, ...
+        if device == "GPU":
+            self.gpu_id = 0
+        elif device.startswith("GPU."):
+            try:
+                gpu_index = int(device.split(".")[1])
+                if gpu_index == 0:
+                    self.gpu_id = 0
+                elif gpu_index > 0:
+                    self.vaapi_suffix = str(128 + gpu_index)
+                    self.gpu_id = gpu_index
+            except (IndexError, ValueError):
+                self.gpu_id = -1
+        else:
+            self.gpu_id = -1
+
         self._compositor_element = None
-        if self.vaapi_suffix is not None:
+        self._encoder_element = None
+        self._decoder_element = None
+        self._postprocessing_element = None
+        if self.gpu_id > 0:
             varender_compositor = f"varenderD{self.vaapi_suffix}compositor"
             self._compositor_element = next(
                 (
@@ -362,32 +371,9 @@ class PipelineElementsSelector:
                 ),
                 None,
             )
-        if self._compositor_element is None:
-            self._compositor_element = next(
-                (
-                    "vacompositor"
-                    for element in elements
-                    if element[1] == "vacompositor"
-                ),
-                next(
-                    (
-                        "compositor"
-                        for element in elements
-                        if element[1] == "compositor"
-                    ),
-                    None,
-                ),
-            )
 
-        # Encoder
-        # If vaapi_suffix is set, try to find varenderD{suffix}h264lpenc first, e.g. varenderD129h264lpenc for GPU.1
-        # If not found, try varenderD{suffix}h264enc
-        # If still not found, fallback to vah264lpenc, vah264enc, or x264enc
-        self._encoder_element = None
-        if self.vaapi_suffix is not None:
             varender_encoder_lp = f"varenderD{self.vaapi_suffix}h264lpenc"
             varender_encoder = f"varenderD{self.vaapi_suffix}h264enc"
-
             self._encoder_element = next(
                 (
                     varender_encoder_lp
@@ -403,27 +389,7 @@ class PipelineElementsSelector:
                     None,
                 ),
             )
-        if self._encoder_element is None:
-            self._encoder_element = next(
-                ("vah264lpenc" for element in elements if element[1] == "vah264lpenc"),
-                next(
-                    ("vah264enc" for element in elements if element[1] == "vah264enc"),
-                    next(
-                        (
-                            "x264enc bitrate=16000 speed-preset=superfast"
-                            for element in elements
-                            if element[1] == "x264enc"
-                        ),
-                        None,
-                    ),
-                ),
-            )
 
-        # Decoder
-        # If vaapi_suffix is set, try to find varenderD{suffix}h264dec first, e.g. varenderD129h264dec for GPU.1
-        # If not found, fallback to vah264dec or decodebin
-        self._decoder_element = None
-        if self.vaapi_suffix is not None:
             varender_decoder = f"varenderD{self.vaapi_suffix}h264dec"
             self._decoder_element = next(
                 (
@@ -433,24 +399,7 @@ class PipelineElementsSelector:
                 ),
                 None,
             )
-        if self._decoder_element is None:
-            self._decoder_element = next(
-                (
-                    "vah264dec ! video/x-raw(memory:VAMemory)"
-                    for element in elements
-                    if element[1] == "vah264dec"
-                ),
-                next(
-                    ("decodebin" for element in elements if element[1] == "decodebin"),
-                    None,
-                ),
-            )
 
-        # Postprocessing
-        # If vaapi_suffix is set, try to find varenderD{suffix}postproc first, e.g. varenderD129postproc for GPU.1
-        # If not found, fallback to vapostproc or videoscale
-        self._postprocessing_element = None
-        if self.vaapi_suffix is not None:
             varender_postprocessing = f"varenderD{self.vaapi_suffix}postproc"
             self._postprocessing_element = next(
                 (
@@ -460,17 +409,64 @@ class PipelineElementsSelector:
                 ),
                 None,
             )
-        if self._postprocessing_element is None:
-            self._postprocessing_element = next(
-                ("vapostproc" for element in elements if element[1] == "vapostproc"),
+        elif self.gpu_id == 0:
+            self._compositor_element = next(
+                (
+                    "vacompositor"
+                    for element in elements
+                    if element[1] == "vacompositor"
+                ),
+                None,
+            )
+
+            self._encoder_element = next(
+                ("vah264lpenc" for element in elements if element[1] == "vah264lpenc"),
                 next(
-                    (
-                        "videoscale"
-                        for element in elements
-                        if element[1] == "videoscale"
-                    ),
+                    ("vah264enc" for element in elements if element[1] == "vah264enc"),
                     None,
                 ),
+            )
+
+            self._decoder_element = next(
+                (
+                    "vah264dec ! video/x-raw(memory:VAMemory)"
+                    for element in elements
+                    if element[1] == "vah264dec"
+                ),
+                None,
+            )
+
+            self._postprocessing_element = next(
+                ("vapostproc" for element in elements if element[1] == "vapostproc"),
+                None,
+            )
+
+        if self._compositor_element is None:
+            self._compositor_element = next(
+                ("compositor" for element in elements if element[1] == "compositor"),
+                None,
+            )
+
+        if self._encoder_element is None:
+            self._encoder_element = next(
+                (
+                    "x264enc bitrate=16000 speed-preset=superfast"
+                    for element in elements
+                    if element[1] == "x264enc"
+                ),
+                None,
+            )
+
+        if self._decoder_element is None:
+            self._decoder_element = next(
+                ("decodebin" for element in elements if element[1] == "decodebin"),
+                None,
+            )
+
+        if self._postprocessing_element is None:
+            self._postprocessing_element = next(
+                ("videoscale" for element in elements if element[1] == "videoscale"),
+                None,
             )
 
     def compositor_element(self):
