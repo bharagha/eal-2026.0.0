@@ -19,109 +19,97 @@ on:
       - 'sample-applications/chat-question-and-answer-core/**'
 
 jobs:
-   
-  trivy-scan:
+  
+  build:
     runs-on: ubuntu-22.04-32core-128GB
-    permissions:
-      contents: read
+    defaults:
+      run:
+        working-directory: sample-applications/chat-question-and-answer-core
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
-        with:
-          persist-credentials: false
-      
-      - name: Build Docker images
+      - name: Checkout code
+        uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+
+      - name: Build all Docker images via Makefile
+        run: make build
+
+      - name: Generate scan matrix from Makefile
+        id: set-matrix
+        run: echo "matrix=$(make get-scan-matrix-json)" >> $GITHUB_OUTPUT
+
+      - name: Save Docker images to tar files
         run: |
-          docker build -f ./sample-applications/chat-question-and-answer-core/docker/Dockerfile -t chatqna-core-backend:latest ./sample-applications/chat-question-and-answer-core/
-          docker build -f ./sample-applications/chat-question-and-answer-core/ui/Dockerfile -t chatqna-core-frontend:latest ./sample-applications/chat-question-and-answer-core/ui/
-      
-      - name: Run Trivy Filesystem Scan
-        uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
-        id: trivy-fs
-        with:
-          scan_type: "fs"  
-          scan-scope: "all"  
-          severity: "HIGH,CRITICAL" 
-          format: "json"
-          scan_target: "sample-applications/chat-question-and-answer-core/"
-          report_suffix: "-fs-chat-qna-core-CT7"
-      
-         
-      - name: Run trivy Scan - chat-qna-core-backend (HTML Report)
-        uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
-        id: chat-qna-core-backend-html
-        with:
-          scan_type: "image"  
-          scan-scope: "all"
-          scan_target: "chatqna-core-backend:latest"  
-          severity: "HIGH,CRITICAL"  
-          format: "table"
-          report_suffix: "-image-chat-qna-core-backend-html-CT248"
-          generate_sbom: "false"
+          for image_tag in $(make get-image-tags); do
+            # Sanitize image tag to create a valid filename (e.g., chatqna-core-frontend:latest -> chatqna-core-frontend-latest.tar)
+            filename=$(echo "$image_tag" | tr ':' '-')
+            echo "Saving image $image_tag to ${filename}.tar"
+            docker save -o "${filename}.tar" "$image_tag"
+          done
 
-      - name: Run trivy Scan - chat-qna-core-backend (SPDX SBOM)
-        uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
-        id: chat-qna-core-backend-spdx
-        with:
-          scan_type: "image"  
-          scan-scope: "all"
-          scan_target: "chatqna-core-backend:latest"  
-          severity: "HIGH,CRITICAL"  
-          format: "spdx-json"
-          scanners: "vuln"
-          report_suffix: "-image-chat-qna-core-backend-spdx-CT248"
-          generate_sbom: "false"
-          
-
-      - name: Run trivy Scan - chat-qna-core-frontend (HTML Report)
-        uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
-        id: chat-qna-core-frontend-html
-        with:
-          scan_type: "image"  
-          scan-scope: "all"
-          scan_target: "chatqna-core-frontend:latest"  
-          severity: "HIGH,CRITICAL"  
-          format: "table"
-          report_suffix: "-image-chat-qna-core-frontend-html-CT248"
-          generate_sbom: "false"
-
-      - name: Run trivy Scan - chat-qna-core-frontend (SPDX SBOM)
-        uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
-        id: chat-qna-core-frontend-spdx
-        with:
-          scan_type: "image"  
-          scan-scope: "all"
-          scan_target: "chatqna-core-frontend:latest"  
-          severity: "HIGH,CRITICAL"  
-          format: "spdx-json"
-          scanners: "vuln"
-          report_suffix: "-image-chat-qna-core-frontend-spdx-CT248"
-          generate_sbom: "false"
-
-      
-      - name: Scan Dockerfile with Trivy-backend
-        uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
-        with:
-          scan_type: "config"
-          scan_target: "sample-applications/chat-question-and-answer-core/"
-          severity: "HIGH,CRITICAL"
-          format: "json"
-          misconfig_scanners: "dockerfile"
-          report_suffix: "-config-chat-qna-core-backend-CT222"
-
-      - name: Scan Dockerfile with Trivy-frontend
-        uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
-        with:
-          scan_type: "config"
-          scan_target: "sample-applications/chat-question-and-answer-core/ui/"
-          severity: "HIGH,CRITICAL"
-          format: "json"
-          misconfig_scanners: "dockerfile"
-          report_suffix: "-config-chat-qna-core-frontend-CT222"
-           
-      - name: Upload Report
+      - name: Upload image artifacts
         uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
         with:
-          name: trivy-report-chat-qna-core
+          name: docker-images
+          path: sample-applications/chat-question-and-answer-core/*.tar
+
+  trivy-scans:
+    runs-on: ubuntu-22.04-32core-128GB
+    needs: build # This job runs after the 'build' job is complete
+    defaults:
+      run:
+        working-directory: sample-applications/chat-question-and-answer-core
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+
+      - name: Download all Docker image artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-images
+
+      - name: Load Docker image for ${{ matrix.name }}
+        run: |
+          filename=$(echo "${{ matrix.image }}" | tr ':' '-')
+          docker load -i "${filename}.tar"
+
+      - name: Run Trivy Image Scan - ${{ matrix.name }} (HTML)
+        uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
+        with:
+          scan_type: "image"
+          scan_target: ${{ matrix.image }}
+          severity: "HIGH,CRITICAL"
+          format: "table"
+          report_suffix: "-image-${{ matrix.name }}-html-CT248"
+
+      - name: Run Trivy Image Scan - ${{ matrix.name }} (SPDX)
+        uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
+        with:
+          scan_type: "image"
+          scan_target: ${{ matrix.image }}
+          severity: "HIGH,CRITICAL"
+          format: "spdx-json"
+          scanners: "vuln"
+          report_suffix: "-image-${{ matrix.name }}-spdx-CT248"
+
+      - name: Scan Dockerfile - ${{ matrix.name }}
+        uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
+        with:
+          scan_type: "config"
+          scan_target: ${{ matrix.context }} # Uses the dynamic context path from the matrix
+          severity: "HIGH,CRITICAL"
+          format: "json"
+          misconfig_scanners: "dockerfile"
+          report_suffix: "-config-${{ matrix.name }}-CT222"
+          working_dir: "sample-applications/chat-question-and-answer-core/" # Root path for the scan
+
+      - name: Upload Trivy Report for ${{ matrix.name }}
+        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+        with:
+          name: trivy-report-${{ matrix.name }}
           path: security-results/trivy*
 
   bandit-scan:
