@@ -44,6 +44,7 @@ Requires: x264-libs
 Requires: openexr
 Requires: tbb
 Requires: intel-media-driver
+Requires: libva-intel-media-driver
 Requires: openvino-2025.2.0
 
 %description
