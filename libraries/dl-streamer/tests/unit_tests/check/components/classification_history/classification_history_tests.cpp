@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
+#include "glib.h"
 #include "gst/analytics/analytics.h"
 #include "gva_utils.h"
 #include <classification_history.h>
@@ -15,7 +16,6 @@
 
 #include <gst/check/gstcheck.h>
 
-#include "region_of_interest.h"
 #include <gst/video/gstvideometa.h>
 
 using ::testing::_;
@@ -61,6 +61,7 @@ struct ClassificationHistoryTest : public ::testing::Test {
     unsigned reclassify_interval;
     GstBuffer *buffer = nullptr;
     GstVideoRegionOfInterestMeta *meta = nullptr;
+    GstAnalyticsODMtd od_mtd = {0, nullptr};
     std::vector<std::string> object_classes;
 
     GstBuffer *SetUpBuffer(const TestData &test_data, int id) {
@@ -156,7 +157,6 @@ struct ClassificationHistoryTest : public ::testing::Test {
             throw std::runtime_error("ClassificationHistoryTest: Failed to add GstAnalyticsRelationMeta to buffer");
         }
 
-        GstAnalyticsODMtd od_mtd;
         if (!gst_analytics_relation_meta_add_oriented_od_mtd(relation_meta, label_quark, 0, 0, 0, 0, 0.0, 0.0,
                                                              &od_mtd)) {
             throw std::runtime_error("ClassificationHistoryTest: Failed to add object detection metadata");
@@ -210,8 +210,12 @@ TEST_F(ClassificationHistoryTest, UpdateRoiParamsHistory_test) {
 TEST_F(ClassificationHistoryTest, ClassificationHistory_test) {
     gva_classify->reclassify_interval = 3;
     set_object_id(meta, 1);
+    set_od_id(od_mtd, 1);
     gint id;
-    get_object_id(meta, &id);
+    get_od_id(od_mtd, &id);
+    gint roi_id;
+    get_object_id(meta, &roi_id);
+    ASSERT_EQ(id, roi_id);
     std::string structure_name = "some_params";
     GstStructure *some_params = gst_structure_new_empty(structure_name.c_str());
     gst_structure_set_name(some_params, structure_name.c_str());
@@ -225,8 +229,12 @@ TEST_F(ClassificationHistoryTest, ClassificationHistory_test) {
 TEST_F(ClassificationHistoryTest, ClassificationHistory_advance_test) {
     gva_classify->reclassify_interval = 4;
     set_object_id(meta, 1);
+    set_od_id(od_mtd, 1);
     gint id;
-    get_object_id(meta, &id);
+    get_od_id(od_mtd, &id);
+    gint roi_id;
+    get_object_id(meta, &roi_id);
+    ASSERT_EQ(id, roi_id);
     std::string structure_name = "some_params";
     GstStructure *some_params = gst_structure_new_empty(structure_name.c_str());
     gst_structure_set_name(some_params, structure_name.c_str());
@@ -252,27 +260,51 @@ TEST_F(ClassificationHistoryTest, FillROIParams_test) {
     gva_classify->reclassify_interval = 4;
 
     void *state = nullptr;
-    GstVideoRegionOfInterestMeta *roi = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(image_buf, &state);
+    // GstVideoRegionOfInterestMeta *roi = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(image_buf, &state);
+
+    GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(image_buf);
+    ASSERT_NE(relation_meta, nullptr);
+
+    GstAnalyticsODMtd od_meta;
+    gboolean ret =
+        gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(), &od_meta);
+    ASSERT_TRUE(ret);
+
+    GstVideoRegionOfInterestMeta *roi = gst_buffer_get_video_region_of_interest_meta_id(image_buf, od_meta.id);
+    ASSERT_NE(roi, nullptr);
 
     set_object_id(roi, 13);
+    set_od_id(od_meta, 13);
     int id;
-    get_object_id(roi, &id);
+    get_od_id(od_meta, &id);
+    int roi_id;
+    get_object_id(roi, &roi_id);
+    ASSERT_EQ(id, roi_id);
     std::string structure_name = "some_params";
     GstStructure *input_params = gst_structure_new_empty(structure_name.c_str());
     gst_structure_set_name(input_params, structure_name.c_str());
 
-    ASSERT_TRUE(classification_history->IsROIClassificationNeeded(roi, buffer, 0));
+    ASSERT_TRUE(classification_history->IsROIClassificationNeeded(roi, image_buf, 0));
     classification_history->UpdateROIParams(id, input_params);
-    ASSERT_FALSE(classification_history->IsROIClassificationNeeded(roi, buffer, 1));
+    ASSERT_FALSE(classification_history->IsROIClassificationNeeded(roi, image_buf, 1));
 
     ASSERT_NO_THROW(classification_history->FillROIParams(image_buf));
 
     state = nullptr;
     roi = nullptr;
+    od_meta = {0, nullptr};
     GstStructure *output_params = nullptr;
-    if (roi = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(image_buf, &state)) {
+    // if (roi = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(image_buf, &state)) {
+    //     output_params = gst_video_region_of_interest_meta_get_param(roi, structure_name.c_str());
+    // }
+
+    ret = gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(), &od_meta);
+    ASSERT_TRUE(ret);
+
+    if ((roi = gst_buffer_get_video_region_of_interest_meta_id(image_buf, od_meta.id))) {
         output_params = gst_video_region_of_interest_meta_get_param(roi, structure_name.c_str());
     }
+
     ASSERT_FALSE(output_params == nullptr);
 }
 
