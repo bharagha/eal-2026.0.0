@@ -14,12 +14,16 @@ concurrency:
 on:
   pull_request:
     branches:
-      - ciscans-makefile
+      - main
     paths:
       - 'sample-applications/chat-question-and-answer-core/**'
 
+env:
+  APP_PATH: sample-applications/chat-question-and-answer-core
+
 jobs:
   
+  # Job 1: A fast job to generate the dynamic matrix from the Makefile
   setup:
     runs-on: ubuntu-22.04-32core-128GB
     outputs:
@@ -30,7 +34,7 @@ jobs:
 
       - name: Generate scan matrix from Makefile
         id: set-matrix
-        working-directory: sample-applications/chat-question-and-answer-core
+        working-directory: ${{ env.APP_PATH }}
         run: echo "matrix=$(make get-scan-matrix-json)" >> $GITHUB_OUTPUT
 
   # Job 2: Build AND Scan each component in parallel
@@ -52,11 +56,11 @@ jobs:
           scan-scope: "all"  
           severity: "HIGH,CRITICAL" 
           format: "json"
-          scan_target: "sample-applications/chat-question-and-answer-core/"
+          scan_target: ${{ env.APP_PATH }}
           report_suffix: "-fs-chat-qna-core-CT7"
 
       - name: Build Docker image for ${{ matrix.name }}
-        working-directory: sample-applications/chat-question-and-answer-core
+        working-directory: ${{ env.APP_PATH }}
         run: make build-${{ matrix.name }}
 
       - name: Run Trivy Image Scan - ${{ matrix.name }} (HTML)
@@ -68,7 +72,7 @@ jobs:
           severity: "HIGH,CRITICAL"  
           format: "table"
           generate_sbom: "false"
-          report_suffix: "-image-${{ matrix.name }}-html"
+          report_suffix: "-image-${{ matrix.name }}-html-CT248"
 
       - name: Run Trivy Image Scan - ${{ matrix.name }} (SPDX)
         uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
@@ -80,7 +84,7 @@ jobs:
           format: "spdx-json"
           scanners: "vuln"
           generate_sbom: "false"
-          report_suffix: "-image-${{ matrix.name }}-spdx"
+          report_suffix: "-image-${{ matrix.name }}-spdx-CT248"
 
       - name: Scan Dockerfile - ${{ matrix.name }}
         uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
@@ -90,8 +94,8 @@ jobs:
           severity: "HIGH,CRITICAL"
           format: "json"
           misconfig_scanners: "dockerfile"
-          report_suffix: "-config-${{ matrix.name }}"
-          working_dir: "sample-applications/chat-question-and-answer-core/"
+          report_suffix: "-config-${{ matrix.name }}-CT222"
+          working_dir: ${{ env.APP_PATH }}
 
       - name: Upload Trivy Report for ${{ matrix.name }}
         uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
