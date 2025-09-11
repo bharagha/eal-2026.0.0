@@ -29,8 +29,6 @@ jobs:
     runs-on: ubuntu-22.04-32core-128GB
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
-      python_version: ${{ steps.set-versions.outputs.python }}
-      node_version: ${{ steps.set-versions.outputs.node }}
     steps:
       - name: Checkout code
         uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
@@ -40,22 +38,25 @@ jobs:
         working-directory: ${{ env.APP_PATH }}
         run: echo "matrix=$(make get-scan-matrix-json)" >> $GITHUB_OUTPUT
 
-      - name: Get tool versions from Makefile
-        id: set-versions
+      - name: Get tool versions and save to file
         working-directory: ${{ env.APP_PATH }}
         run: |
-          # Capture and clean the output from 'make' to prevent invisible characters from breaking the output
           PYTHON_VER=$(make get-python-version | tr -d '[:space:]')
           NODE_VER=$(make get-node-version | tr -d '[:space:]')
           
-          # Now, write the clean variables to the output file
-          echo "python=$PYTHON_VER" >> $GITHUB_OUTPUT
-          echo "node=$NODE_VER" >> $GITHUB_OUTPUT
-      
-      - name: Verify outputs are set correctly
-        run: |
-          echo "Python version set to: ${{ steps.set-versions.outputs.python }}"
-          echo "Node version set to: ${{ steps.set-versions.outputs.node }}"
+          # Create a versions file in the format VAR=VALUE
+          echo "PYTHON_VERSION=$PYTHON_VER" > versions.env
+          echo "NODE_VERSION=$NODE_VER" >> versions.env
+          
+          echo "Created versions.env file:"
+          cat versions.env
+
+      # --- NEW STEP TO UPLOAD THE FILE ---
+      - name: Upload versions file as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: versions-artifact
+          path: ${{ env.APP_PATH }}/versions.env
 
   # Job 2: Build AND Scan each component in parallel
   build_and_scan:
@@ -236,14 +237,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8edcb1bdb4e267140fa742-2e395cd74f332709
       
-      - name: Verify received Python version
-        run: |
-          echo "Python version received from setup job: ${{ needs.setup.outputs.python_version }}"
+      - name: Load versions into environment
+        id: versions
+        run: cat versions.env >> $GITHUB_ENV
       
       - name: Setup Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
-          python-version: ${{ needs.setup.outputs.python_version }}
+          python-version: ${{ env.PYTHON_VERSION }}
       
       - name: Run Pylint via Makefile
         working-directory: ${{ env.APP_PATH }}
@@ -263,20 +264,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
       
-      - name: Verify received tool versions
+      - name: Load versions into environment
+        id: versions
+        run: cat versions.env >> $GITHUB_ENV
+      
+      - name: Verify versions were loaded
         run: |
-          echo "Python version received from setup job: ${{ needs.setup.outputs.python_version }}"
-          echo "Node version received from setup job: ${{ needs.setup.outputs.node_version }}"
+          echo "Python version loaded from artifact: ${{ env.PYTHON_VERSION }}"
+          echo "Node version loaded from artifact: ${{ env.NODE_VERSION }}"
       
       - name: Setup Node.js for frontend tests
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ needs.setup.outputs.node_version }}
+          node-version: ${{ env.NODE_VERSION }}
       
       - name: Set up Python for backend tests
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ needs.setup.outputs.python_version }}
+          python-version: ${{ env.PYTHON_VERSION }}
     
       - name: Run all unit tests via Makefile
         working-directory: ${{ env.APP_PATH }}
