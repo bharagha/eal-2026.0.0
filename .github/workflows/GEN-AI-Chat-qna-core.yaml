@@ -230,6 +230,7 @@ jobs:
   
   pylint-scan:
     runs-on: ubuntu-22.04-32core-128GB
+    needs: setup
     permissions:
       contents: read
     steps:
@@ -262,6 +263,7 @@ jobs:
   
   unit-tests:
     runs-on: ubuntu-22.04-32core-128GB
+    needs: setup
     permissions:
       contents: read
     steps:
