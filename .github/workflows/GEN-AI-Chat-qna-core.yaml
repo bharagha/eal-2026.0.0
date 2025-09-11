@@ -29,6 +29,8 @@ jobs:
     runs-on: ubuntu-22.04-32core-128GB
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      python_version: ${{ steps.set-versions.outputs.python }}
+      node_version: ${{ steps.set-versions.outputs.node }}
     steps:
       - name: Checkout code
         uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
@@ -42,13 +44,18 @@ jobs:
         id: set-versions
         working-directory: ${{ env.APP_PATH }}
         run: |
-          echo "python=$(make get-python-version)" >> $GITHUB_OUTPUT
-          echo "node=$(make get-node-version)" >> $GITHUB_OUTPUT
+          # Capture and clean the output from 'make' to prevent invisible characters from breaking the output
+          PYTHON_VER=$(make get-python-version | tr -d '[:space:]')
+          NODE_VER=$(make get-node-version | tr -d '[:space:]')
+          
+          # Now, write the clean variables to the output file
+          echo "python=$PYTHON_VER" >> $GITHUB_OUTPUT
+          echo "node=$NODE_VER" >> $GITHUB_OUTPUT
       
-      - name: Verify outputs
+      - name: Verify outputs are set correctly
         run: |
           echo "Python version set to: ${{ steps.set-versions.outputs.python }}"
-          echo "Node version set to: ${{ steps.set-versions.outputs.node }}"```
+          echo "Node version set to: ${{ steps.set-versions.outputs.node }}"
 
   # Job 2: Build AND Scan each component in parallel
   build_and_scan:
