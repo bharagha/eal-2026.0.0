@@ -235,11 +235,11 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@8edcb1bdb4e267140fa742-2e395cd74f332709
+        uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
       
       - name: Load versions into environment
         id: versions
-        run: cat versions.env >> $GITHUB_ENV
+        run: cat ${{ env.APP_PATH }}/versions.env >> $GITHUB_ENV
       
       - name: Setup Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -266,7 +266,7 @@ jobs:
       
       - name: Load versions into environment
         id: versions
-        run: cat versions.env >> $GITHUB_ENV
+        run: cat ${{ env.APP_PATH }}/versions.env >> $GITHUB_ENV
       
       - name: Verify versions were loaded
         run: |
