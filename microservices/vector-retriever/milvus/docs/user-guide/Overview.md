@@ -36,7 +36,7 @@ Key Features:
         The retrieved results include metadata, similarity scores, and unique identifiers.
 
         Results are returned in JSON format for easy integration with downstream applications.
-        
+
 #### Workflow:
 1.    The embedding model generates text embeddings for input descriptions (e.g., "traffic jam").
 2.    The search engine searches the vector database for the top-k most similar matches.
