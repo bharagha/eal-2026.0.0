@@ -57,5 +57,5 @@ Learn More
 
 .. toctree::
    :hidden:
-   Overview
+   
    get-started
