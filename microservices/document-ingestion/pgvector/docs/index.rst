@@ -43,8 +43,8 @@ Key Features
 Supporting Resources
 ####################
 
-- :doc:`Get Started Guide <./docs/get-started>`
-- :doc:`System Requirements <./docs/system-requirements.md>`
+- :doc:`Get Started Guide <./get-started>`
+- :doc:`System Requirements <./system-requirements>`
 
 .. toctree::
    :hidden:
