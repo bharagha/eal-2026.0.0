@@ -5,11 +5,10 @@ from pathlib import Path
 import struct
 
 from gstpipeline import GstPipeline
-from pipelines._common.common import PipelineElementsSelector
+from pipelines._common.common import PipelineElementsSelector, PipelineElementSelectionInstructions, VAAPI_SUFFIX_PLACEHOLDER, GPU_0, GPU_N,OTHER
 from utils import UINT8_DTYPE_SIZE, VIDEO_STREAM_META_PATH, is_yolov10_model
 
 logger = logging.getLogger("smartnvr")
-
 
 class SmartNVRPipeline(GstPipeline):
     def __init__(self):
@@ -132,6 +131,72 @@ class SmartNVRPipeline(GstPipeline):
             "comp.sink_{id} "
         )
 
+        self._selector = PipelineElementsSelector(
+            PipelineElementSelectionInstructions(
+                compositor={
+                    GPU_0: [
+                        ("vacompositor", "vacompositor"),
+                    ],
+                    GPU_N: [
+                        (
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}compositor",
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}compositor",
+                        ),
+                    ],
+                    OTHER: [
+                        ("compositor", "compositor"),
+                    ],
+                },
+                encoder={
+                    GPU_0: [
+                        ("vah264lpenc", "vah264lpenc"),
+                        ("vah264enc", "vah264enc"),
+                    ],
+                    GPU_N: [
+                        (
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}h264lpenc",
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}h264lpenc",
+                        ),
+                        (
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}h264enc",
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}h264enc",
+                        ),
+                    ],
+                    OTHER: [
+                        ("x264enc", "x264enc bitrate=16000 speed-preset=superfast"),
+                    ],
+                },
+                decoder={
+                    GPU_0: [
+                        ("vah264dec", "vah264dec ! video/x-raw(memory:VAMemory)"),
+                    ],
+                    GPU_N: [
+                        (
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}h264dec",
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}h264dec ! video/x-raw(memory:VAMemory)",
+                        ),
+                    ],
+                    OTHER: [
+                        ("decodebin", "decodebin"),
+                    ],
+                },
+                postprocessing={
+                    GPU_0: [
+                        ("vapostproc", "vapostproc"),
+                    ],
+                    GPU_N: [
+                        (
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}postproc",
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}postproc",
+                        ),
+                    ],
+                    OTHER: [
+                        ("videoscale", "videoscale"),
+                    ],
+                },
+            )
+        )
+
     def evaluate(
         self,
         constants: dict,
@@ -158,11 +223,12 @@ class SmartNVRPipeline(GstPipeline):
         )
 
         # Use PipelineElementsSelector for element selection
-        selector = PipelineElementsSelector(parameters, elements)
-        _compositor_element = selector.compositor_element()
-        _encoder_element = selector.encoder_element()
-        _decoder_element = selector.decoder_element()
-        _postprocessing_element = selector.postprocessing_element()
+        (
+            _compositor_element,
+            _encoder_element,
+            _decoder_element,
+            _postprocessing_element,
+        ) = self._selector.select_elements(parameters, elements)
 
         # If any of the essential elements is not found, log an error and return an empty string
         if not all(

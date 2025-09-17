@@ -1,151 +1,90 @@
-class PipelineElementsSelector:
-    def __init__(self, parameters: dict, elements: list):
-        self.parameters = parameters
-        self.elements = elements
-        self.gpu_id = -1
-        self.vaapi_suffix = None
+from typing import List, Tuple, Dict, Optional
 
-        # Calculate vaapi_suffix once
+# Keys for device selection
+GPU_0 = "GPU_0"
+GPU_N = "GPU_N"
+OTHER = "OTHER"
+# Placeholder for vaapi_suffix to be replaced at runtime
+VAAPI_SUFFIX_PLACEHOLDER = "{vaapi_suffix}"
+
+
+class PipelineElementSelectionInstructions:
+    def __init__(
+        self,
+        compositor: Optional[Dict[str, List[Tuple[str, str]]]] = None,
+        encoder: Optional[Dict[str, List[Tuple[str, str]]]] = None,
+        decoder: Optional[Dict[str, List[Tuple[str, str]]]] = None,
+        postprocessing: Optional[Dict[str, List[Tuple[str, str]]]] = None,
+    ):
+        # Each field is a dict: key is GPU_0, GPU_N, or OTHER, value is list of (search, result)
+        self.compositor = compositor or {}
+        self.encoder = encoder or {}
+        self.decoder = decoder or {}
+        self.postprocessing = postprocessing or {}
+
+
+class PipelineElementsSelector:
+    def __init__(
+        self,
+        selection_instructions: PipelineElementSelectionInstructions,
+    ):
+        self.instructions = selection_instructions
+
+    def select_elements(
+        self,
+        parameters: dict,
+        elements: list,
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+        gpu_id = -1
+        vaapi_suffix = None
         device = parameters.get("object_detection_device", "")
 
         # Determine gpu_id and vaapi_suffix
         # If there is only one GPU, device name is just GPU
         # If there is more than one GPU, device names are like GPU.0, GPU.1, ...
         if device == "GPU":
-            self.gpu_id = 0
+            gpu_id = 0
         elif device.startswith("GPU."):
             try:
                 gpu_index = int(device.split(".")[1])
                 if gpu_index == 0:
-                    self.gpu_id = 0
+                    gpu_id = 0
                 elif gpu_index > 0:
-                    self.vaapi_suffix = str(128 + gpu_index)
-                    self.gpu_id = gpu_index
+                    vaapi_suffix = str(128 + gpu_index)
+                    gpu_id = gpu_index
             except (IndexError, ValueError):
-                self.gpu_id = -1
+                gpu_id = -1
         else:
-            self.gpu_id = -1
+            gpu_id = -1
 
-        self._compositor_element = None
-        self._encoder_element = None
-        self._decoder_element = None
-        self._postprocessing_element = None
-        if self.gpu_id > 0:
-            varender_compositor = f"varenderD{self.vaapi_suffix}compositor"
-            self._compositor_element = next(
-                (
-                    varender_compositor
-                    for element in elements
-                    if element[1] == varender_compositor
-                ),
-                None,
-            )
+        def _select_element(field_dict: Dict[str, List[Tuple[str, str]]]) -> Optional[str]:
+            key = OTHER
+            if gpu_id == 0:
+                key = GPU_0
+            elif gpu_id > 0:
+                key = GPU_N
 
-            varender_encoder_lp = f"varenderD{self.vaapi_suffix}h264lpenc"
-            varender_encoder = f"varenderD{self.vaapi_suffix}h264enc"
-            self._encoder_element = next(
-                (
-                    varender_encoder_lp
-                    for element in elements
-                    if element[1] == varender_encoder_lp
-                ),
-                next(
-                    (
-                        varender_encoder
-                        for element in elements
-                        if element[1] == varender_encoder
-                    ),
-                    None,
-                ),
-            )
+            pairs = field_dict.get(key, [])
+            # Add OTHER pairs as fallback if key is not OTHER
+            if key != OTHER:
+                pairs = pairs + field_dict.get(OTHER, [])
 
-            varender_decoder = f"varenderD{self.vaapi_suffix}h264dec"
-            self._decoder_element = next(
-                (
-                    f"{varender_decoder} ! video/x-raw(memory:VAMemory)"
-                    for element in elements
-                    if element[1] == varender_decoder
-                ),
-                None,
-            )
+            if not pairs:
+                return None
 
-            varender_postprocessing = f"varenderD{self.vaapi_suffix}postproc"
-            self._postprocessing_element = next(
-                (
-                    varender_postprocessing
-                    for element in elements
-                    if element[1] == varender_postprocessing
-                ),
-                None,
-            )
-        elif self.gpu_id == 0:
-            self._compositor_element = next(
-                (
-                    "vacompositor"
-                    for element in elements
-                    if element[1] == "vacompositor"
-                ),
-                None,
-            )
+            for search, result in pairs:
+                if VAAPI_SUFFIX_PLACEHOLDER in search or VAAPI_SUFFIX_PLACEHOLDER in result:
+                    suffix = vaapi_suffix if vaapi_suffix is not None else ""
+                    search = search.replace(VAAPI_SUFFIX_PLACEHOLDER, suffix)
+                    result = result.replace(VAAPI_SUFFIX_PLACEHOLDER, suffix)
+                for element in elements:
+                    if element[1] == search:
+                        return result
+            return None
 
-            self._encoder_element = next(
-                ("vah264lpenc" for element in elements if element[1] == "vah264lpenc"),
-                next(
-                    ("vah264enc" for element in elements if element[1] == "vah264enc"),
-                    None,
-                ),
-            )
+        compositor_element = _select_element(self.instructions.compositor)
+        encoder_element = _select_element(self.instructions.encoder)
+        decoder_element = _select_element(self.instructions.decoder)
+        postprocessing_element = _select_element(self.instructions.postprocessing)
 
-            self._decoder_element = next(
-                (
-                    "vah264dec ! video/x-raw(memory:VAMemory)"
-                    for element in elements
-                    if element[1] == "vah264dec"
-                ),
-                None,
-            )
-
-            self._postprocessing_element = next(
-                ("vapostproc" for element in elements if element[1] == "vapostproc"),
-                None,
-            )
-
-        if self._compositor_element is None:
-            self._compositor_element = next(
-                ("compositor" for element in elements if element[1] == "compositor"),
-                None,
-            )
-
-        if self._encoder_element is None:
-            self._encoder_element = next(
-                (
-                    "x264enc bitrate=16000 speed-preset=superfast"
-                    for element in elements
-                    if element[1] == "x264enc"
-                ),
-                None,
-            )
-
-        if self._decoder_element is None:
-            self._decoder_element = next(
-                ("decodebin3" for element in elements if element[1] == "decodebin3"),
-                None,
-            )
-
-        if self._postprocessing_element is None:
-            self._postprocessing_element = next(
-                ("videoscale" for element in elements if element[1] == "videoscale"),
-                None,
-            )
-
-    def compositor_element(self):
-        return self._compositor_element
-
-    def encoder_element(self):
-        return self._encoder_element
-
-    def decoder_element(self):
-        return self._decoder_element
-
-    def postprocessing_element(self):
-        return self._postprocessing_element
+        return compositor_element, encoder_element, decoder_element, postprocessing_element
