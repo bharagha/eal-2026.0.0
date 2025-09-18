@@ -1,7 +1,7 @@
-.. _real_time_linux:
+.. _real_time_in_linux:
 
-Real-Time Linux
-===============
+Real-Time in Linux
+==================
 
 |top_name| provides real-time capabilities to the kernel with PREEMPT_RT patch and boot parameters for real-time optimization, which aims to increase predictability and reduce scheduler latencies.
 
