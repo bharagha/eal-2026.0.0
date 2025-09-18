@@ -5,10 +5,18 @@ from pathlib import Path
 import struct
 
 from gstpipeline import GstPipeline
-from pipelines._common.common import PipelineElementsSelector, PipelineElementSelectionInstructions, VAAPI_SUFFIX_PLACEHOLDER, GPU_0, GPU_N,OTHER
+from pipelines._common.common import (
+    PipelineElementsSelector,
+    PipelineElementSelectionInstructions,
+    VAAPI_SUFFIX_PLACEHOLDER,
+    GPU_0,
+    GPU_N,
+    OTHER,
+)
 from utils import UINT8_DTYPE_SIZE, VIDEO_STREAM_META_PATH, is_yolov10_model
 
 logger = logging.getLogger("smartnvr")
+
 
 class SmartNVRPipeline(GstPipeline):
     def __init__(self):
@@ -245,7 +253,7 @@ class SmartNVRPipeline(GstPipeline):
             )
             return ""
         else:
-            logger.info(
+            logger.debug(
                 f"Using pipeline elements - Compositor: {_compositor_element}, Encoder: {_encoder_element}, Decoder: {_decoder_element}, Postprocessing: {_postprocessing_element}"
             )
 

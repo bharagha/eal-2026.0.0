@@ -4,10 +4,23 @@ from pathlib import Path
 import struct
 
 from gstpipeline import GstPipeline
-from pipelines._common.common import PipelineElementsSelector, PipelineElementSelectionInstructions, VAAPI_SUFFIX_PLACEHOLDER, GPU_0, GPU_N,OTHER
-from utils import get_video_resolution, UINT8_DTYPE_SIZE, VIDEO_STREAM_META_PATH, is_yolov10_model
+from pipelines._common.common import (
+    PipelineElementsSelector,
+    PipelineElementSelectionInstructions,
+    VAAPI_SUFFIX_PLACEHOLDER,
+    GPU_0,
+    GPU_N,
+    OTHER,
+)
+from utils import (
+    get_video_resolution,
+    UINT8_DTYPE_SIZE,
+    VIDEO_STREAM_META_PATH,
+    is_yolov10_model,
+)
 
 logger = logging.getLogger("simplevs")
+
 
 class SimpleVideoStructurizationPipeline(GstPipeline):
     def __init__(self):
@@ -42,7 +55,7 @@ class SimpleVideoStructurizationPipeline(GstPipeline):
             "h264parse ! "
             # Decoder
             "{decoder} ! "
-            "{postprocessing}" # postprocessing is optional, if present it will have a trailing " ! "
+            "{postprocessing}"  # postprocessing is optional, if present it will have a trailing " ! "
             # Detection
             "gvafpscounter starting-frame=500 ! "
             "gvadetect "
@@ -139,7 +152,7 @@ class SimpleVideoStructurizationPipeline(GstPipeline):
                         ),
                     ],
                     OTHER: [
-                        ("", ""), # force empty string if no postprocessing is needed
+                        ("", ""),  # force empty string if no postprocessing is needed
                     ],
                 },
             )
@@ -187,10 +200,12 @@ class SimpleVideoStructurizationPipeline(GstPipeline):
             ]
         ):
             logger.error("Could not find all necessary elements for the pipeline.")
-            logger.error(f"Encoder: {_encoder_element}, Decoder: {_decoder_element}, Postprocessing: {_postprocessing_element}")
+            logger.error(
+                f"Encoder: {_encoder_element}, Decoder: {_decoder_element}, Postprocessing: {_postprocessing_element}"
+            )
             return ""
         else:
-            logger.info(
+            logger.debug(
                 f"Using pipeline elements - Encoder: {_encoder_element}, Decoder: {_decoder_element}, Postprocessing: {_postprocessing_element}"
             )
 
