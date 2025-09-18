@@ -451,12 +451,30 @@ class Tensor:
             tensor["type"] = "classification_result"
             tensor["confidence"] = result_confidence
 
-            cls_descriptor_mtd = next(
-                mtd.iter_direct_related(
-                    GstAnalytics.RelTypes.RELATE_TO, GstAnalytics.ClsMtd
-                ),
-                None,
-            )
+            # To uncomment after update GStreamer to 1.27
+            # cls_descriptor_mtd = next(
+            #     mtd.iter_direct_related(
+            #         GstAnalytics.RelTypes.RELATE_TO, GstAnalytics.ClsMtd
+            #     ),
+            #     None,
+            # )
+                
+            cls_descriptor_mtd = None
+            for cls_descriptor_mtd in mtd.meta:
+                if (
+                    cls_descriptor_mtd.id == mtd.id
+                    or type(cls_descriptor_mtd) != GstAnalytics.ClsMtd
+                ):
+                    continue
+
+                rel = mtd.meta.get_relation(
+                    mtd.id, cls_descriptor_mtd.id
+                )
+
+                if rel == GstAnalytics.RelTypes.RELATE_TO:
+                    break
+
+                cls_descriptor_mtd = None
 
             if class_count == 1 and cls_descriptor_mtd is not None:
                 label_id = cls_descriptor_mtd.get_index_by_quark(
