@@ -11,7 +11,8 @@ nproc ?= 1
 PROJECT_DIRECTORY 			:= ${CURDIR}
 DLSTREAMER_INSTALL_PREFIX 	?= /opt/intel/dlstreamer
 DEPENDENCY_DIR				:= build/deps
-OPENVINO_DIR 				?= /opt/intel/openvino_2025/
+OPENVINO_DIR 				?= /opt/intel/openvino_2025
+OPENVINO_GENAI_DIR			?= /opt/intel/openvino_genai
 
 DLSTREAMER_VERSION 	:= 0.0.0
 BUILD_TYPE 			?= Release
@@ -19,9 +20,13 @@ BUILD_TYPE 			?= Release
 DOCKER_PRIVATE_REGISTRY := # Empty on purpose
 
 LINUX_DISTRIBUTION := $(shell lsb_release -ds | cut -d " " -f1)
+GENAI_DIR_EXISTS := $(shell [ -d $(OPENVINO_GENAI_DIR) ] && echo yes || echo no)
 ifeq ($(LINUX_DISTRIBUTION), Ubuntu)
-	. /opt/openvino_genai/setupvars.sh
+ifneq ($(GENAI_DIR_EXISTS), no)
 	ENABLE_GENAI := ON
+else
+	ENABLE_GENAI := OFF
+endif
 else
 	ENABLE_GENAI := OFF
 endif
@@ -38,6 +43,7 @@ export GST_PLUGIN_FEATURE_RANK 	:= ${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
 
 .PHONY: dependencies
 dependencies:
+	@echo "ENABLE_GENAI=$(ENABLE_GENAI)"
 	cmake \
 		-B build/deps \
 		-DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
@@ -46,18 +52,34 @@ dependencies:
 
 .PHONY: build
 build: dependencies ## Compile Deep Learning Streamer
-	cmake \
-		-B build \
-		-DCMAKE_PREFIX_PATH:PATH="${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install;${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/opencv-bin" \
-		-DCMAKE_INCLUDE_PATH:PATH=${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install/include \
-		-DCMAKE_LIBRARY_PATH:PATH=${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install/lib \
-		-DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-		-DENABLE_PAHO_INSTALLATION=ON \
-		-DENABLE_RDKAFKA_INSTALLATION=ON \
-		-DENABLE_VAAPI=ON \
-		-DENABLE_SAMPLES=ON \
-		-DENABLE_GENAI=${ENABLE_GENAI} \
-		-DENABLE_TESTS=OFF
+	@if [ "$(ENABLE_GENAI)" = "ON" ]; then \
+		. "${OPENVINO_GENAI_DIR}/setupvars.sh" && \
+		cmake \
+			-B build \
+			-DCMAKE_PREFIX_PATH:PATH="${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install;${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/opencv-bin" \
+			-DCMAKE_INCLUDE_PATH:PATH=${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install/include \
+			-DCMAKE_LIBRARY_PATH:PATH=${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install/lib \
+			-DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+			-DENABLE_PAHO_INSTALLATION=ON \
+			-DENABLE_RDKAFKA_INSTALLATION=ON \
+			-DENABLE_VAAPI=ON \
+			-DENABLE_SAMPLES=ON \
+			-DENABLE_GENAI=${ENABLE_GENAI} \
+			-DENABLE_TESTS=OFF; \
+	else \
+		cmake \
+			-B build \
+			-DCMAKE_PREFIX_PATH:PATH="${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install;${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/opencv-bin" \
+			-DCMAKE_INCLUDE_PATH:PATH=${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install/include \
+			-DCMAKE_LIBRARY_PATH:PATH=${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install/lib \
+			-DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+			-DENABLE_PAHO_INSTALLATION=ON \
+			-DENABLE_RDKAFKA_INSTALLATION=ON \
+			-DENABLE_VAAPI=ON \
+			-DENABLE_SAMPLES=ON \
+			-DENABLE_GENAI=${ENABLE_GENAI} \
+			-DENABLE_TESTS=OFF; \
+	fi
 	cmake --build build
 
 .PHONY: install
