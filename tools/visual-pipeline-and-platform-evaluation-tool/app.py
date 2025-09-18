@@ -796,6 +796,14 @@ def create_interface(title: str = "Visual Pipeline and Platform Evaluation Tool"
         elem_id="object_classification_reclassify_interval",
     )
 
+    # Compositor device
+    compositor_device = gr.Dropdown(
+        label="Compositor Device",
+        choices=devices,
+        value=preferred_device,
+        elem_id="compositor_device",
+    )
+
     pipeline_watermark_enabled = gr.Checkbox(
         label="Overlay inference results on inference channels",
         value=True,
@@ -864,6 +872,7 @@ def create_interface(title: str = "Visual Pipeline and Platform Evaluation Tool"
     components.add(object_classification_inference_interval)
     components.add(object_classification_nireq)
     components.add(object_classification_reclassify_interval)
+    components.add(compositor_device)
     components.add(pipeline_watermark_enabled)
     components.add(pipeline_video_enabled)
     components.add(live_preview_enabled)
@@ -1301,6 +1310,16 @@ def create_interface(title: str = "Visual Pipeline and Platform Evaluation Tool"
                             object_classification_inference_interval.render()
                             object_classification_nireq.render()
                             object_classification_reclassify_interval.render()
+
+                            # Compositor Device
+                            @gr.render(triggers=[run_tab.select])
+                            def _():
+                                show_hide_component(
+                                    compositor_device,
+                                    current_pipeline[1]["parameters"]["inference"][
+                                        "compositor_device"
+                                    ],
+                                )
 
         # Footer
         gr.HTML(

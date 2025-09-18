@@ -30,3 +30,4 @@ parameters:
       - "MobileNet V2 PyTorch (FP16)"
       - "ResNet-50 TF (INT8)"
     classification_model_default: "ResNet-50 TF (INT8)"
+    compositor_device: true

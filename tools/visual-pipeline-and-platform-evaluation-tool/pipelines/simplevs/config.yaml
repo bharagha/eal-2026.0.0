@@ -34,3 +34,4 @@ parameters:
       - "PaddleOCR (FP32)"
       - "Vehicle Attributes Recognition Barrier 0039 (FP16)"
     classification_model_default: "PaddleOCR (FP32)"
+    compositor_device: false

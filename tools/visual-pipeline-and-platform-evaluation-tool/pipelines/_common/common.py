@@ -35,9 +35,20 @@ class PipelineElementsSelector:
         parameters: dict,
         elements: list,
     ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+        compositor_gpu_id, compositor_vaapi_suffix = self._select_gpu(parameters.get("compositor_device", ""))
+        detection_gpu_id, detection_vaapi_suffix = self._select_gpu(parameters.get("object_detection_device", ""))
+
+        compositor_element = self._select_element(self.instructions.compositor, elements, compositor_gpu_id, compositor_vaapi_suffix)
+        encoder_element = self._select_element(self.instructions.encoder, elements, detection_gpu_id, detection_vaapi_suffix)
+        decoder_element = self._select_element(self.instructions.decoder, elements, detection_gpu_id, detection_vaapi_suffix)
+        postprocessing_element = self._select_element(self.instructions.postprocessing, elements, detection_gpu_id, detection_vaapi_suffix)
+
+        return compositor_element, encoder_element, decoder_element, postprocessing_element
+
+    @staticmethod
+    def _select_gpu(device: str) -> Tuple[int, Optional[str]]:
         gpu_id = -1
         vaapi_suffix = None
-        device = parameters.get("object_detection_device", "")
 
         # Determine gpu_id and vaapi_suffix
         # If there is only one GPU, device name is just GPU
@@ -57,37 +68,33 @@ class PipelineElementsSelector:
         else:
             gpu_id = -1
 
-        def _select_element(field_dict: Dict[str, List[Tuple[str, str]]]) -> Optional[str]:
-            key = OTHER
-            if gpu_id == 0:
-                key = GPU_0
-            elif gpu_id > 0:
-                key = GPU_N
+        return gpu_id, vaapi_suffix
 
-            pairs = field_dict.get(key, [])
-            # Add OTHER pairs as fallback if key is not OTHER
-            if key != OTHER:
-                pairs = pairs + field_dict.get(OTHER, [])
+    @staticmethod
+    def _select_element(field_dict: Dict[str, List[Tuple[str, str]]], elements: list, gpu_id: int, vaapi_suffix: Optional[str]) -> Optional[str]:
+        key = OTHER
+        if gpu_id == 0:
+            key = GPU_0
+        elif gpu_id > 0:
+            key = GPU_N
 
-            if not pairs:
-                return None
+        pairs = field_dict.get(key, [])
+        # Add OTHER pairs as fallback if key is not OTHER
+        if key != OTHER:
+            pairs = pairs + field_dict.get(OTHER, [])
 
-            for search, result in pairs:
-                if search == "": # to support optional parameters
-                    return result
-
-                if VAAPI_SUFFIX_PLACEHOLDER in search or VAAPI_SUFFIX_PLACEHOLDER in result:
-                    suffix = vaapi_suffix if vaapi_suffix is not None else ""
-                    search = search.replace(VAAPI_SUFFIX_PLACEHOLDER, suffix)
-                    result = result.replace(VAAPI_SUFFIX_PLACEHOLDER, suffix)
-                for element in elements:
-                    if element[1] == search:
-                        return result
+        if not pairs:
             return None
 
-        compositor_element = _select_element(self.instructions.compositor)
-        encoder_element = _select_element(self.instructions.encoder)
-        decoder_element = _select_element(self.instructions.decoder)
-        postprocessing_element = _select_element(self.instructions.postprocessing)
+        for search, result in pairs:
+            if search == "": # to support optional parameters
+                return result
 
-        return compositor_element, encoder_element, decoder_element, postprocessing_element
+            if VAAPI_SUFFIX_PLACEHOLDER in search or VAAPI_SUFFIX_PLACEHOLDER in result:
+                suffix = vaapi_suffix if vaapi_suffix is not None else ""
+                search = search.replace(VAAPI_SUFFIX_PLACEHOLDER, suffix)
+                result = result.replace(VAAPI_SUFFIX_PLACEHOLDER, suffix)
+            for element in elements:
+                if element[1] == search:
+                    return result
+        return None
