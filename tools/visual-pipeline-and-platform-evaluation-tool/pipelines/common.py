@@ -41,6 +41,9 @@ class PipelineElementsSelector:
         detection_gpu_id, detection_vaapi_suffix = self._select_gpu(
             parameters.get("object_detection_device", "")
         )
+        decoding_gpu_id, decoding_vaapi_suffix = self._select_gpu(
+            parameters.get("decoding_device", "")
+        )
 
         compositor_element = self._select_element(
             self.instructions.compositor,
@@ -57,8 +60,8 @@ class PipelineElementsSelector:
         decoder_element = self._select_element(
             self.instructions.decoder,
             elements,
-            detection_gpu_id,
-            detection_vaapi_suffix,
+            decoding_gpu_id,
+            decoding_vaapi_suffix,
         )
         postprocessing_element = self._select_element(
             self.instructions.postprocessing,

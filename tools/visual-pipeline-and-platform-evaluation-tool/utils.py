@@ -63,6 +63,7 @@ def prepare_video_and_constants(
     )
     object_classification_nireq = kwargs.get("object_classification_nireq", 1)
     compositor_device = str(kwargs.get("compositor_device", ""))
+    decoding_device = str(kwargs.get("decoding_device", ""))
 
     tracking_type = kwargs.get("tracking_type", "short-term-imageless")
     pipeline_watermark_enabled = kwargs.get("pipeline_watermark_enabled", True)
@@ -98,6 +99,7 @@ def prepare_video_and_constants(
         ],
         "object_classification_nireq": [object_classification_nireq],
         "compositor_device": compositor_device.split(", "),
+        "decoding_device": decoding_device.split(", "),
         "tracking_type": [tracking_type],
         "pipeline_watermark_enabled": [pipeline_watermark_enabled],
         "pipeline_video_enabled": [pipeline_video_enabled],

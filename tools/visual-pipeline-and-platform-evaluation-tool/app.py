@@ -827,6 +827,14 @@ def create_interface(title: str = "Visual Pipeline and Platform Evaluation Tool"
         elem_id="compositor_device",
     )
 
+    # Decoder device
+    decoding_device = gr.Dropdown(
+        label="Decoding Device",
+        choices=devices,
+        value=preferred_device,
+        elem_id="decoding_device",
+    )
+
     pipeline_watermark_enabled = gr.Checkbox(
         label="Overlay inference results on inference channels",
         value=True,
@@ -896,6 +904,7 @@ def create_interface(title: str = "Visual Pipeline and Platform Evaluation Tool"
     components.add(object_classification_nireq)
     components.add(object_classification_reclassify_interval)
     components.add(compositor_device)
+    components.add(decoding_device)
     components.add(pipeline_watermark_enabled)
     components.add(pipeline_video_enabled)
     components.add(live_preview_enabled)
@@ -1343,6 +1352,8 @@ def create_interface(title: str = "Visual Pipeline and Platform Evaluation Tool"
                                         "compositor_device"
                                     ],
                                 )
+
+                            decoding_device.render()
 
         # Footer
         gr.HTML(
