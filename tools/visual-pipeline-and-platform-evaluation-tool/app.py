@@ -518,6 +518,50 @@ def update_inferencing_channels_label():
     return gr.update(minimum=1, value=8, label=INFERENCING_CHANNELS_LABEL)
 
 
+def select_preferred_devices(device_list):
+    """
+    Returns:
+        preferred_device: str - preferred device for inference (GPU > NPU > CPU)
+        non_npu_preferred_device: str - preferred device for inference, but never NPU (GPU > CPU)
+    """
+    # Select preferred device for inference
+    # 1. If any discrete GPU, pick the one with the smallest gpu_id
+    # 2. If any GPU, pick the one with the smallest gpu_id
+    # 3. Else pick NPU
+    # 4. Else pick CPU
+
+    # Find discrete GPUs
+    discrete_gpus = [
+        d
+        for d in device_list
+        if d.device_family == DeviceFamily.GPU and d.device_type == DeviceType.DISCRETE
+    ]
+    if discrete_gpus:
+        # Pick discrete GPU with smallest gpu_id
+        preferred_device = min(discrete_gpus, key=lambda d: d.gpu_id).device_name
+        non_npu_preferred_device = preferred_device
+    else:
+        # Find any GPU
+        gpus = [d for d in device_list if d.device_family == DeviceFamily.GPU]
+        if gpus:
+            # Pick GPU with smallest gpu_id
+            preferred_device = min(gpus, key=lambda d: d.gpu_id).device_name
+            non_npu_preferred_device = preferred_device
+        else:
+            # Find NPU
+            npus = [d for d in device_list if d.device_family == DeviceFamily.NPU]
+            if npus:
+                # Pick first NPU
+                preferred_device = npus[0].device_name
+                # For non_npu_preferred_device, fallback to CPU if no GPU
+                non_npu_preferred_device = "CPU"
+            else:
+                # Default to CPU
+                preferred_device = "CPU"
+                non_npu_preferred_device = "CPU"
+    return preferred_device, non_npu_preferred_device
+
+
 # Create the interface
 def create_interface(title: str = "Visual Pipeline and Platform Evaluation Tool"):
     """
@@ -636,39 +680,18 @@ def create_interface(title: str = "Visual Pipeline and Platform Evaluation Tool"
     # Inference accordion
     inference_accordion = gr.Accordion("Inference Parameters", open=True)
 
-    # Select preferred device for inference
-    # 1. If any discrete GPU, pick the one with the smallest gpu_id
-    # 2. If any GPU, pick the one with the smallest gpu_id
-    # 3. Else pick NPU
-    # 4. Else pick CPU
     device_list = device_discovery.list_devices()
-    # Find discrete GPUs
-    discrete_gpus = [
-        d
-        for d in device_list
-        if d.device_family == DeviceFamily.GPU and d.device_type == DeviceType.DISCRETE
-    ]
-    if discrete_gpus:
-        # Pick discrete GPU with smallest gpu_id
-        preferred_device = min(discrete_gpus, key=lambda d: d.gpu_id).device_name
-    else:
-        # Find any GPU
-        gpus = [d for d in device_list if d.device_family == DeviceFamily.GPU]
-        if gpus:
-            # Pick GPU with smallest gpu_id
-            preferred_device = min(gpus, key=lambda d: d.gpu_id).device_name
-        else:
-            # Find NPU
-            npus = [d for d in device_list if d.device_family == DeviceFamily.NPU]
-            if npus:
-                # Pick first NPU
-                preferred_device = npus[0].device_name
-            else:
-                # Default to CPU
-                preferred_device = "CPU"
 
-    # Get available devices for inference
+    # Get available devices
     devices = [(device.full_device_name, device.device_name) for device in device_list]
+    non_npu_devices = [
+        (device.full_device_name, device.device_name)
+        for device in device_list
+        if device.device_family != DeviceFamily.NPU
+    ]
+
+    # Select preferred devices
+    preferred_device, non_npu_preferred_device = select_preferred_devices(device_list)
 
     # Object detection model
     # Mapping of these choices to actual model path in utils.py
@@ -799,8 +822,8 @@ def create_interface(title: str = "Visual Pipeline and Platform Evaluation Tool"
     # Compositor device
     compositor_device = gr.Dropdown(
         label="Compositor Device",
-        choices=devices,
-        value=preferred_device,
+        choices=non_npu_devices,
+        value=non_npu_preferred_device,
         elem_id="compositor_device",
     )
 
