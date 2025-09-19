@@ -45,6 +45,7 @@ PUBLIC
         utils
         logger
         dlstreamer_logger
+	d3d11
 )
 
 if (OpenCL_FOUND)

@@ -15,6 +15,7 @@
 #if _MSC_VER
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 #include <openvino/runtime/intel_gpu/ocl/dx.hpp>
+#include <d3d11_1.h>
 #endif
 
 namespace dlstreamer {
@@ -46,8 +47,24 @@ class OpenVINOContext : public BaseContext {
                                   {ov::intel_gpu::va_device.name(), static_cast<void *>(va_display)},
                                   {ov::intel_gpu::tile_id.name(), tile_id}};
             } else {
-                //context_params = core.get_default_context(device).as<ov::intel_gpu::ocl::D3DContext>().get_params();
-                context_params = core.get_default_context(device).get_params();
+                ID3D11Device* pd3dDevice = nullptr;
+                D3D_FEATURE_LEVEL featureLevels[] =
+                {
+                    D3D_FEATURE_LEVEL_11_1,
+                    D3D_FEATURE_LEVEL_11_0,
+                    D3D_FEATURE_LEVEL_10_1,
+                    D3D_FEATURE_LEVEL_10_0,
+                };
+                UINT numFeatureLevels = ARRAYSIZE( featureLevels );
+                D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
+                ID3D11DeviceContext* pImmediateContext = nullptr;
+                HRESULT hr = S_OK;
+                hr = D3D11CreateDevice( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, &featureLevels[1], numFeatureLevels - 1,
+                                    D3D11_SDK_VERSION, &pd3dDevice, &featureLevel, &pImmediateContext );
+                _remote_context = ov::intel_gpu::ocl::D3DContext(core, pd3dDevice);
+                context_params = _remote_context.get_params();
+                return;
+                //context_params = core.get_default_context(device).get_params();
             }
         }   
         _remote_context = core.create_context(device, context_params);

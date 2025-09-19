@@ -1284,11 +1284,7 @@ class OpenVinoNewApiImpl {
 
         // print_input_and_outputs_info(*_model);
         if (_openvino_context) {     
-#if _MSC_VER
-            _compiled_model = core().compile_model(_model, _device);
-#else
             _compiled_model = core().compile_model(_model, _openvino_context->remote_context(), ov_params);
-#endif
         } else {
             _compiled_model = core().compile_model(_model, _device, ov_params);
         }
