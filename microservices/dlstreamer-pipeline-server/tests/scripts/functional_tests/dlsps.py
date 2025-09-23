@@ -13,6 +13,15 @@ from configs import *
 
 JSONPATH = os.path.dirname(os.path.abspath(__file__)) + '/../configs/dlsps_config.json'
 
+class generate_repo(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.path = os.path.dirname(os.path.abspath(__file__))
+        cls.dlsps_utils = dlsps_module.dlsps_utils()
+        time.sleep(10)
+
+    def test_generate_repo(self):
+        self.dlsps_utils.generate_repo_dlsps()
 
 class test_dlsps_cases(unittest.TestCase):
     """

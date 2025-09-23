@@ -19,7 +19,9 @@ class test_suit_dlsps_cases(unittest.TestCase):
     environment variable for the test case ID and executes the corresponding
     functional test.
     """
-
+    def dlsps_repo(self):
+        ret = subprocess.call("nosetests3 --nocapture ../functional_tests/dlsps.py:generate_repo.test_generate_repo", shell=True)
+        return ret
     def TC_001_dlsps(self):
         env["TEST_CASE"] = "dlsps001"
         ret = subprocess.call("nosetests3 --nocapture -v ../functional_tests/dlsps.py:test_dlsps_cases.test_dlsps", shell=True, env=env)
