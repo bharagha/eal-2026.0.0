@@ -6,6 +6,7 @@
 
 import sys
 import unittest
+import numpy as np
 
 import gi
 gi.require_version('Gst', '1.0')
@@ -66,12 +67,12 @@ class VideoFrameTestCase(unittest.TestCase):
                 (
                     region
                     for region in self.video_frame_nv12.regions()
-                    if (i, i, i + 100, i + 100, "label", i / 100.0)
+                    if (i, i, i + 100, i + 100, "label", np.float32(i / 100.0))
                     == (
-                        region.meta().x,
-                        region.meta().y,
-                        region.meta().w,
-                        region.meta().h,
+                        region.rect().x,
+                        region.rect().y,
+                        region.rect().w,
+                        region.rect().h,
                         region.label(),
                         region.confidence(),
                     )

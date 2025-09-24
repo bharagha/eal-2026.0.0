@@ -80,7 +80,7 @@ class RegionOfInterest(object):
 
     ## @brief Get bounding box of the RegionOfInterest as pixel coordinates in original image
     #  @return Bounding box coordinates of the RegionOfInterest
-    def rect(self):
+    def rect(self) -> Rect:
         success, x, y, w, h, _, _ = self.__od_meta.get_oriented_location()
 
         if not success:
