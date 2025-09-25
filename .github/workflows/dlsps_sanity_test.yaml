@@ -35,9 +35,9 @@ jobs:
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }} 
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Sanity Test
-      
       run: | 
        cd edge-ai-libraries-repo/microservices/dlstreamer-pipeline-server/tests/scripts/utils/
        chmod a+x stream_rtsp.sh
@@ -46,7 +46,7 @@ jobs:
        echo $ip_addr
        ./stream_rtsp.sh start 10 `pwd`/../../../resources/videos/warehouse.avi $ip_addr
        sleep 10
-       cd ${{github.workspace}}
+       cd ${{ github.workspace }}
        cd edge-ai-libraries-repo/microservices/dlstreamer-pipeline-server/tests/scripts/robot_files
        robot test_main_sanity.robot || true 
        mkdir -p /tmp/test_results

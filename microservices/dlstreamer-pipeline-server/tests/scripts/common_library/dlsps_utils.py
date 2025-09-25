@@ -240,3 +240,38 @@ class dlsps_utils():
         else:
             print("FAIL:Keyword NOT Found", keyword)
             return False
+
+    def generate_repo_dlsps(self):
+        os.chdir(common.repo_path)
+        if self.is_open_edge:
+            repo_url = "https://github.com/open-edge-platform/edge-ai-libraries/"
+            destination_dir = os.path.join(common.repo_path, "edge-ai-libraries")
+        else:
+            repo_url = "https://github.com/intel-innersource/applications.services.esh.dlstreamer-pipeline-server ./dlstreamer-pipeline-server"
+            destination_dir = os.path.join(common.repo_path, "dlstreamer-pipeline-server")
+        print(f"Cloning repository: {repo_url}")
+        print(f"Destination directory: {destination_dir}")
+
+        if os.path.exists(destination_dir) and os.listdir(destination_dir):
+            print(f"Directory '{destination_dir}' already exists and is not empty. Skipping clone.")
+        else:
+            clone_command = f"git clone {repo_url}"
+            subprocess.call(clone_command, shell=True)
+            print(f"Successfully cloned repository into '{destination_dir}'.")
+            os.chdir(self.dlsps_path)
+            self._execute_cmd(self.eii_utils_genops['checkout_dlsps_branch'])
+            print("Branch checked out.")
+
+        files_to_copy = [
+            {"source": f"{common.repo_path}/automation_tests/resources/videos/video_001.avi", "destination": f"{self.dlsps_path}/../resources/videos/video_001.avi"},
+            {"source": f"{common.repo_path}/automation_tests/resources/videos/video@001.avi", "destination": f"{self.dlsps_path}/../resources/videos/video@001.avi"},
+            {"source": f"{common.repo_path}/automation_tests/resources/images/classroom.png", "destination": f"{self.dlsps_path}/../resources/images/classroom.png"},
+            {"source": f"{common.repo_path}/automation_tests/resources/videos/road_barrier_1920_1080.avi", "destination": f"{self.dlsps_path}/../resources/videos/road_barrier_1920_1080.avi"}
+        ]
+        print('\n********** Install dlsps Mode **********')
+        if not os.path.isdir(self.dlsps_path):
+            print('dlsps directory not found')
+        else:
+            print('dlsps directory found')
+        self._copy_files(files_to_copy)
+        self._copy_models_and_samples()
