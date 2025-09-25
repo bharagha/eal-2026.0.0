@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import os, sys, time, json, yaml, subprocess, os.path, requests,common
+import os, sys, time, json, yaml, subprocess, os.path, requests
 from collections import OrderedDict
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
@@ -242,13 +242,13 @@ class dlsps_utils():
             return False
 
     def generate_repo_dlsps(self):
-        os.chdir(common.repo_path)
+        os.chdir(repo_path)
         if self.is_open_edge:
             repo_url = "https://github.com/open-edge-platform/edge-ai-libraries/"
-            destination_dir = os.path.join(common.repo_path, "edge-ai-libraries")
+            destination_dir = os.path.join(repo_path, "edge-ai-libraries")
         else:
             repo_url = "https://github.com/intel-innersource/applications.services.esh.dlstreamer-pipeline-server ./dlstreamer-pipeline-server"
-            destination_dir = os.path.join(common.repo_path, "dlstreamer-pipeline-server")
+            destination_dir = os.path.join(repo_path, "dlstreamer-pipeline-server")
         print(f"Cloning repository: {repo_url}")
         print(f"Destination directory: {destination_dir}")
 
@@ -263,10 +263,10 @@ class dlsps_utils():
             print("Branch checked out.")
 
         files_to_copy = [
-            {"source": f"{common.repo_path}/automation_tests/resources/videos/video_001.avi", "destination": f"{self.dlsps_path}/../resources/videos/video_001.avi"},
-            {"source": f"{common.repo_path}/automation_tests/resources/videos/video@001.avi", "destination": f"{self.dlsps_path}/../resources/videos/video@001.avi"},
-            {"source": f"{common.repo_path}/automation_tests/resources/images/classroom.png", "destination": f"{self.dlsps_path}/../resources/images/classroom.png"},
-            {"source": f"{common.repo_path}/automation_tests/resources/videos/road_barrier_1920_1080.avi", "destination": f"{self.dlsps_path}/../resources/videos/road_barrier_1920_1080.avi"}
+            {"source": f"{repo_path}/automation_tests/resources/videos/video_001.avi", "destination": f"{self.dlsps_path}/../resources/videos/video_001.avi"},
+            {"source": f"{repo_path}/automation_tests/resources/videos/video@001.avi", "destination": f"{self.dlsps_path}/../resources/videos/video@001.avi"},
+            {"source": f"{repo_path}/automation_tests/resources/images/classroom.png", "destination": f"{self.dlsps_path}/../resources/images/classroom.png"},
+            {"source": f"{repo_path}/automation_tests/resources/videos/road_barrier_1920_1080.avi", "destination": f"{self.dlsps_path}/../resources/videos/road_barrier_1920_1080.avi"}
         ]
         print('\n********** Install dlsps Mode **********')
         if not os.path.isdir(self.dlsps_path):
