@@ -8,7 +8,7 @@ fi
 
 if [ ! -d "$MODELS_PATH" ]; then
     echo "Error: MODELS_PATH ('$MODELS_PATH') does not exist or is not a directory. Exiting."
-    exit 1
+    exit 2
 fi
 
 # Script to manage installation/removal of models using dialog.
@@ -31,16 +31,37 @@ elif [ "$MODEL_INSTALLATION" == "all" ]; then
 else
     echo "Error: Invalid value for MODEL_INSTALLATION ('$MODEL_INSTALLATION')."
     echo "Valid values are: 'once', 'force', 'all'."
-    exit 1
+    exit 3
 fi
 
 # Check if dialog is installed, exit if not (only for interactive modes)
 if [ "$MODEL_INSTALLATION" != "all" ]; then
     if ! command -v dialog &>/dev/null; then
         echo "Error: 'dialog' is not installed. Please install it before running this script."
-        cleanup_and_exit 1
+        exit 4
     fi
 fi
+
+function cleanup {
+    if [ -n "$VIRTUAL_ENV" ]; then
+        echo "Removing Python virtual environment..."
+        deactivate
+    fi
+    echo "Cleaning up temporary files..."
+    rm -rf "$MODEL_MANAGER_TMP_DIR"
+}
+
+function cleanup_and_exit {
+    local exit_code="${1:-0}"
+
+    cleanup
+
+    if [ "$exit_code" -eq 0 ]; then
+        touch "$MODELS_PATH/.models_initialized"
+    fi
+
+    exit "$exit_code"
+}
 
 download_public_models() {
     local models="$1"
@@ -50,7 +71,7 @@ download_public_models() {
         echo "Installing public model: $model"
         if ! bash /opt/intel/dlstreamer/samples/download_public_models.sh "$model"; then
             echo "Error: Failed to download public model $model"
-            cleanup_and_exit 10
+            cleanup_and_exit 9
         fi
         echo "Model $model installed."
     done
@@ -77,13 +98,13 @@ download_omz_models() {
         echo "Downloading model $model using omz_downloader..."
         if ! omz_downloader --name "$model" --output_dir "$tmp_models_dir"; then
             echo "Error: Failed to download OMZ model $model"
-            cleanup_and_exit 14
+            cleanup_and_exit 10
         fi
 
         echo "Converting model $model using omz_converter..."
         if ! omz_converter --name "$model" --output_dir "$tmp_models_dir" --download_dir "$tmp_models_dir"; then
             echo "Error: Failed to convert OMZ model $model"
-            cleanup_and_exit 15
+            cleanup_and_exit 11
         fi
 
         mkdir -p "$target_dir"
@@ -166,27 +187,6 @@ download_pipeline_zoo_models() {
     done
 }
 
-function cleanup {
-    if [ -n "$VIRTUAL_ENV" ]; then
-        echo "Removing Python virtual environment..."
-        deactivate
-    fi
-    echo "Cleaning up temporary files..."
-    rm -rf "$MODEL_MANAGER_TMP_DIR"
-}
-
-function cleanup_and_exit {
-    local exit_code="${1:-0}"
-
-    cleanup
-
-    if [ "$exit_code" -eq 0 ]; then
-        touch "$MODELS_PATH/.models_initialized"
-    fi
-
-    exit "$exit_code"
-}
-
 # Parse supported_models.lst and validate columns
 declare -a MODEL_LINES
 declare -a MODEL_NAMES
@@ -205,7 +205,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     if [ -z "$name" ] || [ -z "$display_name" ] || [ -z "$source" ] || [ -z "$type" ] || [ -n "$extra" ]; then
         echo "Error: Invalid line in $SUPPORTED_MODELS_FILE: '$line'"
         echo "Each line must contain 4 columns separated by '|': name|display_name|source|type"
-        cleanup_and_exit 2
+        cleanup_and_exit 5
     fi
 
     MODEL_LINES+=("$line")
@@ -217,6 +217,7 @@ done < "$SUPPORTED_MODELS_FILE"
 
 echo "Parsed supported models from $SUPPORTED_MODELS_FILE. Found ${#MODEL_NAMES[@]} models."
 
+declare -A SELECTED_MODELS
 if [ "$MODEL_INSTALLATION" == "all" ]; then
     # Select all models for installation
     for i in "${!MODEL_NAMES[@]}"; do
@@ -245,13 +246,13 @@ else
     # Validate that there are models to show
     if [ "${#MODEL_NAMES[@]}" -eq 0 ]; then
         echo "Error: No models found in $SUPPORTED_MODELS_FILE."
-        cleanup_and_exit 4
+        cleanup_and_exit 6
     fi
 
     # Ensure script is run in an interactive terminal
     if [ ! -t 1 ]; then
         echo "Error: No interactive terminal detected. Please run with 'docker compose run -it models' or 'make shell-models'."
-        cleanup_and_exit 5
+        cleanup_and_exit 7
     fi
 
     # Show dialog checklist in the center of the screen
@@ -262,7 +263,6 @@ else
     )
 
     dialog_exit_code=$?
-
     if [ $dialog_exit_code -ne 0 ]; then
         echo "Dialog cancelled by user. Exiting."
         cleanup_and_exit -1
@@ -285,7 +285,6 @@ else
     echo "Selected models: ${CLEANED_SELECTED_DISPLAY_NAMES[*]}"
 
     # Map display names to model names, sources, types
-    declare -A SELECTED_MODELS
     for i in "${!MODEL_DISPLAY_NAMES[@]}"; do
         for selected_clean in "${CLEANED_SELECTED_DISPLAY_NAMES[@]}"; do
             if [ "${MODEL_DISPLAY_NAMES[$i]}" == "$selected_clean" ]; then
@@ -318,7 +317,7 @@ for i in "${!MODEL_NAMES[@]}"; do
                     ;;
                 *)
                     echo "Error: Unknown model source for ${MODEL_NAMES[$i]}: ${MODEL_SOURCES[$i]}"
-                    cleanup_and_exit 3
+                    cleanup_and_exit 8
                     ;;
             esac
         fi
