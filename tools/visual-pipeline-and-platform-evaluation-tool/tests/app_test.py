@@ -22,12 +22,13 @@ mock.patch(
     ),
 ).start()
 
-from app import (
+from app import (  # noqa: E402
     create_interface,
     generate_stream_data,
     read_latest_metrics,
     charts,
 )
+
 
 class TestApp(unittest.TestCase):
     def setUp(self):
