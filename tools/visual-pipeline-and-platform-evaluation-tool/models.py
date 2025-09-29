@@ -51,7 +51,9 @@ class SupportedModelsManager:
                         continue
                     name, display_name, source, model_type, default_flag = parts
                     self._models.append(
-                        SupportedModel(name, display_name, source, model_type, default_flag)
+                        SupportedModel(
+                            name, display_name, source, model_type, default_flag
+                        )
                     )
         except Exception as e:
             raise RuntimeError(
