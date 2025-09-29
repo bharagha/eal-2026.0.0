@@ -35,7 +35,7 @@ a media analytics pipeline as a series of connected elements. The list
 of elements, their configuration properties, and their connections are
 all specified as a list of strings separated by exclamation marks (`!`).
 **gst-launch-1.0** parses the string and instantiates the software
-modules, which perform the individual media analytics operations.
+modules that perform the individual media analytics operations.
 Internally, the GStreamer library constructs a pipeline object that
 contains the individual elements and handles common operations such as
 clocking, messaging, and state changes.
@@ -61,7 +61,7 @@ the next element.
 Elements designated as source elements provide input into the pipeline
 from external sources. In this tutorial we use the
 [filesrc](https://gstreamer.freedesktop.org/documentation/coreelements/filesrc.html?gi-language=c#filesrc)
-element, that reads input from a local file.
+element that reads input from a local file.
 
 Elements designated as sink elements represent the final stage of a
 pipeline. For example, a sink element could write transcoded frames to
@@ -99,7 +99,7 @@ command line tool **gst-inspect-1.0**.
 ## Introduction to Deep Learning Streamer Pipeline Framework
 
 Deep Learning Streamer Pipeline Framework is an easy way to construct media
-analytics pipelines using the Intel® Distribution of OpenVINO™ toolkit. It
+analytics pipelines using OpenVINO™ toolkit. It
 leverages the GStreamer open source media framework to provide optimized
 media operations and
 [Deep Learning Inference Engine](https://docs.openvino.ai/2025/index.html)
