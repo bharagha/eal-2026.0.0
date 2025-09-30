@@ -357,3 +357,50 @@ class dlsps_utils():
         logging.debug('Executing command: ' + cmd)
         cmd_output = subprocess.check_output(cmd, shell=True, executable='/bin/bash')
         return cmd_output
+
+    def execute_curl_command_workload(self, value):
+        print('********** Running curl command **********')
+        workload_map = {
+            "workload1_CPU": {"data": common.dlsps_data_workload1_CPU, "url": common.dlsps_url_workload1_1},
+            "workload1_CPU_sync_true_add_tensor_data_true": {"data": common.dlsps_data_workload1_CPU, "url": common.dlsps_url_workload1_1},
+            "workload1_CPU_sync_true_add_tensor_data_false": {"data": common.dlsps_data_workload1_CPU, "url": common.dlsps_url_workload1_1},
+            "workload1_CPU_sync_true_add_tensor_data_true_png": {"data": common.dlsps_data_workload1_CPU, "url": common.dlsps_url_workload1_1},
+            "workload1_CPU_sync_false_add_tensor_data_false": {"data": common.dlsps_data_workload1_CPU_false, "url": common.dlsps_url_workload1_1},
+            "workload1_CPU_sync_false_add_tensor_data_true": {"data": common.dlsps_data_workload1_CPU_false, "url": common.dlsps_url_workload1_1},
+            "workload1_GPU": {"data": common.dlsps_data_workload1_GPU, "url": common.dlsps_url_workload1_1},
+            "workload1_AUTO": {"data": common.dlsps_data_workload1_AUTO, "url": common.dlsps_url_workload1_1},
+            "workload1_MULTI": {"data": common.dlsps_data_workload1_MULTI, "url": common.dlsps_url_workload1_1},
+            "workload2_CPU_h264": {"data": common.dlsps_data_workload2_CPU_h264, "url": common.dlsps_url_workload2_1},
+            "workload2_CPU_h264_false": {"data": common.dlsps_data_workload2_CPU_h264_false, "url": common.dlsps_url_workload2_1},
+            "workload2_CPU_rtsp": {"data": common.dlsps_data_rtsp1, "url": common.dlsps_url_workload2_1},
+            "workload2_GPU_rtsp": {"data": common.dlsps_data_rtsp1_GPU, "url": common.dlsps_url_workload2_1},
+            "workload2_GPU_h264": {"data": common.dlsps_data_workload2_GPU_h264, "url": common.dlsps_url_workload2_1},
+            "workload2_AUTO_h264": {"data": common.dlsps_data_workload2_AUTO_h264, "url": common.dlsps_url_workload2_1},
+            "workload2_MULTI_h264": {"data": common.dlsps_data_workload2_MULTI_h264, "url": common.dlsps_url_workload2_1},
+            "workload2_CPU_avi": {"data": common.dlsps_data_workload2_CPU_avi, "url": common.dlsps_url_workload2_1},
+            "workload2_GPU_avi": {"data": common.dlsps_data_workload2_GPU_avi, "url": common.dlsps_url_workload2_1},
+            "workload2_AUTO_avi": {"data": common.dlsps_data_workload2_AUTO_avi, "url": common.dlsps_url_workload2_1},
+            "workload2_MULTI_avi": {"data": common.dlsps_data_workload2_MULTI_avi, "url": common.dlsps_url_workload2_1},
+            "workload2_CPU_mp4": {"data": common.dlsps_data_workload2_CPU_mp4, "url": common.dlsps_url_workload2_1},
+            "workload1_1": {"data": common.dlsps_data_workload1_no_parameters, "url": common.dlsps_url_workload1_1},
+            "workload1_2": {"data": common.dlsps_data_workload1_CPU, "url": common.dlsps_url_workload1_2},
+            "workload1_3": {"data": common.dlsps_data_workload1_CPU, "url": common.dlsps_url_workload1_3},
+            "workload1_4": {"data": common.dlsps_data_workload1_GPU, "url": common.dlsps_url_workload1_4},
+            "workload2_1": {"data": common.dlsps_data_workload2_CPU_h264, "url": common.dlsps_url_workload2_1},
+            "workload2_2": {"data": common.dlsps_data_workload2_CPU_h264, "url": common.dlsps_url_workload2_2},
+            "workload2_3": {"data": common.dlsps_data_workload2_CPU_h264, "url": common.dlsps_url_workload2_3},
+            "workload2_4": {"data": common.dlsps_data_workload2_GPU_h264, "url": common.dlsps_url_workload2_4},
+            "workload2_5": {"data": common.dlsps_data_workload2_CPU_mp4, "url": common.dlsps_url_workload2_5},
+            "workload5_CPU": {"data": common.dlsps_data_workload5_CPU, "url": common.dlsps_url_workload1_1},
+            "workload5_GPU": {"data": common.dlsps_data_workload5_GPU, "url": common.dlsps_url_workload1_1},
+            "workload6_CPU": {"data": common.dlsps_data_workload6_CPU, "url": common.dlsps_url_workload1_1},
+            "workload6_GPU": {"data": common.dlsps_data_workload6_GPU, "url": common.dlsps_url_workload1_1}
+        }
+        type_r = value.get("type_r")
+        workload_config = workload_map.get(type_r)
+        data = workload_config["data"]
+        url = workload_config["url"]
+        response_handler = self.response_status_image_ingestor if any(workload in type_r for workload in ["workload1", "workload5"]) else self.response_status
+
+        print(f"Executing curl command for URL: {url}")
+        self.execute_curl_command_generic(url, data, response_handler, value=value)
