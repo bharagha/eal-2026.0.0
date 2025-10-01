@@ -16,6 +16,7 @@
 #endif
 #include <cmath>
 #include <numeric>
+#include <algorithm>
 
 namespace {
 constexpr double TIME_THRESHOLD = 0.1;
@@ -180,24 +181,58 @@ void IterativeFpsCounter::PrintFPS(FILE *output, double sec, bool eos) {
         }
     }
     if (print_latency) {
+        // aggregate all per-stream latency samples for this interval
         for (auto &num_frame : num_frames) {
             total_latencies.insert(total_latencies.end(), latencies[num_frame.first].begin(),
                                    latencies[num_frame.first].end());
         }
-        fprintf(output, "\nlatency: %.2fms", calculate_latency(total_latencies));
-        // clear vector for the next iteration of displaying standard deviation
-        total_latencies.clear();
+
+        // compute overall stats for the interval
+        double overall_mean = calculate_latency(total_latencies);
+        size_t overall_count = total_latencies.size();
+        double overall_min = 0.0, overall_max = 0.0, overall_std = 0.0;
+        if (overall_count > 0) {
+            overall_min = *std::min_element(total_latencies.begin(), total_latencies.end());
+            overall_max = *std::max_element(total_latencies.begin(), total_latencies.end());
+            // population stddev
+            double sum = std::accumulate(total_latencies.begin(), total_latencies.end(), 0.0);
+            double mean = sum / static_cast<double>(overall_count);
+            double sq_sum = 0.0;
+            for (auto &v : total_latencies)
+                sq_sum += (v - mean) * (v - mean);
+            overall_std = overall_count > 1 ? std::sqrt(sq_sum / static_cast<double>(overall_count - 1)) : 0.0;
+        }
+
+        fprintf(output, "\nlatency: %.2fms (count=%zu, min=%.2fms, max=%.2fms, std=%.2fms)", overall_mean,
+                overall_count, overall_min, overall_max, overall_std);
+
+        // per-stream breakdown
         if (num_frames.size() > 1 && print_each_stream) {
-            fprintf(output, " (");
+            fprintf(output, " (per-stream:");
             auto num = num_frames.begin();
-            fprintf(output, "%.2f", calculate_latency(latencies[num->first]));
-            for (++num; num != num_frames.end(); ++num) {
-                fprintf(output, ", %.2f", calculate_latency(latencies[num->first]));
+            bool first = true;
+            for (; num != num_frames.end(); ++num) {
+                const auto &vec = latencies[num->first];
+                double mean = calculate_latency(const_cast<std::vector<double>&>(vec));
+                size_t cnt = vec.size();
+                double mn = 0.0, mx = 0.0;
+                if (cnt > 0) {
+                    mn = *std::min_element(vec.begin(), vec.end());
+                    mx = *std::max_element(vec.begin(), vec.end());
+                }
+                if (!first)
+                    fprintf(output, ", ");
+                fprintf(output, "%s:%.2fms(cnt=%zu,min=%.2f,max=%.2f)", num->first.c_str(), mean, cnt, mn, mx);
+                first = false;
             }
             fprintf(output, ")");
         }
+
+        // clear vector for the next iteration of displaying standard deviation
+        total_latencies.clear();
+
+        // clear per-stream latency buffers
         for (auto &num_frame : num_frames) {
-            // clear vector for the next iteration of displaying standard deviation
             latencies[num_frame.first].clear();
         }
     }
