@@ -9,7 +9,7 @@
 
 import ctypes
 import numpy
-from typing import List, Optional
+from typing import List
 from collections import namedtuple
 
 from .tensor import Tensor
