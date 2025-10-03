@@ -11,7 +11,6 @@
 #include "common/pre_processor_info_parser.hpp"
 #include "common/pre_processors.h"
 #include "config.h"
-#include "glib.h"
 #include "gmutex_lock_guard.h"
 #include "gst_allocator_wrapper.h"
 #include "gva_base_inference_priv.hpp"
@@ -37,7 +36,6 @@
 #include <openvino/runtime/properties.hpp>
 #include <regex>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
