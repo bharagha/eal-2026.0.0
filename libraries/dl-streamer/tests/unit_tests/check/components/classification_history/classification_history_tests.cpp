@@ -17,6 +17,7 @@
 #include <gst/check/gstcheck.h>
 
 #include <gst/video/gstvideometa.h>
+#include <vector>
 
 using ::testing::_;
 using ::testing::Mock;
@@ -199,9 +200,10 @@ TEST_F(ClassificationHistoryTest, UpdateRoiParamsHistory_test) {
     gint id;
     get_object_id(meta, &id);
     classification_history->GetHistory().put(id);
-    classification_history->UpdateROIParams(id, some_params);
+    std::vector<GstStructure *> some_params_vector = {some_params};
+    classification_history->UpdateROIParams(id, some_params_vector);
     ASSERT_EQ(classification_history->GetHistory().count(id), 1);
-    ASSERT_EQ(classification_history->GetHistory().get(id).layers_to_roi_params.count(structure_name), 1);
+    ASSERT_EQ(classification_history->GetHistory().get(id).last_tensors.size(), 1);
 }
 
 TEST_F(ClassificationHistoryTest, ClassificationHistory_test) {
@@ -219,7 +221,8 @@ TEST_F(ClassificationHistoryTest, ClassificationHistory_test) {
 
     classification_history->IsROIClassificationNeeded(meta, buffer, 0);
 
-    classification_history->UpdateROIParams(id, some_params);
+    std::vector<GstStructure *> some_params_vector = {some_params};
+    classification_history->UpdateROIParams(id, some_params_vector);
     ASSERT_FALSE(classification_history->IsROIClassificationNeeded(meta, buffer, 1));
 }
 
@@ -241,11 +244,12 @@ TEST_F(ClassificationHistoryTest, ClassificationHistory_advance_test) {
     size_t i = 1;
     // we do not proceed reclassification until gva_classify->reclassify_interval-th frame.
     // So there must be <, not <=
+    std::vector<GstStructure *> some_params_vector = {some_params};
     for (; i < gva_classify->reclassify_interval; ++i) {
-        classification_history->UpdateROIParams(id, some_params);
+        classification_history->UpdateROIParams(id, some_params_vector);
         ASSERT_FALSE(classification_history->IsROIClassificationNeeded(meta, buffer, i + start_num_frame));
     }
-    classification_history->UpdateROIParams(id, some_params);
+    classification_history->UpdateROIParams(id, some_params_vector);
     ASSERT_TRUE(classification_history->IsROIClassificationNeeded(meta, buffer, i + start_num_frame));
 }
 
@@ -281,9 +285,12 @@ TEST_F(ClassificationHistoryTest, FillROIParams_test) {
     gst_structure_set_name(input_params, structure_name.c_str());
 
     ASSERT_TRUE(classification_history->IsROIClassificationNeeded(roi, image_buf, 0));
-    classification_history->UpdateROIParams(id, input_params);
-    ASSERT_FALSE(classification_history->IsROIClassificationNeeded(roi, image_buf, 1));
 
+    std::vector<GstStructure *> input_params_vector = {input_params};
+    classification_history->UpdateROIParams(id, input_params_vector);
+
+    ASSERT_NO_THROW(classification_history->FillROIParams(image_buf));
+    ASSERT_FALSE(classification_history->IsROIClassificationNeeded(roi, image_buf, 1));
     ASSERT_NO_THROW(classification_history->FillROIParams(image_buf));
 
     state = nullptr;
@@ -313,12 +320,12 @@ TEST_F(ClassificationHistoryTest, ClassificationHistory_LRUCache_api_test) {
     std::string struct2 = "struct2";
     auto some_params2 = GstStructureSharedPtr(gst_structure_new_empty(struct2.c_str()), gst_structure_free);
     gst_structure_set_name(some_params2.get(), struct2.c_str());
-    ClassificationHistory::ROIClassificationHistory id2_history(2, {{std::string("layer2"), some_params2}});
+    ClassificationHistory::ROIClassificationHistory id2_history(2, {{some_params2}});
 
     std::string struct2_new = "struct2_new";
     auto some_params2_new = GstStructureSharedPtr(gst_structure_new_empty(struct2_new.c_str()), gst_structure_free);
     gst_structure_set_name(some_params2_new.get(), struct2_new.c_str());
-    ClassificationHistory::ROIClassificationHistory id2_new_history(3, {{std::string("layer3"), some_params2_new}});
+    ClassificationHistory::ROIClassificationHistory id2_new_history(3, {{some_params2_new}});
 
     ASSERT_TRUE(history_lru_cache.count(id1) == 0);
     ASSERT_THROW(history_lru_cache.get(id1), std::runtime_error);
@@ -326,12 +333,12 @@ TEST_F(ClassificationHistoryTest, ClassificationHistory_LRUCache_api_test) {
     // put new object and fill later (put key with no value and set value later)
     history_lru_cache.put(id1);
     ASSERT_TRUE(history_lru_cache.count(id1) == 1);
-    history_lru_cache.get(id1).layers_to_roi_params["layer1"] = some_params1;
+    history_lru_cache.get(id1).last_tensors.push_back(some_params1);
     history_lru_cache.get(id1).frame_of_last_update = 1;
 
     ClassificationHistory::ROIClassificationHistory id1_history_test = history_lru_cache.get(id1);
     ASSERT_EQ(id1_history_test.frame_of_last_update, 1);
-    ASSERT_EQ(id1_history_test.layers_to_roi_params["layer1"], some_params1);
+    ASSERT_EQ(id1_history_test.last_tensors[0], some_params1);
 
     // put already filled object (put key and value)
     history_lru_cache.put(id2, id2_history);
@@ -339,7 +346,7 @@ TEST_F(ClassificationHistoryTest, ClassificationHistory_LRUCache_api_test) {
 
     ClassificationHistory::ROIClassificationHistory id2_history_test = history_lru_cache.get(id2);
     ASSERT_EQ(id2_history_test.frame_of_last_update, 2);
-    ASSERT_EQ(id2_history_test.layers_to_roi_params["layer2"], some_params2);
+    ASSERT_EQ(id2_history_test.last_tensors[0], some_params2);
 
     // update existing object (update existing key with new value)
     history_lru_cache.put(id2, id2_new_history);
@@ -347,8 +354,8 @@ TEST_F(ClassificationHistoryTest, ClassificationHistory_LRUCache_api_test) {
 
     ClassificationHistory::ROIClassificationHistory id2_new_history_test = history_lru_cache.get(id2);
     ASSERT_EQ(id2_new_history_test.frame_of_last_update, 3);
-    ASSERT_EQ(id2_new_history_test.layers_to_roi_params.count("layer2"), 0);
-    ASSERT_EQ(id2_new_history_test.layers_to_roi_params["layer3"], some_params2_new);
+    ASSERT_EQ(id2_new_history_test.last_tensors.size(), 1);
+    ASSERT_EQ(id2_new_history_test.last_tensors[0], some_params2_new);
 }
 
 TEST_F(ClassificationHistoryTest, ClassificationHistory_LRUCache_size_test) {
@@ -375,7 +382,7 @@ TEST_F(ClassificationHistoryTest, ClassificationHistory_LRUCache_size_test) {
     std::string test_struct = "struct";
     auto some_params = GstStructureSharedPtr(gst_structure_new_empty(test_struct.c_str()), gst_structure_free);
     gst_structure_set_name(some_params.get(), test_struct.c_str());
-    ClassificationHistory::ROIClassificationHistory test_history(1, {{std::string("test_layer"), some_params}});
+    ClassificationHistory::ROIClassificationHistory test_history(1, {{some_params}});
 
     history_lru_cache.get(CLASSIFICATION_HISTORY_SIZE);
     history_lru_cache.put(CLASSIFICATION_HISTORY_SIZE, {});

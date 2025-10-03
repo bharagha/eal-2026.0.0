@@ -26,8 +26,8 @@ G_END_DECLS
 #include "gst_smart_pointer_types.hpp"
 #include "lru_cache.h"
 
-#include <map>
 #include <mutex>
+#include <vector>
 
 const size_t CLASSIFICATION_HISTORY_SIZE = 100;
 
@@ -35,18 +35,18 @@ struct ClassificationHistory {
   public:
     struct ROIClassificationHistory {
         uint64_t frame_of_last_update;
-        std::map<std::string, GstStructureSharedPtr> layers_to_roi_params;
+        std::vector<GstStructureSharedPtr> last_tensors;
 
         ROIClassificationHistory(uint64_t frame_of_last_update = {},
-                                 std::map<std::string, GstStructureSharedPtr> layers_to_roi_params = {})
-            : frame_of_last_update(frame_of_last_update), layers_to_roi_params(layers_to_roi_params) {
+                                 std::vector<GstStructureSharedPtr> last_tensors = {})
+            : frame_of_last_update(frame_of_last_update), last_tensors(last_tensors) {
         }
     };
 
     ClassificationHistory(GstGvaClassify *gva_classify);
 
     bool IsROIClassificationNeeded(GstVideoRegionOfInterestMeta *roi, GstBuffer *buffer, uint64_t current_num_frame);
-    void UpdateROIParams(int roi_id, const GstStructure *roi_param);
+    void UpdateROIParams(int roi_id, const std::vector<GstStructure *> &roi_param);
     void FillROIParams(GstBuffer *buffer);
     LRUCache<int, ROIClassificationHistory> &GetHistory();
 

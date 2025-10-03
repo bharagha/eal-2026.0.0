@@ -529,7 +529,7 @@ void ApplyImageBoundaries(std::shared_ptr<InferenceBackend::Image> &image, GstVi
 }
 
 void UpdateClassificationHistory(gint meta_id, GvaBaseInference *gva_base_inference,
-                                 const GstStructure *classification_result) {
+                                 const std::vector<GstStructure *> &classification_result) {
     if (gva_base_inference->type != GST_GVA_CLASSIFY_TYPE)
         return;
 
@@ -976,9 +976,7 @@ void InferenceImpl::PushOutput() {
                 get_od_id(od_mtd, &meta_id);
             }
 
-            for (const GstStructure *roi_classification : inference_roi->roi_classifications) {
-                UpdateClassificationHistory(meta_id, (*frame).filter, roi_classification);
-            }
+            UpdateClassificationHistory(meta_id, (*frame).filter, inference_roi->roi_classifications);
         }
 
         // 'output_frames' queue can be shared across streams and it is subject to HOL blocking

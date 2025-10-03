@@ -10,9 +10,10 @@
 #include "inference_backend/logger.h"
 #include "inference_impl.h"
 #include "utils.h"
+#include <cstdint>
+#include <cstdlib>
+#include <vector>
 #include <video_frame.h>
-
-#include <algorithm>
 
 ClassificationHistory::ClassificationHistory(GstGvaClassify *gva_classify)
     : gva_classify(gva_classify), current_num_frame(0), history(CLASSIFICATION_HISTORY_SIZE) {
@@ -22,7 +23,6 @@ bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMe
                                                       uint64_t current_num_frame) {
     try {
         std::lock_guard<std::mutex> guard(history_mutex);
-        this->current_num_frame = current_num_frame;
 
         // by default we assume that
         // we have recent classification result or classification is not required for this object
@@ -68,21 +68,23 @@ bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMe
     }
 }
 
-void ClassificationHistory::UpdateROIParams(int roi_id, const GstStructure *roi_param) {
+void ClassificationHistory::UpdateROIParams(int roi_id, const std::vector<GstStructure *> &roi_param) {
     try {
         std::lock_guard<std::mutex> guard(history_mutex);
-
-        const gchar *layer_c = gst_structure_get_name(roi_param);
-        if (not layer_c)
-            throw std::runtime_error("Can't get name of region of interest param structure");
-        std::string layer(layer_c);
 
         // To prevent attempts to access removed objects,
         // we should readd lost objects to history if needed
         CheckExistingAndReaddObjectId(roi_id);
 
-        history.get(roi_id).layers_to_roi_params[layer] =
-            GstStructureSharedPtr(gst_structure_copy(roi_param), gst_structure_free);
+        history.get(roi_id).last_tensors.clear();
+
+        for (const auto &gst_structure : roi_param) {
+            if (!gst_structure)
+                throw std::runtime_error("Null classification result structure");
+
+            history.get(roi_id).last_tensors.push_back(
+                GstStructureSharedPtr(gst_structure_copy(gst_structure), gst_structure_free));
+        }
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to update detection tensor parameters"));
     }
@@ -101,19 +103,20 @@ void ClassificationHistory::FillROIParams(GstBuffer *buffer) {
             bool is_appropriate_object_class = inference->FilterObjectClass(region.label());
             if (history.count(id) && is_appropriate_object_class) {
                 const auto &roi_history = history.get(id);
-                int frames_ago = this->current_num_frame - roi_history.frame_of_last_update;
-                for (const auto &layer_to_roi_param : roi_history.layers_to_roi_params) {
-                    if (!region.get_param(gst_structure_get_name(layer_to_roi_param.second.get()))) {
-                        auto tensor = GstStructureUniquePtr(gst_structure_copy(layer_to_roi_param.second.get()),
-                                                            gst_structure_free);
+                int64_t frames_diff = this->current_num_frame - roi_history.frame_of_last_update;
+                frames_diff = std::abs(frames_diff);
+                if (frames_diff % gva_classify->reclassify_interval != 0) {
+                    for (const auto &gst_structure : roi_history.last_tensors) {
+                        auto tensor =
+                            GstStructureUniquePtr(gst_structure_copy(gst_structure.get()), gst_structure_free);
                         if (not tensor)
                             throw std::runtime_error("Failed to create classification tensor");
-                        gst_structure_set(tensor.get(), "frames_ago", G_TYPE_INT, frames_ago, NULL);
                         region.add_param(tensor.release());
                     }
                 }
             }
         }
+        this->current_num_frame++;
     } catch (const std::exception &e) {
         GVA_ERROR("Failed to fill detection tensor parameters from history:\n%s",
                   Utils::createNestedErrorMsg(e).c_str());
@@ -130,9 +133,8 @@ void ClassificationHistory::CheckExistingAndReaddObjectId(int roi_id) {
         GVA_WARNING("Classification history size limit is exceeded. "
                     "Additional reclassification within reclassify-interval is required.");
         GvaBaseInference *base_inference = GVA_BASE_INFERENCE(gva_classify);
-        current_num_frame = base_inference->frame_num;
         history.put(roi_id);
-        history.get(roi_id).frame_of_last_update = current_num_frame;
+        history.get(roi_id).frame_of_last_update = base_inference->frame_num;
     }
 }
 
