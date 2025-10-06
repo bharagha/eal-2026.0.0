@@ -68,6 +68,10 @@ struct Image {
             uint32_t va_surface_id;
             void *va_display;
         };
+        struct {                            // if type==D3D11
+            void *d3d11_texture;
+            void *d3d11_device;
+       };
     };
     int dma_fd = -1; // if type==DMA_BUFFER or VPUX device is used
 
