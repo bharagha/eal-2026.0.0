@@ -29,7 +29,8 @@ class IterativeFpsCounter : public FpsCounter {
     IterativeFpsCounter(unsigned starting_frame, unsigned interval, bool average, bool print_std_dev,
                         bool print_latency)
         : starting_frame(starting_frame), interval(interval), average(average), print_each_stream(true),
-          total_frames(0), eos_result_reported(false), print_std_dev(print_std_dev), print_latency(print_latency) {
+          total_frames(0), avg_fps(0.0), eos_result_reported(false), print_std_dev(print_std_dev),
+          print_latency(print_latency) {
     }
     bool NewFrame(const std::string &element_name, FILE *output, GstBuffer *buffer) override;
     void EOS(const std::string &element_name, FILE *) override;
@@ -42,6 +43,7 @@ class IterativeFpsCounter : public FpsCounter {
     bool average;
     bool print_each_stream;
     unsigned total_frames;
+    double avg_fps;
     std::chrono::time_point<std::chrono::high_resolution_clock> init_time;
     std::chrono::time_point<std::chrono::high_resolution_clock> last_time;
     std::map<std::string, int> num_frames;
