@@ -6,8 +6,8 @@
 
 openapi: 3.0.0
 info:
-  description: ViPPET REST API
-  title: ViPPET REST API
+  description: Visual Pipeline and Platform Evaluation REST API
+  title: Visual Pipeline and Platform Evaluation REST API
   version: 3.1.0
 servers:
 - url: /
@@ -28,6 +28,7 @@ paths:
       x-openapi-router-controller: src.rest_api.endpoints.Endpoints
     post:
       description: Create new pipeline
+      operationId: pipelines_post
       requestBody:
         content:
           application/json:
@@ -47,6 +48,7 @@ paths:
   /pipelines/validate:
     post:
       description: Validate pipeline
+      operationId: pipelines_validate
       requestBody:
         content:
           application/json:
@@ -319,7 +321,7 @@ components:
           type: string
         parameters:
           additionalProperties:
-            $ref: '#/components/schemas/Pipeline_parameters'
+            $ref: '#/components/schemas/PipelineParameters'
           type: object
       required:
       - description
@@ -350,7 +352,7 @@ components:
           type: string
         parameters:
           additionalProperties:
-            $ref: '#/components/schemas/Pipeline_parameters'
+            $ref: '#/components/schemas/PipelineParameters'
           type: object
       required:
       - name
@@ -374,7 +376,7 @@ components:
           type: string
         parameters:
           additionalProperties:
-            $ref: '#/components/schemas/Pipeline_parameters'
+            $ref: '#/components/schemas/PipelineParameters'
           type: object
       required:
       - type
@@ -464,25 +466,6 @@ components:
       - type
       - uri
       type: object
-    WebcamSource:
-      properties:
-        type:
-          enum:
-          - webcam
-          type: string
-        device:
-          type: string
-          format: path
-        properties:
-          type: object
-        capsfilter:
-          type: string
-        postproc:
-          type: string
-      required:
-      - type
-      - device
-      type: object
     GstSource:
       properties:
         type:
@@ -500,32 +483,6 @@ components:
       required:
       - type
       - element
-      type: object
-    FileSource:
-      properties:
-        type:
-          enum:
-          - file
-          type: string
-        path:
-          format: path
-          type: string
-      required:
-      - type
-      - path
-      type: object
-    Base64Source:
-      properties:
-        type:
-          enum:
-          - base64_image
-          type: string
-        data:
-          type: string
-          format: binary
-      required:
-      - type
-      - data
       type: object
     FileDestination:
       properties:
@@ -772,7 +729,6 @@ components:
           oneOf:
            - $ref: '#/components/schemas/URISource'
            - $ref: '#/components/schemas/GstSource'
-           - $ref: '#/components/schemas/WebcamSource'
           type: object
         destination:
           oneOf:
@@ -804,7 +760,6 @@ components:
           oneOf:
            - $ref: '#/components/schemas/URISource'
            - $ref: '#/components/schemas/GstSource'
-           - $ref: '#/components/schemas/WebcamSource'
           type: object
         destination:
           oneOf:
@@ -836,7 +791,6 @@ components:
           oneOf:
            - $ref: '#/components/schemas/URISource'
            - $ref: '#/components/schemas/GstSource'
-           - $ref: '#/components/schemas/WebcamSource'
           type: object
         destination:
           oneOf:
@@ -850,38 +804,7 @@ components:
           description: Pipeline specific parameters.
           type: object
       type: object
-    ModelQueryParams:
-      example:
-        project_name: person-detection
-        version: v1
-        category: Detection
-        architecture: YOLO
-        precision: FP32
-        deploy: true
-      properties:
-        name:
-          type: string
-          description: The name associated to a model.
-        category:
-          type: string
-          description: The category associated to a model.
-        architecture:
-          type: string
-          description: The architecture associated to a model.
-        precision:
-          type: string
-          description: The precision associated to a model.
-        project_name:
-          type: string
-          description: The name of the project associated to a model.
-        version:
-          type: string
-          description: The version of a model.
-        deploy:
-          type: boolean
-          description: Indicates whether to start a new pipeline instance using the specified model and stop the current pipeline instance.
-      type: object
-    Pipeline_parameters:
+    PipelineParameters:
       example:
         default: {}
       properties:
