@@ -60,7 +60,7 @@ PG_CONNECTION_STRING = os.getenv("PG_CONNECTION_STRING")
 MODEL_NAME = os.getenv("EMBEDDING_MODEL", "Alibaba-NLP/gte-large-en-v1.5")
 EMBEDDING_ENDPOINT_URL = os.getenv("EMBEDDING_ENDPOINT_URL", "http://localhost:6006")
 COLLECTION_NAME = os.getenv("INDEX_NAME")
-FETCH_K = int(os.getenv("FETCH_K", "10"))
+FETCH_K = int(os.getenv("FETCH_K", "1"))
 
 engine = create_async_engine(PG_CONNECTION_STRING)
 
@@ -155,6 +155,14 @@ def format_docs(docs):
     
     return "\n\n".join(formatted_docs)
 
+async def context_retriever_fn(chain_inputs: dict):
+    question = chain_inputs.get("question", "")
+    if not question:
+        return {}   # to keep shape consistent
+
+    retrieved_docs = await retriever.aget_relevant_documents(question)
+    return retrieved_docs     # context: list[Document]
+
 async def process_chunks(conversation_messages, max_tokens):
     print(f"Inside process_chunks, conversation_messages: {conversation_messages}, max_tokens: {max_tokens}")
     # Combine all messages for context
@@ -209,7 +217,7 @@ async def process_chunks(conversation_messages, max_tokens):
         "history": lambda x: x["history"]  # passes through the history
     })
     | re_ranker_lambda
-    | {"context": (lambda x: format_docs(x["context"])), "question": lambda x: x["question"]}
+    | {"context": (lambda x: format_docs(x["context"])), "question": lambda x: x["question"], "history": lambda x: x["history"]}
     | prompt
     | model
     | StrOutputParser()
