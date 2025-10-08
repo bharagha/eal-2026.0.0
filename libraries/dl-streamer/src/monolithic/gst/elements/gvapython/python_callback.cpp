@@ -14,10 +14,6 @@
 #include <gmodule.h>
 #include <pygobject-3.0/pygobject.h>
 
-#ifndef F_OK
-#define F_OK 0
-#endif
-
 namespace {
 PyObject *extractClass(PyObjectWrapper &pluginModule, const char *class_name, const char *args_string,
                        const char *kwargs_string) {
@@ -70,10 +66,11 @@ PyObject *import_module_full_path(const char *module_name, const char *file_path
     // Allocate memory for the file path with .py extension
     char *pStr = new char[strlen(file_path) + 3];
 
+    // 0 is test for existence of file
     sprintf(pStr, "%s", file_path);
-    if (access(pStr, F_OK) != 0) {
+    if (access(pStr, 0) != 0) {
         sprintf(pStr, "%s.py", file_path);
-        if (access(pStr, F_OK) != 0) {
+        if (access(pStr, 0) != 0) {
             GST_ERROR("Error: Python module file not found: %s\n", pStr);
             if (pStr)
                 delete[] pStr;
