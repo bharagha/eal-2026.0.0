@@ -13,6 +13,7 @@ from explore import GstInspector
 from utils import prepare_video_and_constants, download_file
 from device import DeviceDiscovery
 from models import SupportedModelsManager
+from benchmark import Benchmark
 
 
 TEMP_DIR = "/tmp/"
@@ -132,3 +133,51 @@ def run_pipeline(
         )
 
     return best_result_message
+
+@app.post("/pipelines/{name}/{version}/benchmark")
+def run_pipeline(
+    name: str,
+    version: str,
+    body: PipelineRunBody
+):
+    dir = "smartnvr"
+    gst_pipeline, config = PipelineLoader.load(dir)
+
+    # Download the pipeline recording files
+    download_file(
+        config["recording"]["url"],
+        config["recording"]["filename"],
+    )
+
+    body.parameters["input_video_player"] = os.path.join(TEMP_DIR, config["recording"]["filename"])
+
+    try:
+        video_output_path, constants, param_grid = prepare_video_and_constants(**body.parameters)
+    except ValueError as e:
+        return {"error": str(e)}
+
+    logging.info(f"Constants: {constants}")
+    logging.info(f"param_grid: {param_grid}")
+
+    # Initialize the benchmark class
+    bm = Benchmark(
+        pipeline_cls=gst_pipeline,
+        fps_floor=body.parameters["fps_floor"],
+        rate=body.parameters.get("ai_stream_rate"),
+        parameters=param_grid,
+        constants=constants,
+        elements=gst_inspector.get_elements(),
+    )
+
+    # Run the benchmark
+    s, ai, non_ai, fps = bm.run()
+
+    # Return results
+    try:
+        result = config["parameters"]["benchmark"]["result_format"]
+    except KeyError:
+        result = (
+            "Best Config: {s} streams ({ai} AI, {non_ai} non_AI) -> {fps:.2f} FPS"
+        )
+
+    return result.format(s=s, ai=ai, non_ai=non_ai, fps=fps)

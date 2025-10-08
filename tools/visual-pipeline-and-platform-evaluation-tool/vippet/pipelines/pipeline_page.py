@@ -803,7 +803,6 @@ class Pipeline:
 
         # Initialize the benchmark class
         bm = Benchmark(
-            video_path=arguments["input_video_player"],
             pipeline_cls=self.gst_pipeline,
             fps_floor=arguments["fps_floor"],
             rate=arguments.get("ai_stream_rate"),

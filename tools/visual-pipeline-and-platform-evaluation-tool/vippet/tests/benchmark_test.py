@@ -31,7 +31,6 @@ class TestPipeline(GstPipeline):
 
 class TestBenchmark(unittest.TestCase):
     def setUp(self):
-        self.video_path = "test_video.mp4"
         self.pipeline_cls = TestPipeline
         self.fps_floor = 30.0
         self.rate = 50
@@ -39,7 +38,6 @@ class TestBenchmark(unittest.TestCase):
         self.constants = {"const1": "value1"}
         self.elements = [("element1", "type1", "name1")]
         self.benchmark = Benchmark(
-            video_path=self.video_path,
             pipeline_cls=self.pipeline_cls,
             fps_floor=self.fps_floor,
             rate=self.rate,

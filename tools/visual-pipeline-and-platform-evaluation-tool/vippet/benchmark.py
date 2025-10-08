@@ -20,7 +20,6 @@ class Benchmark:
 
     def __init__(
         self,
-        video_path: str,
         pipeline_cls,
         fps_floor: float,
         rate: int | None,
@@ -28,7 +27,6 @@ class Benchmark:
         constants: Dict[str, str],
         elements: List[tuple[str, str, str]] | None = None,
     ):
-        self.video_path = video_path
         self.pipeline_cls = pipeline_cls
         self.fps_floor = fps_floor
         self.rate = rate if rate is not None else self.DEFAULT_RATE
