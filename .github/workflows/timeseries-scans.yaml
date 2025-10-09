@@ -381,9 +381,11 @@ jobs:
               {{ end }}
               {{ end }}
               EOF
-              trivy image intel/ia-time-series-analytics-microservice:1.1.0-weekly --list-all-pkgs --ignore-unfixed --format template --template "@trivy-html.tpl" -o trivy_image_scan.html
-              trivy image --quiet --list-all-pkgs --format spdx-json --output trivy_image_scan.spdx.json intel/ia-time-series-analytics-microservice:1.1.0-weekly
-              trivy image intel/ia-time-series-analytics-microservice:1.1.0-weekly --list-all-pkgs --format template --template "@csv.tpl" -o trivy_image_scan_time-series-analytics-microservice.csv
+              source .env
+              IMAGE_TO_SCAN="${TIME_SERIES_ANALYTICS_IMAGE}${IMAGE_SUFFIX:+-${IMAGE_SUFFIX}}"
+              trivy image "${IMAGE_TO_SCAN}" --list-all-pkgs --ignore-unfixed --format template --template "@trivy-html.tpl" -o trivy_image_scan.html
+              trivy image --quiet --list-all-pkgs --format spdx-json --output trivy_image_scan.spdx.json "${IMAGE_TO_SCAN}"
+              trivy image "${IMAGE_TO_SCAN}" --list-all-pkgs --format template --template "@csv.tpl" -o trivy_image_scan_time-series-analytics-microservice.csv
               echo "completed Time Series Analytics scanning"
             
       - name: Upload Trivy Image Scan Report
