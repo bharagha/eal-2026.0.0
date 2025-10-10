@@ -19,7 +19,6 @@ from models import SupportedModelsManager
 from optimize import PipelineOptimizer
 from utils import prepare_video_and_constants
 
-TEMP_DIR = "/tmp/"
 METRICS_FILE_PATH = "/home/dlstreamer/vippet/.collector-signals/metrics.txt"
 FPS_FILE_PATH = "/home/dlstreamer/vippet/.collector-signals/fps.txt"
 
@@ -57,12 +56,11 @@ class Pipeline:
 
         try:
             # Download the pipeline recording files
-            download_file(
+            file_path = utils.download_file(
                 self.config["recording"]["url"],
                 self.config["recording"]["filename"],
             )
             label = "Input Video"
-            path = os.path.join(TEMP_DIR, self.config["recording"]["filename"])
         except Exception as e:
             print(f"Error downloading pipeline recordings: {e}")
             label = "Error: Video file not found. Verify the recording URL or proxy settings."
@@ -71,7 +69,7 @@ class Pipeline:
         # Video Player
         self.input_video_player = gr.Video(
             label=label,
-            value=path,
+            value=file_path,
             interactive=True,
             show_download_button=True,
             sources="upload",
@@ -832,17 +830,6 @@ class Pipeline:
             )
 
         return result.format(s=s, ai=ai, non_ai=non_ai, fps=fps)
-
-
-def download_file(url, local_filename):
-    # Send a GET request to the URL
-    with requests.get(url, stream=True) as response:
-        response.raise_for_status()  # Check if the request was successful
-        # Open a local file with write-binary mode
-        with open(os.path.join(TEMP_DIR, local_filename), "wb") as file:
-            # Iterate over the response content in chunks
-            for chunk in response.iter_content(chunk_size=8192):
-                file.write(chunk)  # Write each chunk to the local file
 
 
 def on_stop():
