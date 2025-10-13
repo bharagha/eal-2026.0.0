@@ -14,7 +14,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 
-FROM intel/dlstreamer:2025.1.2-ubuntu24
+FROM intel/dlstreamer:2025.1.2-ubuntu24 AS prod
 
 USER root
 
@@ -26,34 +26,29 @@ ENV GST_PLUGIN_PATH=$GST_PLUGIN_PATH/usr/lib/x86_64-linux-gnu/gstreamer-1.0/
 
 WORKDIR /home/dlstreamer/vippet
 
-ENV VIRTUAL_ENV=/home/dlstreamer/vippet/.venv
+ENV VIRTUAL_ENV=/home/dlstreamer/.venv
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-COPY requirements.txt /home/dlstreamer/vippet/requirements.txt
+COPY --chown=dlstreamer:dlstreamer vippet/requirements.txt /home/dlstreamer/vippet/requirements.txt
 
 RUN \
     pip3 install --no-cache-dir --upgrade pip && \
     pip3 install --no-cache-dir -r requirements.txt
 
 COPY --chown=dlstreamer:dlstreamer \
-    app.py \
-    app.css \
-    benchmark.py \
-    chart.py \
-    device.py \
-    explore.py \
-    gstpipeline.py \
-    models/supported_models.lst \
-    models.py \
-    optimize.py \
-    utils.py \
-    home.py \
-    api.py \
-    pipelines/pipeline_page.py \
+    vippet/*.py \
+    vippet/app.css \
     /home/dlstreamer/vippet/
 
-COPY --chown=dlstreamer:dlstreamer pipelines/ /home/dlstreamer/vippet/pipelines
-COPY --chown=dlstreamer:dlstreamer api/ /home/dlstreamer/vippet/api
+COPY --chown=dlstreamer:dlstreamer vippet/pipelines/ /home/dlstreamer/vippet/pipelines
+COPY --chown=dlstreamer:dlstreamer vippet/api/ /home/dlstreamer/vippet/api
 
 CMD ["/bin/bash", "-c", "fastapi run --port 7860 api.py"]
+
+FROM prod AS test
+
+COPY --chown=dlstreamer:dlstreamer vippet/requirements-dev.txt /home/dlstreamer/vippet/requirements-dev.txt
+RUN \
+    pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir -r requirements-dev.txt
