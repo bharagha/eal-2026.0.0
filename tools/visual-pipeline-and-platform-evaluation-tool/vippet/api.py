@@ -2,14 +2,16 @@ import logging
 import yaml
 import os
 
-from typing import List, Union, Dict, Any, Optional
-from fastapi import Body, FastAPI
-from pydantic import BaseModel
+from typing import List
+from fastapi import Body, FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+from uuid import UUID
 
-from gstpipeline import PipelineLoader
+from gstpipeline import PipelineLoader, CustomGstPipeline
 from optimize import PipelineOptimizer
 from explore import GstInspector
 
+import api_models as models
 from pipelines.pipeline_page import download_file
 from utils import prepare_video_and_constants
 from device import DeviceDiscovery
@@ -19,104 +21,112 @@ from benchmark import Benchmark
 
 TEMP_DIR = "/tmp/"
 
-class Source(BaseModel):
-    type: str
-    uri: str
-
-class PipelineRunBody(BaseModel):
-    async_: Optional[bool] = Body(default=False, alias="async")
-    source: Source
-    parameters: Dict[str, Any]
-    tags: Optional[Union[List[str], Dict[str, Any]]] = {}
-
-
 with open("api/vippet.yaml") as f:
     openapi_schema = yaml.safe_load(f)
 
-app = FastAPI()
+app = FastAPI(
+    title="Visual Pipeline and Platform Evaluation Tool API",
+    description="API for Visual Pipeline and Platform Evaluation Tool",
+    version="1.0.0",
+)
 app.openapi = lambda: openapi_schema
 
 gst_inspector = GstInspector()
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
-
-@app.get("/devices")
-def read_devices():
-    device_discovery = DeviceDiscovery()
-    device_list = device_discovery.list_devices()
-    return [device.__dict__ for device in device_list]
-
-@app.get("/models")
-def read_models():
-    models = SupportedModelsManager().get_all_available_models()
-    return [
-        {
-            "name": m.name,
-            "display_name": m.display_name,
-            "category": m.model_type,
-            "precision": m.display_name.split(" ")[-1].strip("()")
-        }
-        for m in models
-    ]
-
-@app.get("/pipelines")
-def read_pipelines():
+@app.get("/pipelines", response_model=List[models.Pipeline])
+def get_pipelines():
     pipeline_infos = []
     for pipeline in PipelineLoader.list():
-        config = PipelineLoader.config(pipeline)
-        pipeline_infos.append({
-            "name": config.get("name", "Unnamed Pipeline"),
-            "version": config.get("version", "0.0.1"),
-            "description": config.get("definition", ""),
-            "type": config.get("type", "GStreamer"),
-        })
+        pipeline_gst, config = PipelineLoader.load(pipeline)
+        pipeline_infos.append(models.Pipeline(
+            id=pipeline,
+            name=config.get("name", "Unnamed Pipeline"),
+            version=config.get("version", "0.0.1"),
+            description=config.get("definition", config.get("description", "")),
+            type=models.PipelineType.GSTREAMER,
+            parameters=models.PipelineParameters(
+                default={
+                    "launch_string": pipeline_gst.get_default_gst_launch(elements=gst_inspector.get_elements())
+                }
+            )
+        ))
     return pipeline_infos
 
+@app.post("/pipelines", status_code=201)
+def create_pipeline(body: models.PipelineDefinition):
+    """Create a custom pipeline from a GST launch string."""
+    try:
+        # Validate the GST string first
+        is_valid, validation_message = CustomPipelineManager.validate_gst_string(body.launch_string)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=f"Invalid GST string: {validation_message}")
 
-@app.get("/pipelines/{pipeline_id}")
-def get_pipeline_info(pipeline_id: str):
-    if not pipeline_id in PipelineLoader.list():
-        return {"error": "Pipeline not found"}
+        pipeline, config = CustomPipelineManager.create_custom_pipeline(
+            gst_launch_string=body.launch_string,
+            name=body.name,
+            description=body.description
+        )
 
-    return PipelineLoader.config(pipeline_id)
+        # Return location header as per OpenAPI spec
+        location = f"/pipelines/{body.name}/{body.version}"
+        return JSONResponse(
+            content={"message": "Pipeline created successfully"},
+            status_code=201,
+            headers={"Location": location}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create pipeline: {str(e)}")
 
+@app.post("/pipelines/validate")
+def validate_pipeline(body: models.PipelineValidation):
+    """Validate a GST launch string pipeline."""
+    is_valid, message = CustomPipelineManager.validate_gst_string(body.launch_string)
+    if is_valid:
+        return JSONResponse(content={"message": "Pipeline valid"}, status_code=200)
+    else:
+        raise HTTPException(status_code=400, detail=message)
 
 @app.post("/pipelines/{name}/{version}/run")
 def run_pipeline(
     name: str,
     version: str,
-    body: PipelineRunBody
+    body: models.PipelineRequestRun
 ):
-    dir = "smartnvr"
-    gst_pipeline, config = PipelineLoader.load(dir)
+    parameters = body.parameters or {}
 
-    # Download the pipeline recording files
-    download_file(
-        config["recording"]["url"],
-        config["recording"]["filename"],
-    )
+    gst_pipeline, config = PipelineLoader.load_from_launch_string(parameters["launch_string"], name=name)
 
-    body.parameters["input_video_player"] = os.path.join(TEMP_DIR, config["recording"]["filename"])
+    # Download the pipeline recording files if using built-in config
+    if "recording" in config:
+        download_file(
+            config["recording"]["url"],
+            config["recording"]["filename"],
+        )
+        input_video_path = os.path.join(TEMP_DIR, config["recording"]["filename"])
+    else:
+        file_name = os.path.basename(body.source.uri)
+        download_file(
+            body.source.uri,
+            file_name,
+        )
+        # Use the source URI from the request
+        input_video_path = os.path.join(TEMP_DIR, file_name)
 
-    try:
-        video_output_path, constants, param_grid = prepare_video_and_constants(**body.parameters)
-    except ValueError as e:
-        return {"error": str(e)}
-
-    logging.info(f"Constants: {constants}")
-    logging.info(f"param_grid: {param_grid}")
 
     recording_channels = 0
-    inferencing_channels = body.parameters["inferencing_channels"]
+    inferencing_channels = parameters.get("inferencing_channels", 1)
 
     if recording_channels + inferencing_channels == 0:
         return {"error": "At least one channel must be enabled"}
 
+    param_grid = {
+        "live_preview_enabled": [False]
+    }
+
     optimizer = PipelineOptimizer(
         pipeline=gst_pipeline,
-        constants=constants,
         param_grid=param_grid,
         channels=(recording_channels, inferencing_channels),
         elements=gst_inspector.get_elements(),
@@ -136,24 +146,36 @@ def run_pipeline(
     return best_result_message
 
 @app.post("/pipelines/{name}/{version}/benchmark")
-def run_pipeline(
+def benchmark_pipeline(
     name: str,
     version: str,
-    body: PipelineRunBody
+    body: models.PipelineRequestBenchmark
 ):
-    dir = "smartnvr"
+    dir = "smartnvr"  # This should be mapped from name/version in a real implementation
     gst_pipeline, config = PipelineLoader.load(dir)
 
-    # Download the pipeline recording files
-    download_file(
-        config["recording"]["url"],
-        config["recording"]["filename"],
-    )
+    # Download the pipeline recording files if using built-in config
+    if "recording" in config:
+        download_file(
+            config["recording"]["url"],
+            config["recording"]["filename"],
+        )
+        input_video_path = os.path.join(TEMP_DIR, config["recording"]["filename"])
+    else:
+        file_name = os.path.basename(body.source.uri)
+        download_file(
+            body.source.uri,
+            file_name,
+        )
+        # Use the source URI from the request
+        input_video_path = os.path.join(TEMP_DIR, file_name)
 
-    body.parameters["input_video_player"] = os.path.join(TEMP_DIR, config["recording"]["filename"])
+    # Prepare parameters, ensuring input video is set
+    parameters = body.parameters or {}
+    parameters["input_video_player"] = input_video_path
 
     try:
-        video_output_path, constants, param_grid = prepare_video_and_constants(**body.parameters)
+        video_output_path, constants, param_grid = prepare_video_and_constants(**parameters)
     except ValueError as e:
         return {"error": str(e)}
 
@@ -163,8 +185,8 @@ def run_pipeline(
     # Initialize the benchmark class
     bm = Benchmark(
         pipeline_cls=gst_pipeline,
-        fps_floor=body.parameters["fps_floor"],
-        rate=body.parameters.get("ai_stream_rate"),
+        fps_floor=parameters.get("fps_floor"),
+        rate=parameters.get("ai_stream_rate"),
         parameters=param_grid,
         constants=constants,
         elements=gst_inspector.get_elements(),
@@ -182,3 +204,59 @@ def run_pipeline(
         )
 
     return result.format(s=s, ai=ai, non_ai=non_ai, fps=fps)
+
+@app.post("/pipelines/{name}/{version}/optimize")
+def optimize_pipeline(name: str, version: str, request: models.PipelineRequestOptimize):
+    return {"message": "Optimization started"}
+
+@app.delete("/pipelines/{name}/{version}")
+def delete_pipeline(name: str, version: str):
+    return {"message": "Pipeline deleted"}
+
+@app.get("/pipelines/status", response_model=List[models.PipelineInstanceStatus])
+def get_pipeline_status():
+    return []
+
+@app.delete("/pipelines/{instance_id}", response_model=List[models.PipelineInstanceStatus])
+def stop_pipeline_instance(instance_id: UUID):
+    return []
+
+@app.get("/pipelines/{instance_id}", response_model=models.PipelineInstanceSummary)
+def get_pipeline_summary(instance_id: UUID):
+    return models.PipelineInstanceSummary(id=0, type="type")
+
+@app.get("/pipelines/{instance_id}/status", response_model=models.PipelineInstanceStatus)
+def get_pipeline_instance_status(instance_id: UUID):
+    return models.PipelineInstanceStatus(id=0, state="RUNNING")
+
+@app.get("/devices", response_model=List[models.Device])
+def get_devices():
+    device_discovery = DeviceDiscovery()
+    device_list = device_discovery.list_devices()
+    return [
+        models.Device(
+            device_name=device.device_name,
+            full_device_name=device.full_device_name,
+            device_type=device.device_type.name if hasattr(device.device_type, 'name') else str(device.device_type),
+            device_family=device.device_family.name if hasattr(device.device_family, 'name') else str(device.device_family),
+            gpu_id=getattr(device, 'gpu_id', None)
+        )
+        for device in device_list
+    ]
+
+@app.get("/models", response_model=List[models.Model])
+def get_models():
+    models = SupportedModelsManager().get_all_available_models()
+    return [
+        models.Model(
+            name=m.name,
+            display_name=m.display_name,
+            category=m.model_type,
+            precision=m.display_name.split(" ")[-1].strip("()") if "(" in m.display_name else None
+        )
+        for m in models
+    ]
+
+@app.get("/metrics", response_model=List[models.MetricSample])
+def get_metrics():
+    return []
