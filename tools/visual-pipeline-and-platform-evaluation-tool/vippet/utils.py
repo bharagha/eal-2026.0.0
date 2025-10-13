@@ -29,6 +29,9 @@ UINT8_DTYPE_SIZE = 1
 DEFAULT_FRAME_RATE = 30.0
 VIDEO_STREAM_META_PATH = "/tmp/shared_memory/video_stream.meta"
 
+# Path to the directory where models are stored
+MODELS_PATH = os.environ.get("MODELS_PATH", "/models/output")
+
 
 def prepare_video_and_constants(
     **kwargs: dict[str, Any],
@@ -161,8 +164,6 @@ def is_model_supported_on_device(model_name: str, device: str) -> bool:
 
 
 def get_model_path_and_proc(model_name: str) -> tuple[str, str]:
-    MODELS_PATH = "/home/dlstreamer/vippet/models"
-
     model_map = {
         "SSDLite MobileNet V2 (INT8)": (
             f"{MODELS_PATH}/pipeline-zoo-models/ssdlite_mobilenet_v2_INT8/FP16-INT8/ssdlite_mobilenet_v2.xml",
