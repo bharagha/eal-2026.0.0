@@ -1,10 +1,10 @@
 // Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-import { PayloadAction, createSlice } from "@reduxjs/toolkit";
+import { PayloadAction, createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { RootState } from "../store";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
-import { Message, MessageRole, ConversationReducer, ConversationRequest } from "./Conversation";
+import { Message, MessageRole, ConversationReducer, ConversationRequest, File } from "./Conversation";
 import { getCurrentTimeStamp, uuidv4 } from "../../common/util";
 import { createAsyncThunkWrapper } from "../thunkUtil";
 import client from "../../common/client";
@@ -17,6 +17,9 @@ const initialState: ConversationReducer = {
   selectedConversationId: "",
   onGoingResults: {},
   modelName: "...",
+  files: [],
+  links: [],
+  isGenerating: false,
 };
 
 export const ConversationSlice = createSlice({
@@ -51,13 +54,10 @@ export const ConversationSlice = createSlice({
     },
     deleteConversation: (state, action: PayloadAction<string>) => {
       const conversationId = action.payload;
-      // Clear ongoing results 
-      delete state.onGoingResults[conversationId];
-      // Clear selection 
       if (state.selectedConversationId === conversationId) {
         state.selectedConversationId = "";
+        state.onGoingResults = {};
       }
-      // Remove conversation 
       state.conversations = state.conversations.filter(conv => conv.conversationId !== conversationId);
     },
     updateConversationTitle: (state, action: PayloadAction<{ id: string; updatedTitle: string }>) => {
@@ -67,8 +67,18 @@ export const ConversationSlice = createSlice({
         conversation.title = updatedTitle;
       }
     },
+    setIsGenerating: (state, action: PayloadAction<boolean>) => {
+      state.isGenerating = action.payload;
+    },
   },
   extraReducers(builder) {
+    // File management
+    builder.addCase(fetchInitialFiles.fulfilled, (state, action) => {
+      state.files = action.payload.data;
+    });
+    builder.addCase(fetchInitialFiles.rejected, (state) => {
+      state.files = [];
+    });
     builder.addCase(uploadFile.fulfilled, () => {
       notifications.update({
         id: "upload-file",
@@ -76,33 +86,115 @@ export const ConversationSlice = createSlice({
         loading: false,
         autoClose: 3000,
       });
-    }),
-      builder.addCase(uploadFile.rejected, () => {
-        notifications.update({
-          color: "red",
-          id: "upload-file",
-          message: "Failed to Upload file",
-          loading: false,
-        });
+    });
+    builder.addCase(uploadFile.rejected, () => {
+      notifications.update({
+        color: "red",
+        id: "upload-file",
+        message: "Failed to Upload file",
+        loading: false,
       });
-    builder.addCase(submitDataSourceURL.fulfilled, () => {
+    });
+    builder.addCase(removeFile.fulfilled, (state, action) => {
+      const index = state.files.findIndex(
+        (file) => file.file_name === action.payload.fileName
+      );
+      if (index !== -1) {
+        state.files.splice(index, 1);
+      }
       notifications.show({
-        message: "Submitted Successfully",
+        message: "File deleted successfully",
+        color: "green",
+      });
+    });
+    builder.addCase(removeFile.rejected, () => {
+      notifications.show({
+        color: "red",
+        message: "Failed to delete file",
+      });
+    });
+    builder.addCase(removeAllFiles.fulfilled, (state) => {
+      state.files = [];
+      notifications.show({
+        message: "All files deleted successfully",
+        color: "green",
+      });
+    });
+    builder.addCase(removeAllFiles.rejected, () => {
+      notifications.show({
+        color: "red",
+        message: "Failed to delete all files",
+      });
+    });
+    
+    // Link management
+    builder.addCase(fetchInitialLinks.fulfilled, (state, action) => {
+      state.links = action.payload.data;
+    });
+    builder.addCase(fetchInitialLinks.rejected, (state) => {
+      state.links = [];
+    });
+    builder.addCase(submitDataSourceURL.fulfilled, () => {
+      console.log('URL submission fulfilled - showing success notification');
+      // Hide the loading notification first
+      notifications.hide("submit-url");
+      // Show a new success notification
+      notifications.show({
+        message: "URLs submitted successfully",
+        color: "green",
+        autoClose: 3000,
       });
     });
     builder.addCase(submitDataSourceURL.rejected, () => {
+      console.log('URL submission rejected - showing error notification');
+      // Hide the loading notification first
+      notifications.hide("submit-url");
+      // Show a new error notification
       notifications.show({
+        message: "Failed to submit URLs",
         color: "red",
-        message: "Submit Failed",
+        autoClose: 3000,
       });
     });
+    builder.addCase(removeLink.fulfilled, (state, action) => {
+      const index = state.links.findIndex(
+        (link) => link === action.payload.linkName
+      );
+      if (index !== -1) {
+        state.links.splice(index, 1);
+      }
+      notifications.show({
+        message: "Link deleted successfully",
+        color: "green",
+      });
+    });
+    builder.addCase(removeLink.rejected, () => {
+      notifications.show({
+        color: "red",
+        message: "Failed to delete link",
+      });
+    });
+    builder.addCase(removeAllLinks.fulfilled, (state) => {
+      state.links = [];
+      notifications.show({
+        message: "All links deleted successfully",
+        color: "green",
+      });
+    });
+    builder.addCase(removeAllLinks.rejected, () => {
+      notifications.show({
+        color: "red",
+        message: "Failed to delete all links",
+      });
+    });
+    
+    // Model name
     builder.addCase(fetchModelName.fulfilled, (state, action) => {
       state.modelName = action.payload;
     });
     builder.addCase(fetchModelName.rejected, (state) => {
       state.modelName = "Unknown Model";
     });
-    // doConversation thunk doesn't need extra reducers since it uses existing actions
   },
 });
 
@@ -115,20 +207,201 @@ export const fetchModelName = createAsyncThunkWrapper(
   },
 );
 
+export const fetchInitialFiles = createAsyncThunk(
+  'conversation/fetchInitialFiles',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await client.get(DATA_PREP_URL);
+      if (response.status === 200) {
+        const rawFiles: File[] = response.data;
+        const validFiles: File[] = rawFiles.filter(
+          (file) => file.file_name && file.bucket_name,
+        );
+        return { data: validFiles, status: response.status };
+      } else {
+        return rejectWithValue({
+          message: response.data.message || 'Failed to fetch files',
+          status: response.status,
+        });
+      }
+    } catch (error: any) {
+      return rejectWithValue({
+        message: error.message || 'An unknown error occurred',
+        status: 500,
+      });
+    }
+  },
+);
+
+export const fetchInitialLinks = createAsyncThunk(
+  'conversation/fetchInitialLinks',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await client.get(LINK_PREP_URL);
+      if (response.status === 200) {
+        return { data: response.data, status: response.status };
+      } else {
+        return rejectWithValue({
+          message: response.data.message || 'Failed to fetch links',
+          status: response.status,
+        });
+      }
+    } catch (error: any) {
+      return rejectWithValue({
+        message: error.message || 'An unknown error occurred',
+        status: 500,
+      });
+    }
+  },
+);
+
+export const removeFile = createAsyncThunk(
+  'conversation/removeFile',
+  async (
+    {
+      fileName,
+      bucketName,
+      deleteAll = false,
+    }: { fileName: string; bucketName: string; deleteAll?: boolean },
+    { rejectWithValue },
+  ) => {
+    try {
+      const response = await client.delete(
+        `${DATA_PREP_URL}?bucket_name=${bucketName}&file_name=${encodeURIComponent(fileName)}&delete_all=${deleteAll}`,
+      );
+
+      if (response.status >= 200 && response.status <= 204) {
+        return {
+          status: response.status,
+          message: response.statusText.toLowerCase(),
+          fileName,
+        };
+      } else {
+        return rejectWithValue({
+          status: response.status,
+          message: response.data.message || 'File deletion failed',
+        });
+      }
+    } catch (error: any) {
+      return rejectWithValue({
+        status: 500,
+        message: error.message || 'An unknown error occurred',
+      });
+    }
+  },
+);
+
+export const removeAllFiles = createAsyncThunk(
+  'conversation/removeAllFiles',
+  async (
+    {
+      bucketName,
+      deleteAll = true,
+    }: { bucketName: string; deleteAll?: boolean },
+    { rejectWithValue },
+  ) => {
+    try {
+      const response = await client.delete(
+        `${DATA_PREP_URL}?bucket_name=${bucketName}&delete_all=${deleteAll}`,
+      );
+
+      if (response.status >= 200 && response.status <= 204) {
+        return { status: response.status, files: [] as File[] };
+      } else {
+        return rejectWithValue({
+          status: response.status,
+          message: response.data.message || 'Delete failed',
+        });
+      }
+    } catch (error: any) {
+      return rejectWithValue({
+        status: 500,
+        message: error.message || 'An unknown error occurred',
+      });
+    }
+  },
+);
+
+export const removeLink = createAsyncThunk(
+  'conversation/removeLink',
+  async (
+    { linkName, deleteAll = false }: { linkName: string; deleteAll?: boolean },
+    { rejectWithValue },
+  ) => {
+    try {
+      const response = await client.delete(
+        `${LINK_PREP_URL}?url=${encodeURIComponent(linkName)}&delete_all=${deleteAll}`,
+      );
+
+      if (response.status >= 200 && response.status <= 204) {
+        return {
+          status: response.status,
+          message: response.statusText.toLowerCase(),
+          linkName,
+        };
+      } else {
+        return rejectWithValue({
+          status: response.status,
+          message: response.data.message || 'Link deletion failed',
+        });
+      }
+    } catch (error: any) {
+      return rejectWithValue({
+        status: 500,
+        message: error.message || 'An unknown error occurred',
+      });
+    }
+  },
+);
+
+export const removeAllLinks = createAsyncThunk(
+  'conversation/removeAllLinks',
+  async (
+    { deleteAll = true }: { deleteAll?: boolean },
+    { rejectWithValue },
+  ) => {
+    try {
+      const response = await client.delete(
+        `${LINK_PREP_URL}?delete_all=${deleteAll}`,
+      );
+
+      if (response.status >= 200 && response.status <= 204) {
+        return { status: response.status, links: [] as string[] };
+      } else {
+        return rejectWithValue({
+          status: response.status,
+          message: response.data.message || 'Delete failed',
+        });
+      }
+    } catch (error: any) {
+      return rejectWithValue({
+        status: 500,
+        message: error.message || 'An unknown error occurred',
+      });
+    }
+  },
+);
+
 export const submitDataSourceURL = createAsyncThunkWrapper(
   "conversation/submitDataSourceURL",
   async ({ link_list }: { link_list: string[] }, {}) => {
+    notifications.show({
+      id: "submit-url",
+      message: "Submitting URLs...",
+      loading: true,
+    });
     const response = await client.post(LINK_PREP_URL, link_list);
     return response.data;
   },
 );
-export const uploadFile = createAsyncThunkWrapper("conversation/uploadFile", async ({ file }: { file: File }, {}) => {
+
+export const uploadFile = createAsyncThunkWrapper("conversation/uploadFile", async ({ file }: { file: globalThis.File }, {}) => {
   const body = new FormData();
   body.append("files", file);
 
   notifications.show({
     id: "upload-file",
-    message: "uploading File",
+    message: "Uploading File",
     loading: true,
   });
   const response = await client.post(DATA_PREP_URL, body);
@@ -143,11 +416,21 @@ export const {
   createNewConversation,
   deleteConversation,
   updateConversationTitle,
+  setIsGenerating,
 } = ConversationSlice.actions;
-export const conversationSelector = (state: RootState) => state.conversationReducer;
+
+export const conversationSelector = (state: RootState) => ({
+  conversations: state.conversationReducer.conversations,
+  selectedConversationId: state.conversationReducer.selectedConversationId,
+  onGoingResults: state.conversationReducer.onGoingResults,
+  modelName: state.conversationReducer.modelName,
+  files: state.conversationReducer.files,
+  links: state.conversationReducer.links,
+  isGenerating: state.conversationReducer.isGenerating,
+});
 export default ConversationSlice.reducer;
 
-export const doConversation = createAsyncThunkWrapper(
+export const doConversation = createAsyncThunk(
   "conversation/doConversation",
   async (conversationRequest: ConversationRequest, { dispatch, getState }) => {
     console.log("doConversation");

@@ -27,7 +27,7 @@ const Conversation = ({ title }: ConversationProps) => {
 
   const { conversations, onGoingResults, selectedConversationId, modelName } = useAppSelector(conversationSelector)
   const dispatch = useAppDispatch();
-  const selectedConversation = conversations.find(x=>x.conversationId===selectedConversationId)
+  const selectedConversation = conversations.find((x: any) => x.conversationId === selectedConversationId)
 
   const LLM_MODEL_URL = `https://huggingface.co/${modelName}`;
 
@@ -48,7 +48,7 @@ const Conversation = ({ title }: ConversationProps) => {
   // Check if we have any LLM responses to show model name
   useEffect(() => {
     if (selectedConversation && selectedConversation.Messages.length > 0 &&
-      selectedConversation.Messages.some(msg => msg.role === MessageRole.Assistant)) {
+      selectedConversation.Messages.some((msg: any) => msg.role === MessageRole.Assistant)) {
       setHasLLMResponse(true);
     } else {
       setHasLLMResponse(false); // for new conversation do not display model name
@@ -65,7 +65,7 @@ const Conversation = ({ title }: ConversationProps) => {
     };
     let messages: Partial<Message>[] = [];
     if(selectedConversation){
-      messages  = selectedConversation.Messages.map(message => {
+      messages  = selectedConversation.Messages.map((message: any) => {
         return {role:message.role, content:message.content}
       })
     }
@@ -87,7 +87,7 @@ const Conversation = ({ title }: ConversationProps) => {
     scrollToBottom()
   }, [onGoingResults?.[selectedConversationId], selectedConversation?.Messages])
 
-  const handleKeyDown: KeyboardEventHandler = (event) => {
+  const handleKeyDown: KeyboardEventHandler = (event: any) => {
     if (!event.shiftKey && event.key === toSend) {
       handleSubmit()
       setTimeout(() => {
@@ -134,7 +134,7 @@ const Conversation = ({ title }: ConversationProps) => {
               </>
             )}
 
-            {selectedConversation?.Messages.map((message) => {
+            {selectedConversation?.Messages.map((message: any) => {
               return (<ConversationMessage key={`_ai`} date={message.time * 1000} human={message.role == MessageRole.User} message={message.content} />)
             })
             }

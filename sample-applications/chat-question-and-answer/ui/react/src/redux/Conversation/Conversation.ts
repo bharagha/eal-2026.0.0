@@ -15,12 +15,19 @@ export interface Message {
   role: MessageRole;
   content: string;
   time: number;
+  conversationId?: string;
+}
+
+export interface File {
+  file_name: string;
+  bucket_name: string;
 }
 
 export interface Conversation {
   conversationId: string;
   title?: string;
   Messages: Message[];
+  responseStatus?: boolean;
 }
 
 export interface ConversationReducer {
@@ -28,4 +35,7 @@ export interface ConversationReducer {
   conversations: Conversation[];
   onGoingResults: { [conversationId: string]: string };
   modelName: string;
+  files: File[];
+  links: string[];
+  isGenerating: boolean;
 }

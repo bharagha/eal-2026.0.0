@@ -48,13 +48,13 @@ export function ConversationSideBar({ title }: ConversationContextProps) {
         dispatch(deleteConversation(conversationId))
     }
 
-    const conversationList = conversations?.map((curr) => (
+    const conversationList = conversations?.map((curr: any) => (
         <div
             className={contextStyles.contextListItem}
             data-active={selectedConversationId === curr.conversationId || undefined}
             onMouseEnter={() => setHoveredId(curr.conversationId)}
             onMouseLeave={() => setHoveredId(null)}
-            onClick={(event) => {
+            onClick={(event: any) => {
                 event.preventDefault()
                 if (editingId !== curr.conversationId) {
                     dispatch(setSelectedConversationId(curr.conversationId))
