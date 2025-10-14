@@ -13,7 +13,9 @@ def get_models():
             name=m.name,
             display_name=m.display_name,
             category=m.model_type,
-            precision=m.display_name.split(" ")[-1].strip("()") if "(" in m.display_name else None
+            precision=m.display_name.split(" ")[-1].strip("()")
+            if "(" in m.display_name
+            else None,
         )
         for m in models
     ]

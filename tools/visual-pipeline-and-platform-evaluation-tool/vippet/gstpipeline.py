@@ -58,13 +58,15 @@ class CustomGstPipeline(GstPipeline):
     """
     A pipeline class that accepts a custom GST launch string directly.
     """
-    
-    def __init__(self, launch_string: str, diagram_path: Path = None, bounding_boxes: List = None):
+
+    def __init__(
+        self, launch_string: str, diagram_path: Path = None, bounding_boxes: List = None
+    ):
         super().__init__()
         self._launch_string = launch_string
         self._diagram = diagram_path
         self._bounding_boxes = bounding_boxes or []
-    
+
     def evaluate(
         self,
         constants: dict,
@@ -80,9 +82,9 @@ class CustomGstPipeline(GstPipeline):
         # Remove "gst-launch-1.0 -q " prefix if present
         launch = self._launch_string.lstrip()
         if launch.startswith("gst-launch-1.0 -q "):
-            launch = launch[len("gst-launch-1.0 -q "):]
+            launch = launch[len("gst-launch-1.0 -q ") :]
         return "gst-launch-1.0 -q " + (launch * inference_channels)
-    
+
     def get_default_gst_launch(
         self,
         constants: dict,
@@ -96,7 +98,9 @@ class CustomGstPipeline(GstPipeline):
         """
         regular_channels = 1
         inference_channels = 1
-        return self.evaluate(constants, parameters, regular_channels, inference_channels, elements or [])
+        return self.evaluate(
+            constants, parameters, regular_channels, inference_channels, elements or []
+        )
 
 
 class PipelineLoader:
@@ -169,38 +173,38 @@ class PipelineLoader:
 
     @staticmethod
     def load_from_launch_string(
-        launch_string: str, 
-        name: str = "Custom Pipeline", 
-        diagram_path: Path = None, 
-        bounding_boxes: List = None
+        launch_string: str,
+        name: str = "Custom Pipeline",
+        diagram_path: Path = None,
+        bounding_boxes: List = None,
     ) -> Tuple[CustomGstPipeline, Dict]:
         """
         Load a custom pipeline from a GST launch string.
-        
+
         Args:
             launch_string: The GST launch command string
             name: Display name for the pipeline
             diagram_path: Optional path to pipeline diagram
             bounding_boxes: Optional list of bounding boxes for UI interaction
-            
+
         Returns:
             Tuple of (CustomGstPipeline instance, config dict)
         """
         pipeline = CustomGstPipeline(launch_string, diagram_path, bounding_boxes)
-        
+
         # Create a basic config for the custom pipeline
         config = {
             "name": name,
             "metadata": {
                 "classname": "CustomGstPipeline",
                 "enabled": True,
-                "description": f"Custom pipeline: {name}"
+                "description": f"Custom pipeline: {name}",
             },
             "parameters": {
                 "run": {
                     "recording_channels": True  # Assume custom pipelines support recording channels
                 }
-            }
+            },
         }
-        
+
         return pipeline, config
