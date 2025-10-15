@@ -15,6 +15,7 @@
 #include "dlstreamer/gst/utils.h"
 #include "dlstreamer/utils.h"
 #ifdef _MSC_VER
+#define GST_USE_UNSTABLE_API
 #include <gst/d3d11/gstd3d11device.h>
 #endif
 

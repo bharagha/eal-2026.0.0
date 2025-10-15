@@ -13,10 +13,10 @@
 #include <dlfcn.h>
 #include <gmodule.h>
 #ifdef _MSC_VER
-#else
 #include <pygobject.h>
-#endif
+#else
 #include <pygobject-3.0/pygobject.h>
+#endif
 
 namespace {
 PyObject *extractClass(PyObjectWrapper &pluginModule, const char *class_name, const char *args_string,
