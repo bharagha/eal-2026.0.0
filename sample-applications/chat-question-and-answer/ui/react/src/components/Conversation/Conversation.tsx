@@ -9,7 +9,7 @@ import { conversationSelector, doConversation, newConversation, fetchModelName }
 import { ConversationMessage } from '../Message/conversationMessage'
 import { useAppDispatch, useAppSelector } from '../../redux/store'
 import { Message, MessageRole } from '../../redux/Conversation/Conversation'
-import { getCurrentTimeStamp } from '../../common/util'
+import { getCurrentTimeStamp } from '../../utils/util'
 import { useDisclosure } from '@mantine/hooks'
 import DataSource from '../Drawer/DataSource'
 import { ConversationSideBar } from './ConversationSideBar'
@@ -140,7 +140,7 @@ const Conversation = ({ title }: ConversationProps) => {
             }
 
             {/* Show blinking indicator when waiting for AI response */}
-            {isGenerating && (
+            {isGenerating[selectedConversationId] && (
               <div className={styleClasses.conversationMessage}>
                 <Group>
                   <div className={styleClasses.blinkingIndicator} />

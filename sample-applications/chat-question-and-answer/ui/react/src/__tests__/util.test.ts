@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, test } from "vitest";
-import { getCurrentTimeStamp, uuidv4 } from "../common/util";
+import { getCurrentTimeStamp, uuidv4 } from "../utils/util";
 
 describe("unit tests", () => {
   test("check UUID is of length 36", () => {

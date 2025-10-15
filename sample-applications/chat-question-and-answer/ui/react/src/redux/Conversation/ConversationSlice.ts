@@ -5,9 +5,9 @@ import { PayloadAction, createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { RootState } from "../store";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { Message, MessageRole, ConversationReducer, ConversationRequest, File } from "./Conversation";
-import { getCurrentTimeStamp, uuidv4 } from "../../common/util";
+import { getCurrentTimeStamp, uuidv4 } from "../../utils/util";
 import { createAsyncThunkWrapper } from "../thunkUtil";
-import client from "../../common/client";
+import client from "../../utils/client";
 import { notifications } from "@mantine/notifications";
 import { CHAT_QNA_URL, DATA_PREP_URL, LINK_PREP_URL, MODEL_URL } from "../../config";
 
@@ -19,7 +19,7 @@ const initialState: ConversationReducer = {
   modelName: "...",
   files: [],
   links: [],
-  isGenerating: false,
+  isGenerating: {},
 };
 
 export const ConversationSlice = createSlice({
@@ -41,6 +41,7 @@ export const ConversationSlice = createSlice({
     newConversation: (state) => {
       state.selectedConversationId = "";
       state.onGoingResults = {};
+      state.isGenerating = {};
     },
     createNewConversation: (state, action: PayloadAction<{ title: string; id: string; message: Message }>) => {
       state.conversations.push({
@@ -67,8 +68,13 @@ export const ConversationSlice = createSlice({
         conversation.title = updatedTitle;
       }
     },
-    setIsGenerating: (state, action: PayloadAction<boolean>) => {
-      state.isGenerating = action.payload;
+    setIsGenerating: (state, action: PayloadAction<{ conversationId: string; isGenerating: boolean }>) => {
+      const { conversationId, isGenerating } = action.payload;
+      if (isGenerating) {
+        state.isGenerating[conversationId] = true;
+      } else {
+        delete state.isGenerating[conversationId];
+      }
     },
   },
   extraReducers(builder) {
@@ -478,7 +484,7 @@ export const doConversation = createAsyncThunk(
     };
 
     // Set generating state - user has submitted, waiting for AI to start responding
-    dispatch(setIsGenerating(true));
+    dispatch(setIsGenerating({ conversationId, isGenerating: true }));
 
     let result = "";
     try {
@@ -504,7 +510,7 @@ export const doConversation = createAsyncThunk(
           if (msg?.data != "[DONE]") {
             try {
               // Stop the blinking indicator on first message received
-              dispatch(setIsGenerating(false));
+              dispatch(setIsGenerating({ conversationId, isGenerating: false }));
 
               const match = msg.data.match(/b'([^']*)'/);
               if (match && match[1] != "</s>") {
@@ -538,7 +544,7 @@ export const doConversation = createAsyncThunk(
         onerror(err) {
           console.log("error", err);
           dispatch(clearOnGoingResultForConversation(activeConversationId));
-          dispatch(setIsGenerating(false));
+          dispatch(setIsGenerating({ conversationId, isGenerating: false }));
           //notify here
           throw err;
           //handle error
@@ -546,7 +552,7 @@ export const doConversation = createAsyncThunk(
         onclose() {
           //handle close
           dispatch(clearOnGoingResultForConversation(activeConversationId));
-          dispatch(setIsGenerating(false));
+          dispatch(setIsGenerating({ conversationId, isGenerating: false }));
 
           dispatch(
             addMessageToConversation({

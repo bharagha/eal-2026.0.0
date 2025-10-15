@@ -37,5 +37,5 @@ export interface ConversationReducer {
   modelName: string;
   files: File[];
   links: string[];
-  isGenerating: boolean;
+  isGenerating: { [conversationId: string]: boolean };
 }

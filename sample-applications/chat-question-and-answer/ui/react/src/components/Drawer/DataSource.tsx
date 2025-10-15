@@ -9,7 +9,7 @@ import { useAppDispatch, useAppSelector } from '../../redux/store'
 import { submitDataSourceURL, uploadFile, fetchInitialFiles, fetchInitialLinks,
   removeFile, removeAllFiles, removeLink, removeAllLinks, 
   conversationSelector} from '../../redux/Conversation/ConversationSlice'
-import { isValidUrl } from '../../common/util'
+import { isValidUrl } from '../../utils/util'
 
 type Props = {
   opened: boolean
@@ -26,6 +26,9 @@ export default function DataSource({ opened, onClose }: Props) {
   
   const dispatch = useAppDispatch()
   const { files, links, isGenerating } = useAppSelector(conversationSelector)
+  
+  // Check if any conversation is currently generating
+  const isAnyConversationGenerating = Object.keys(isGenerating).length > 0
 
   // Fetch initial data when component opens
   useEffect(() => {
@@ -194,12 +197,17 @@ export default function DataSource({ opened, onClose }: Props) {
               />
               <Button 
                 onClick={handleFileUpload} 
-                disabled={!file || isGenerating}
+                disabled={!file || isAnyConversationGenerating}
                 size="sm"
-                loading={isGenerating}
+                loading={isAnyConversationGenerating}
               >
                 Upload File
               </Button>
+              {isAnyConversationGenerating && (
+                <Text size="xs" c="dimmed" ta="center">
+                  Waiting for AI response to complete...
+                </Text>
+              )}
             </Stack>
           ) : (
             <Stack gap="sm">
@@ -211,12 +219,17 @@ export default function DataSource({ opened, onClose }: Props) {
               />
               <Button 
                 onClick={handleURLSubmit} 
-                disabled={!url || isGenerating}
+                disabled={!url || isAnyConversationGenerating}
                 size="sm"
-                loading={isGenerating}
+                loading={isAnyConversationGenerating}
               >
                 Submit URLs
               </Button>
+              {isAnyConversationGenerating && (
+                <Text size="xs" c="dimmed" ta="center">
+                  Waiting for AI response to complete...
+                </Text>
+              )}
             </Stack>
           )}
 
