@@ -477,6 +477,9 @@ export const doConversation = createAsyncThunk(
       max_tokens: 0,
     };
 
+    // Set generating state - user has submitted, waiting for AI to start responding
+    dispatch(setIsGenerating(true));
+
     let result = "";
     try {
       fetchEventSource(CHAT_QNA_URL, {
@@ -500,6 +503,9 @@ export const doConversation = createAsyncThunk(
         onmessage(msg) {
           if (msg?.data != "[DONE]") {
             try {
+              // Stop the blinking indicator on first message received
+              dispatch(setIsGenerating(false));
+
               const match = msg.data.match(/b'([^']*)'/);
               if (match && match[1] != "</s>") {
                 const extractedText = match[1];
@@ -532,6 +538,7 @@ export const doConversation = createAsyncThunk(
         onerror(err) {
           console.log("error", err);
           dispatch(clearOnGoingResultForConversation(activeConversationId));
+          dispatch(setIsGenerating(false));
           //notify here
           throw err;
           //handle error
@@ -539,6 +546,7 @@ export const doConversation = createAsyncThunk(
         onclose() {
           //handle close
           dispatch(clearOnGoingResultForConversation(activeConversationId));
+          dispatch(setIsGenerating(false));
 
           dispatch(
             addMessageToConversation({

@@ -25,7 +25,7 @@ const Conversation = ({ title }: ConversationProps) => {
   const promptInputRef = useRef<HTMLTextAreaElement>(null)
   const [fileUploadOpened, { open: openFileUpload, close: closeFileUpload }] = useDisclosure(false);
 
-  const { conversations, onGoingResults, selectedConversationId, modelName } = useAppSelector(conversationSelector)
+  const { conversations, onGoingResults, selectedConversationId, modelName, isGenerating } = useAppSelector(conversationSelector)
   const dispatch = useAppDispatch();
   const selectedConversation = conversations.find((x: any) => x.conversationId === selectedConversationId)
 
@@ -138,6 +138,15 @@ const Conversation = ({ title }: ConversationProps) => {
               return (<ConversationMessage key={`_ai`} date={message.time * 1000} human={message.role == MessageRole.User} message={message.content} />)
             })
             }
+
+            {/* Show blinking indicator when waiting for AI response */}
+            {isGenerating && (
+              <div className={styleClasses.conversationMessage}>
+                <Group>
+                  <div className={styleClasses.blinkingIndicator} />
+                </Group>
+              </div>
+            )}
 
             {onGoingResults?.[selectedConversationId] && (
               <ConversationMessage key={`_ai`} date={Date.now()} human={false} message={onGoingResults[selectedConversationId]} />
