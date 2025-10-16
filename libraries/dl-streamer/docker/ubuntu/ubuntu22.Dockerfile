@@ -173,6 +173,9 @@ FROM opencv-builder AS gstreamer-builder
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
+# Copy GStreamer patch for vacompositor and vafilter fixes
+COPY dependencies/patches/gstreamer-1-26-6-vacompositor-vafilter-fixes.patch /tmp/gstreamer-patch.patch
+
 # Build GStreamer
 WORKDIR /home/dlstreamer
 
@@ -187,6 +190,7 @@ WORKDIR /home/dlstreamer/gstreamer
 
 RUN \
     git switch -c "$GST_VERSION" "tags/$GST_VERSION" && \
+    git apply /tmp/gstreamer-patch.patch && \
     meson setup \
     -Dexamples=disabled \
     -Dtests=disabled \
