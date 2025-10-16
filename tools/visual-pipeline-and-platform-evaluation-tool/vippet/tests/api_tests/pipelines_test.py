@@ -18,14 +18,19 @@ class TestPipelinesAPI(unittest.TestCase):
     @patch("api.routes.pipelines.PipelineLoader")
     def test_get_pipelines_returns_list(self, mock_pipeline_loader, mock_gst_inspector):
         mock_pipeline = MagicMock()
-        mock_pipeline.get_default_gst_launch.return_value = "gst-launch-1.0 filesrc location=<file_path> ! decodebin !"
+        mock_pipeline.get_default_gst_launch.return_value = (
+            "gst-launch-1.0 filesrc location=<file_path> ! decodebin !"
+        )
         mock_gst_inspector.get_elements.return_value = ["vapostproc", "vacompositor"]
         mock_pipeline_loader.list.return_value = ["pipeline1"]
-        mock_pipeline_loader.load.return_value = (mock_pipeline, {
-            "name": "Test Pipeline",
-            "version": "1.0.0",
-            "definition": "A test pipeline"
-        })
+        mock_pipeline_loader.load.return_value = (
+            mock_pipeline,
+            {
+                "name": "Test Pipeline",
+                "version": "1.0.0",
+                "definition": "A test pipeline",
+            },
+        )
 
         response = self.client.get("/pipelines")
         assert response.status_code == 200
@@ -36,4 +41,7 @@ class TestPipelinesAPI(unittest.TestCase):
         assert data[0]["name"] == "Test Pipeline"
         assert data[0]["version"] == "1.0.0"
         assert data[0]["description"] == "A test pipeline"
-        assert data[0]["parameters"]["default"]["launch_string"] == "gst-launch-1.0 filesrc location=<file_path> ! decodebin !"
+        assert (
+            data[0]["parameters"]["default"]["launch_string"]
+            == "gst-launch-1.0 filesrc location=<file_path> ! decodebin !"
+        )

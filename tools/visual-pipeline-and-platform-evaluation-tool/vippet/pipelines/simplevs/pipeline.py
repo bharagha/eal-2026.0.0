@@ -247,8 +247,6 @@ class SimpleVideoStructurizationPipeline(GstPipeline):
 
     def get_default_gst_launch(
         self,
-        regular_channels: int = 0,
-        inference_channels: int = 1,
         elements: list | None = None,
     ) -> str:
         # Provide default parameters for a basic pipeline
@@ -278,6 +276,10 @@ class SimpleVideoStructurizationPipeline(GstPipeline):
             "OBJECT_CLASSIFICATION_MODEL_PATH": "/models/output/public/ch_PP-OCRv4_rec_infer/FP32/ch_PP-OCRv4_rec_infer.xml",
             "OBJECT_CLASSIFICATION_MODEL_PROC": "",
         }
+
+        # Set default number of channels
+        regular_channels = 0
+        inference_channels = 1
 
         # Use the full evaluate method with default parameters
         return self.evaluate(

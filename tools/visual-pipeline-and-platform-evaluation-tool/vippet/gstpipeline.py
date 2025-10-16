@@ -1,7 +1,7 @@
 import importlib
 import os
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import yaml
 
@@ -26,11 +26,7 @@ class GstPipeline:
 
     def get_default_gst_launch(
         self,
-        constants: dict,
-        parameters: dict,
-        regular_channels: int = 1,
-        inference_channels: int = 1,
-        elements: list = None,
+        elements,
     ) -> str:
         raise NotImplementedError(
             "The get_default_gst_launch method must be implemented by subclasses"
@@ -55,12 +51,15 @@ class CustomGstPipeline(GstPipeline):
     """
 
     def __init__(
-        self, launch_string: str, diagram_path: Path = None, bounding_boxes: List = None
+        self,
+        launch_string: str,
+        diagram_path: Optional[Path] = None,
+        bounding_boxes: Optional[List] = None,
     ):
         super().__init__()
         self._launch_string = launch_string
         self._diagram = diagram_path
-        self._bounding_boxes = bounding_boxes or []
+        self._bounding_boxes = bounding_boxes
 
     def evaluate(
         self,
@@ -78,15 +77,9 @@ class CustomGstPipeline(GstPipeline):
 
     def get_default_gst_launch(
         self,
-        constants: dict,
-        parameters: dict,
-        regular_channels: int = 1,
-        inference_channels: int = 1,
-        elements: list = None,
+        elements: list,
     ) -> str:
-        return self.evaluate(
-            constants, parameters, regular_channels, inference_channels, elements or []
-        )
+        return self._launch_string
 
 
 class PipelineLoader:
@@ -161,8 +154,8 @@ class PipelineLoader:
     def load_from_launch_string(
         launch_string: str,
         name: str = "Custom Pipeline",
-        diagram_path: Path = None,
-        bounding_boxes: List = None,
+        diagram_path: Optional[Path] = None,
+        bounding_boxes: Optional[List] = None,
     ) -> Tuple[CustomGstPipeline, Dict]:
         """
         Load a custom pipeline from a launch string.

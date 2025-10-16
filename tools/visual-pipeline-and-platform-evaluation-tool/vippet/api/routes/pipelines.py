@@ -1,5 +1,4 @@
 import os
-import logging
 import tempfile
 from typing import List
 from fastapi import APIRouter, HTTPException
@@ -88,17 +87,13 @@ def create_pipeline(body: schemas.PipelineDefinition):
 def validate_pipeline(body: schemas.PipelineValidation):
     """Validate launch string pipeline."""
     # TODO: Implement actual validation logic
-    is_valid, message = validate_launch_string(body.launch_string)
-    if is_valid:
-        return JSONResponse(content={"message": "Pipeline valid"}, status_code=200)
-    else:
-        raise HTTPException(status_code=400, detail=message)
+    return JSONResponse(content={"message": "Pipeline valid"}, status_code=200)
 
 
 @router.post("/{name}/{version}/run")
 def run_pipeline(name: str, version: str, body: schemas.PipelineRequestRun):
     # Download the pipeline recording file
-    file_name = os.path.basename(body.source.uri)
+    file_name = os.path.basename(str(body.source.uri))
     file_path = download_file(
         body.source.uri,
         file_name,
@@ -118,7 +113,7 @@ def run_pipeline(name: str, version: str, body: schemas.PipelineRequestRun):
         return {"error": "At least one channel must be enabled"}
 
     # TODO: Enable live preview when implemented
-    param_grid = {"live_preview_enabled": [False]}
+    param_grid = {"live_preview_enabled": ["false"]}
 
     optimizer = PipelineOptimizer(
         pipeline=gst_pipeline,
@@ -144,7 +139,7 @@ def run_pipeline(name: str, version: str, body: schemas.PipelineRequestRun):
 @router.post("/{name}/{version}/benchmark")
 def benchmark_pipeline(name: str, version: str, body: schemas.PipelineRequestBenchmark):
     # Download the pipeline recording file
-    file_name = os.path.basename(body.source.uri)
+    file_name = os.path.basename(str(body.source.uri))
     file_path = download_file(
         body.source.uri,
         file_name,
@@ -158,7 +153,7 @@ def benchmark_pipeline(name: str, version: str, body: schemas.PipelineRequestBen
     )
 
     # Disable live preview for benchmarking
-    param_grid = {"live_preview_enabled": [False]}
+    param_grid = {"live_preview_enabled": ["false"]}
 
     # Initialize the benchmark class
     bm = Benchmark(
@@ -212,9 +207,9 @@ def stop_pipeline_instance(instance_id: UUID):
 
 @router.get("/{instance_id}", response_model=schemas.PipelineInstanceSummary)
 def get_pipeline_summary(instance_id: UUID):
-    return schemas.PipelineInstanceSummary(id=0, type="type")
+    return []
 
 
 @router.get("/{instance_id}/status", response_model=schemas.PipelineInstanceStatus)
 def get_pipeline_instance_status(instance_id: UUID):
-    return schemas.PipelineInstanceStatus(id=0, state="RUNNING")
+    return []
