@@ -24,6 +24,7 @@ ExternalProject_Add(
     PREFIX ${CMAKE_BINARY_DIR}/gstreamer
     GIT_REPOSITORY  https://gitlab.freedesktop.org/gstreamer/gstreamer.git
     GIT_TAG         ${DESIRED_VERSION}
+	PATCH_COMMAND   patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/patches/0019-VA-Dec-add-TLV_VADPY-property-in-vabasedec.patch
     BUILD_COMMAND       ninja
     INSTALL_COMMAND     meson install
     TEST_COMMAND        ""
