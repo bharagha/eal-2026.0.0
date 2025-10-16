@@ -1,0 +1,298 @@
+From 43760373a602308a34fa6e3416710cf8237b67f4 Mon Sep 17 00:00:00 2001
+From: "Lim, Siew Hoon" <siew.hoon.lim@intel.com>
+Date: Tue, 2 Sep 2025 15:59:35 +0800
+Subject: [PATCH 19/19] VA Dec: add TLV_VADPY property in vabasedec
+
+tlv-vadpy property only visible for kernel XE.
+Default value tlv-vadpy is 0 (disabled).
+
+Signed-off-by: Lim, Siew Hoon <siew.hoon.lim@intel.com>
+---
+ gst-libs/gst/va/gstvadisplay_drm.c | 23 +++++++++++++
+ gst-libs/gst/va/gstvadisplay_drm.h |  7 ++++
+ gst-libs/gst/va/gstvautils.c       | 19 +++++++++--
+ gst-libs/gst/va/gstvautils.h       |  4 +++
+ sys/va/gstvabasedec.c              | 52 ++++++++++++++++++++++++++++++
+ sys/va/gstvabasedec.h              |  7 ++++
+ sys/va/gstvapluginutils.c          |  8 +++++
+ sys/va/gstvapluginutils.h          |  4 +++
+ 8 files changed, 121 insertions(+), 3 deletions(-)
+
+diff --git a/gst-libs/gst/va/gstvadisplay_drm.c b/gst-libs/gst/va/gstvadisplay_drm.c
+index fe3118a2bd4c..6be8e662867a 100644
+--- a/gst-libs/gst/va/gstvadisplay_drm.c
++++ b/gst-libs/gst/va/gstvadisplay_drm.c
+@@ -58,6 +58,7 @@ struct _GstVaDisplayDrm
+   gchar *path;
+   gint fd;
+   gboolean is_i915;
++  guint tlv_vadpy;
+ };
+ 
+ /**
+@@ -193,6 +194,7 @@ static void
+ gst_va_display_drm_init (GstVaDisplayDrm * self)
+ {
+   self->fd = -1;
++  self->tlv_vadpy = 0;
+ }
+ 
+ gboolean
+@@ -203,6 +205,27 @@ gst_va_display_drm_check_i915 (GstVaDisplay * display)
+   return self->is_i915;
+ }
+ 
++void
++gst_va_display_drm_set_tlv_vadpy (GstVaDisplay * display, guint tlv_vadpy)
++{
++  GstVaDisplayDrm *self = GST_VA_DISPLAY_DRM (display);
++  self->tlv_vadpy = tlv_vadpy;
++}
++
++gboolean gst_va_display_drm_enable_tlv_vadpy (GstVaDisplay * display)
++{
++  GstVaDisplayDrm *self = GST_VA_DISPLAY_DRM (display);
++  if (self->tlv_vadpy == 0)
++    return FALSE;
++  else
++    return TRUE;
++}
++
++guint gst_va_display_drm_get_tlv_vadpy (GstVaDisplay * display)
++{
++  GstVaDisplayDrm *self = GST_VA_DISPLAY_DRM (display);
++  return self->tlv_vadpy;
++}
+ /**
+  * gst_va_display_drm_new_from_path:
+  * @path: the path to the DRM device
+diff --git a/gst-libs/gst/va/gstvadisplay_drm.h b/gst-libs/gst/va/gstvadisplay_drm.h
+index e0ee1b0bd356..882ae9b141a6 100644
+--- a/gst-libs/gst/va/gstvadisplay_drm.h
++++ b/gst-libs/gst/va/gstvadisplay_drm.h
+@@ -40,5 +40,12 @@ GST_VA_API
+ GstVaDisplay *        gst_va_display_drm_new_from_path    (const gchar * path);
+ GST_VA_API
+ gboolean              gst_va_display_drm_check_i915       (GstVaDisplay * display);
++GST_VA_API
++void                  gst_va_display_drm_set_tlv_vadpy    (GstVaDisplay * display, guint tlv_vadpy);
++GST_VA_API
++gboolean              gst_va_display_drm_enable_tlv_vadpy (GstVaDisplay * display);
++GST_VA_API
++guint                 gst_va_display_drm_get_tlv_vadpy    (GstVaDisplay * display);
++
+ 
+ G_END_DECLS
+diff --git a/gst-libs/gst/va/gstvautils.c b/gst-libs/gst/va/gstvautils.c
+index 101267e0b279..187d0a29a081 100644
+--- a/gst-libs/gst/va/gstvautils.c
++++ b/gst-libs/gst/va/gstvautils.c
+@@ -316,15 +316,18 @@ gst_va_handle_set_context (GstElement * element, GstContext * context,
+ 
+   if (display_replacement) {
+ #ifdef HAVE_LIBDRM
+-    if (!gst_va_display_drm_check_i915(display_replacement)) {
++    if (gst_va_display_drm_enable_tlv_vadpy(display_replacement)) {
+       if (gst_va_display_is_implementation (display_replacement,
+           GST_VA_IMPLEMENTATION_INTEL_IHD) && !from_neighbor) {
+           guint ref;
++	  guint tlv_vadpy;
++
++	  tlv_vadpy = gst_va_display_drm_get_tlv_vadpy(display_replacement);
+ 
+           ref = g_atomic_int_get (&((GObject *) display_replacement)->ref_count);
+-          if (ref > 4) {
++          if (ref > tlv_vadpy) {
+             gst_object_unref (display_replacement);
+-          return FALSE;
++            return FALSE;
+           }
+       }
+     }
+@@ -505,3 +508,13 @@ gst_context_set_va_display (GstContext * context, GstVaDisplay * display)
+     }
+   }
+ }
++
++#ifndef G_OS_WIN32
++void
++gst_va_set_tlv_vadpy (GstVaDisplay * display, guint tlv_vadpy)
++{
++  g_return_if_fail (display != NULL);
++
++  gst_va_display_drm_set_tlv_vadpy(display, tlv_vadpy);
++}
++#endif
+diff --git a/gst-libs/gst/va/gstvautils.h b/gst-libs/gst/va/gstvautils.h
+index a36c2bf2e831..e9881d906f5d 100644
+--- a/gst-libs/gst/va/gstvautils.h
++++ b/gst-libs/gst/va/gstvautils.h
+@@ -53,5 +53,9 @@ gboolean              gst_context_get_va_display          (GstContext * context,
+ GST_VA_API
+ void                  gst_context_set_va_display          (GstContext * context,
+                                                            GstVaDisplay * display);
++#ifndef G_OS_WIN32
++GST_VA_API
++void                  gst_va_set_tlv_vadpy                (GstVaDisplay * display, guint tlv_vadpy);
++#endif
+ 
+ G_END_DECLS
+diff --git a/sys/va/gstvabasedec.c b/sys/va/gstvabasedec.c
+index 96dca481a047..c3d0ac68e2c6 100644
+--- a/sys/va/gstvabasedec.c
++++ b/sys/va/gstvabasedec.c
+@@ -48,10 +48,32 @@ gst_va_base_dec_get_property (GObject * object, guint prop_id,
+ 
+       break;
+     }
++    case GST_VA_DEC_PROP_TLV_VADPY:{
++      g_value_set_uint (value, self->tlv_vadpy);
++      break;
++    }
++    default:
++      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
++  }
++}
++
++#ifndef G_OS_WIN32
++static void
++gst_va_base_dec_set_property (GObject * object, guint prop_id,
++    const GValue * value, GParamSpec * pspec)
++{
++  GstVaBaseDec *self = GST_VA_BASE_DEC (object);
++
++  switch (prop_id) {
++    case GST_VA_DEC_PROP_TLV_VADPY:{
++      self->tlv_vadpy = g_value_get_uint(value);
++      break;
++    }
+     default:
+       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+   }
+ }
++#endif
+ 
+ static gboolean
+ gst_va_base_dec_open (GstVideoDecoder * decoder)
+@@ -82,6 +104,13 @@ gst_va_base_dec_open (GstVideoDecoder * decoder)
+ 
+   base->apply_video_crop = FALSE;
+ 
++#ifndef G_OS_WIN32
++  if (!klass->is_i915)
++   if (base->display) {
++     gst_va_set_tlv_vadpy(base->display, base->tlv_vadpy);
++   }
++#endif
++
+   return ret;
+ }
+ 
+@@ -732,6 +761,15 @@ gst_va_base_dec_class_init (GstVaBaseDecClass * klass, GstVaCodecs codec,
+   klass->codec = codec;
+   klass->render_device_path = g_strdup (render_device_path);
+ 
++#ifndef G_OS_WIN32
++  GstVaDisplay *display = NULL;
++  display = gst_va_display_platform_new(klass->render_device_path);
++  if (display) {
++    klass->is_i915 = gst_va_display_check_i915(display);
++    g_object_unref(display);
++  }
++#endif
++
+   sink_pad_templ = gst_pad_template_new ("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
+       sink_caps);
+   gst_element_class_add_pad_template (element_class, sink_pad_templ);
+@@ -752,6 +790,11 @@ gst_va_base_dec_class_init (GstVaBaseDecClass * klass, GstVaCodecs codec,
+ 
+   object_class->get_property = gst_va_base_dec_get_property;
+ 
++#ifndef G_OS_WIN32
++  if (!klass->is_i915)
++    object_class->set_property = gst_va_base_dec_set_property;
++#endif
++
+   element_class->set_context = GST_DEBUG_FUNCPTR (gst_va_base_dec_set_context);
+ 
+   decoder_class->open = GST_DEBUG_FUNCPTR (gst_va_base_dec_open);
+@@ -768,6 +811,15 @@ gst_va_base_dec_class_init (GstVaBaseDecClass * klass, GstVaCodecs codec,
+       g_param_spec_string ("device-path", "Device Path",
+           GST_VA_DEVICE_PATH_PROP_DESC, NULL, GST_PARAM_DOC_SHOW_DEFAULT |
+           G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
++
++#ifndef G_OS_WIN32
++  if (!klass->is_i915) {
++    g_object_class_install_property (object_class, GST_VA_DEC_PROP_TLV_VADPY,
++        g_param_spec_uint ("tlv-vadpy", "TLV VADPY",
++            "Threshold limit value for VADPY refcount (0: disabled)", 0, 8, 0,
++            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_CONSTRUCT));
++  }
++#endif
+ }
+ 
+ static inline GstVideoFormat
+diff --git a/sys/va/gstvabasedec.h b/sys/va/gstvabasedec.h
+index 3c83686c19d1..a1de91ef5c8c 100644
+--- a/sys/va/gstvabasedec.h
++++ b/sys/va/gstvabasedec.h
+@@ -43,6 +43,9 @@ G_BEGIN_DECLS
+ 
+ enum {
+   GST_VA_DEC_PROP_DEVICE_PATH = 1,
++#ifndef G_OS_WIN32
++  GST_VA_DEC_PROP_TLV_VADPY,
++#endif
+   GST_VA_DEC_PROP_LAST,
+ };
+ 
+@@ -93,6 +96,9 @@ struct _GstVaBaseDec
+   gboolean need_negotiation;
+ 
+   guint32 hacks;
++#ifndef G_OS_WIN32
++  guint tlv_vadpy;
++#endif
+ };
+ 
+ struct _GstVaBaseDecClass
+@@ -111,6 +117,7 @@ struct _GstVaBaseDecClass
+ 
+   GstVaCodecs codec;
+   gchar *render_device_path;
++  gboolean is_i915;
+   /* The parent class in GType hierarchy */
+   GstObjectClass *parent_decoder_class;
+ };
+diff --git a/sys/va/gstvapluginutils.c b/sys/va/gstvapluginutils.c
+index 41555f802493..fd90edfa115b 100644
+--- a/sys/va/gstvapluginutils.c
++++ b/sys/va/gstvapluginutils.c
+@@ -99,3 +99,11 @@ gst_va_create_other_pool (GstAllocator * allocator,
+ 
+   return pool;
+ }
++
++#ifndef G_OS_WIN32
++gboolean
++gst_va_display_check_i915 (GstVaDisplay * display)
++{
++  return gst_va_display_drm_check_i915(display);
++}
++#endif
+diff --git a/sys/va/gstvapluginutils.h b/sys/va/gstvapluginutils.h
+index 04e54cfcfc03..bd94a966e39b 100644
+--- a/sys/va/gstvapluginutils.h
++++ b/sys/va/gstvapluginutils.h
+@@ -50,4 +50,8 @@ GstBufferPool * gst_va_create_other_pool (GstAllocator * allocator,
+                                           GstCaps * caps,
+                                           guint size);
+ 
++#ifndef G_OS_WIN32
++gboolean gst_va_display_check_i915 (GstVaDisplay * display);
++#endif
++
+ G_END_DECLS
+-- 
+2.43.0
+

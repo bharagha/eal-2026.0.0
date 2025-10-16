@@ -641,7 +641,7 @@ bool canReuseSharedVADispCtx(GvaBaseInference *gva_base_inference, size_t max_st
         // This counts all shared_ptr references, not just streams, but is the best available heuristic
         auto use_count = gva_base_inference->priv->va_display.use_count();
         if (use_count > static_cast<long>(max_streams)) {
-            GVA_INFO("VADisplay is used by more than %zu streams (use_count=%ld), not reusing.", max_streams,
+            g_print("VADisplay is used by more than %zu streams (use_count=%ld), not reusing.", max_streams,
                      use_count);
             return false;
         }
@@ -678,7 +678,7 @@ dlstreamer::ContextPtr createVaDisplay(GvaBaseInference *gva_base_inference) {
         (canReuseSharedVADispCtx(gva_base_inference, MAX_STREAMS_SHARING_VADISPLAY))) {
         // Reuse existing VADisplay context (i.e. priv->va_display) if it fits
         display = gva_base_inference->priv->va_display;
-        GVA_INFO("Using shared VADisplay (%p) from element %s", static_cast<void *>(display.get()),
+        g_print("Using shared VADisplay (%p) from element %s", static_cast<void *>(display.get()),
                  GST_ELEMENT_NAME(gva_base_inference));
     } else {
         // Create a new VADisplay context
@@ -687,7 +687,7 @@ dlstreamer::ContextPtr createVaDisplay(GvaBaseInference *gva_base_inference) {
             rel_dev_index = Utils::getRelativeGpuDeviceIndex(device);
         }
         display = vaApiCreateVaDisplay(rel_dev_index);
-        GVA_INFO("Using new VADisplay (%p) ", static_cast<void *>(display.get()));
+        g_print("Using new VADisplay (%p) ", static_cast<void *>(display.get()));
     }
 
     if (!display) {
