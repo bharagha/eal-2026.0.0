@@ -6,9 +6,11 @@
 
 #include "classification_history.h"
 #include "gmutex_lock_guard.h"
+#include "gst/analytics/analytics.h"
 #include "gva_utils.h"
 #include "inference_backend/logger.h"
 #include "inference_impl.h"
+#include "region_of_interest.h"
 #include "utils.h"
 #include <cstdint>
 #include <cstdlib>
@@ -16,18 +18,19 @@
 #include <video_frame.h>
 
 ClassificationHistory::ClassificationHistory(GstGvaClassify *gva_classify)
-    : gva_classify(gva_classify), current_num_frame(0), history(CLASSIFICATION_HISTORY_SIZE) {
+    : gva_classify(gva_classify), history(CLASSIFICATION_HISTORY_SIZE) {
 }
 
 bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMeta *roi, GstBuffer *buffer,
                                                       uint64_t current_num_frame) {
     try {
-        std::lock_guard<std::mutex> guard(history_mutex);
+        std::unique_lock<std::mutex> guard(history_mutex);
 
         // by default we assume that
         // we have recent classification result or classification is not required for this object
         bool result = false;
-        gint id;
+        gint id = -1;
+        GstAnalyticsODMtd od_mtd;
         if (roi->id >= 0) {
             GMutexLockGuard guard(&gva_classify->base_inference.meta_mutex);
             GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
@@ -35,7 +38,6 @@ bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMe
                 throw std::runtime_error("Failed to get GstAnalyticsRelationMeta from buffer");
             }
 
-            GstAnalyticsODMtd od_mtd;
             if (!gst_analytics_relation_meta_get_od_mtd(relation_meta, roi->id, &od_mtd)) {
                 throw std::runtime_error("Failed to get object detection metadata");
             }
@@ -45,20 +47,46 @@ bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMe
                 return true;
         }
 
+        std::cout << "current_num_frame: " << current_num_frame << " " << std::endl;
+        std::cout << "reclassify_interval: " << gva_classify->reclassify_interval << std::endl;
+
         if (history.count(id) == 0) { // new object
             history.put(id);
             history.get(id).frame_of_last_update = current_num_frame;
+            history.get(id).updated = false;
             result = true;
         } else if (gva_classify->reclassify_interval == 0) {
-            return false;
+            result = false;
         } else {
             auto current_interval = current_num_frame - history.get(id).frame_of_last_update;
+            std::cout << "current_interval: " << current_interval << std::endl;
             if (current_interval > INT64_MAX && history.get(id).frame_of_last_update > current_num_frame)
                 current_interval = (UINT64_MAX - history.get(id).frame_of_last_update) + current_num_frame + 1;
             if (current_interval >= gva_classify->reclassify_interval) {
                 // new object or reclassify old object
                 history.get(id).frame_of_last_update = current_num_frame;
+                history.get(id).updated = false;
                 result = true;
+            }
+        }
+
+        std::cout << "frame of last update: " << history.get(id).frame_of_last_update << std::endl;
+
+        std::cout << "result: " << result << std::endl;
+
+        if (!result && roi->id >= 0) {
+            std::cout << "Przenosze classification history to ROI" << std::endl;
+            this->cv.wait(guard, [&] { return history.get(id).updated; });
+            GMutexLockGuard mtd_guard(&gva_classify->base_inference.meta_mutex);
+            const auto &roi_history = history.get(id);
+            GVA::RegionOfInterest region(od_mtd, roi);
+            for (const auto &gst_structure : roi_history.last_tensors) {
+                std::cout << "Przenosze" << std::endl;
+                auto tensor = GstStructureUniquePtr(gst_structure_copy(gst_structure.get()), gst_structure_free);
+                if (not tensor)
+                    throw std::runtime_error("Failed to create classification tensor");
+
+                region.add_param(tensor.release());
             }
         }
 
@@ -85,6 +113,9 @@ void ClassificationHistory::UpdateROIParams(int roi_id, const std::vector<GstStr
             history.get(roi_id).last_tensors.push_back(
                 GstStructureSharedPtr(gst_structure_copy(gst_structure), gst_structure_free));
         }
+
+        history.get(roi_id).updated = true;
+        this->cv.notify_all();
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to update detection tensor parameters"));
     }
@@ -93,30 +124,30 @@ void ClassificationHistory::UpdateROIParams(int roi_id, const std::vector<GstStr
 void ClassificationHistory::FillROIParams(GstBuffer *buffer) {
     try {
         GVA::VideoFrame video_frame(buffer, gva_classify->base_inference.info);
-        std::lock_guard<std::mutex> guard(history_mutex);
-        for (GVA::RegionOfInterest &region : video_frame.regions()) {
-            gint id = region.object_id();
-            if (!id)
-                continue;
-            InferenceImpl *inference = gva_classify->base_inference.inference;
-            assert(inference && "Empty inference instance");
-            bool is_appropriate_object_class = inference->FilterObjectClass(region.label());
-            if (history.count(id) && is_appropriate_object_class) {
-                const auto &roi_history = history.get(id);
-                int64_t frames_diff = this->current_num_frame - roi_history.frame_of_last_update;
-                frames_diff = std::abs(frames_diff);
-                if (frames_diff % gva_classify->reclassify_interval != 0) {
-                    for (const auto &gst_structure : roi_history.last_tensors) {
-                        auto tensor =
-                            GstStructureUniquePtr(gst_structure_copy(gst_structure.get()), gst_structure_free);
-                        if (not tensor)
-                            throw std::runtime_error("Failed to create classification tensor");
-                        region.add_param(tensor.release());
-                    }
-                }
-            }
-        }
-        this->current_num_frame++;
+        // std::lock_guard<std::mutex> guard(history_mutex);
+        // for (GVA::RegionOfInterest &region : video_frame.regions()) {
+        //     gint id = region.object_id();
+        //     if (!id)
+        //         continue;
+        //     InferenceImpl *inference = gva_classify->base_inference.inference;
+        //     assert(inference && "Empty inference instance");
+        //     bool is_appropriate_object_class = inference->FilterObjectClass(region.label());
+        //     if (history.count(id) && is_appropriate_object_class) {
+        //         const auto &roi_history = history.get(id);
+        //         int64_t frames_diff = this->current_num_frame - roi_history.frame_of_last_update;
+        //         frames_diff = std::abs(frames_diff);
+        //         if (frames_diff % gva_classify->reclassify_interval != 0) {
+        //             for (const auto &gst_structure : roi_history.last_tensors) {
+        //                 auto tensor =
+        //                     GstStructureUniquePtr(gst_structure_copy(gst_structure.get()), gst_structure_free);
+        //                 if (not tensor)
+        //                     throw std::runtime_error("Failed to create classification tensor");
+        //                 region.add_param(tensor.release());
+        //             }
+        //         }
+        //     }
+        // }
+        // this->current_num_frame++;
     } catch (const std::exception &e) {
         GVA_ERROR("Failed to fill detection tensor parameters from history:\n%s",
                   Utils::createNestedErrorMsg(e).c_str());

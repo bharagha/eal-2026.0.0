@@ -334,6 +334,8 @@ class RegionOfInterest {
     void add_param(GstStructure *s) {
         gst_video_region_of_interest_meta_add_param(_gst_meta, s);
 
+        g_print("Adding parameter: %s\n", gst_structure_to_string(s));
+
         GVA::Tensor tensor(s);
         GstAnalyticsMtd tensor_mtd;
         if (tensor.convert_to_meta(&tensor_mtd, &_od_meta, _od_meta.meta)) {

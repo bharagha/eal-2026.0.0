@@ -26,21 +26,24 @@ G_END_DECLS
 #include "gst_smart_pointer_types.hpp"
 #include "lru_cache.h"
 
+#include <memory>
 #include <mutex>
 #include <vector>
+#include <condition_variable>
 
 const size_t CLASSIFICATION_HISTORY_SIZE = 100;
 
 struct ClassificationHistory {
   public:
     struct ROIClassificationHistory {
-        uint64_t frame_of_last_update;
-        std::vector<GstStructureSharedPtr> last_tensors;
+      uint64_t frame_of_last_update;
+      bool updated;
+      std::vector<GstStructureSharedPtr> last_tensors;
 
-        ROIClassificationHistory(uint64_t frame_of_last_update = {},
-                                 std::vector<GstStructureSharedPtr> last_tensors = {})
-            : frame_of_last_update(frame_of_last_update), last_tensors(last_tensors) {
-        }
+      ROIClassificationHistory(uint64_t frame_of_last_update = {},
+                   std::vector<GstStructureSharedPtr> last_tensors = {})
+        : frame_of_last_update(frame_of_last_update), updated(false), last_tensors(last_tensors) {
+      }
     };
 
     ClassificationHistory(GstGvaClassify *gva_classify);
@@ -54,8 +57,8 @@ struct ClassificationHistory {
     void CheckExistingAndReaddObjectId(int roi_id);
 
     GstGvaClassify *gva_classify;
-    uint64_t current_num_frame;
     LRUCache<int, ROIClassificationHistory> history;
+    std::condition_variable cv;
     std::mutex history_mutex;
 };
 #endif
