@@ -86,19 +86,17 @@ export const ConversationSlice = createSlice({
       state.files = [];
     });
     builder.addCase(uploadFile.fulfilled, () => {
-      notifications.update({
-        id: "upload-file",
+      notifications.show({
         message: "File Uploaded Successfully",
-        loading: false,
+        color: "green",
         autoClose: 3000,
       });
     });
     builder.addCase(uploadFile.rejected, () => {
-      notifications.update({
+      notifications.show({
         color: "red",
-        id: "upload-file",
         message: "Failed to Upload file",
-        loading: false,
+        autoClose: 3000,
       });
     });
     builder.addCase(removeFile.fulfilled, (state, action) => {
@@ -405,8 +403,9 @@ export const uploadFile = createAsyncThunkWrapper("conversation/uploadFile", asy
   const body = new FormData();
   body.append("files", file);
 
+  const notificationId = `upload-file-${Date.now()}`;
   notifications.show({
-    id: "upload-file",
+    id: notificationId,
     message: "Uploading File",
     loading: true,
   });
@@ -448,6 +447,11 @@ export const doConversation = createAsyncThunk(
       // New conversation
       const id = uuidv4();
       activeConversationId = id;
+      
+      // First set the selected conversation ID
+      dispatch(setSelectedConversationId(id));
+      
+      // Then create the new conversation
       dispatch(
         createNewConversation({
           title: userPrompt.content,
@@ -455,7 +459,7 @@ export const doConversation = createAsyncThunk(
           message: userPrompt,
         })
       );
-      dispatch(setSelectedConversationId(id));
+      
       selectedConversation = {
         conversationId: id,
         Messages: [userPrompt],
@@ -484,7 +488,7 @@ export const doConversation = createAsyncThunk(
     };
 
     // Set generating state - user has submitted, waiting for AI to start responding
-    dispatch(setIsGenerating({ conversationId, isGenerating: true }));
+    dispatch(setIsGenerating({ conversationId: activeConversationId, isGenerating: true }));
 
     let result = "";
     try {
@@ -510,7 +514,7 @@ export const doConversation = createAsyncThunk(
           if (msg?.data != "[DONE]") {
             try {
               // Stop the blinking indicator on first message received
-              dispatch(setIsGenerating({ conversationId, isGenerating: false }));
+              dispatch(setIsGenerating({ conversationId: activeConversationId, isGenerating: false }));
 
               const match = msg.data.match(/b'([^']*)'/);
               if (match && match[1] != "</s>") {
@@ -544,7 +548,7 @@ export const doConversation = createAsyncThunk(
         onerror(err) {
           console.log("error", err);
           dispatch(clearOnGoingResultForConversation(activeConversationId));
-          dispatch(setIsGenerating({ conversationId, isGenerating: false }));
+          dispatch(setIsGenerating({ conversationId: activeConversationId, isGenerating: false }));
           //notify here
           throw err;
           //handle error
@@ -552,7 +556,7 @@ export const doConversation = createAsyncThunk(
         onclose() {
           //handle close
           dispatch(clearOnGoingResultForConversation(activeConversationId));
-          dispatch(setIsGenerating({ conversationId, isGenerating: false }));
+          dispatch(setIsGenerating({ conversationId: activeConversationId, isGenerating: false }));
 
           dispatch(
             addMessageToConversation({
