@@ -10,6 +10,60 @@
 
 using namespace InferenceBackend;
 
+// Initialize static pool
+std::shared_ptr<D3D11TexturePool> D3D11ImageMap_SystemMemory::s_texture_pool = nullptr;
+
+// Thread-safe texture pool implementation
+D3D11TexturePool::TexturePtr D3D11TexturePool::acquire(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc) {
+    PoolKey key = std::make_tuple(desc.Width, desc.Height, desc.Format);
+    {
+        std::lock_guard<std::mutex> lock(pool_mutex);
+        auto it = pool.find(key);
+        if (it != pool.end()) {
+            TexturePtr tex = it->second;
+            pool.erase(it);
+            GVA_DEBUG("Texture pool HIT: size=%d W=%dx%d Format=%d", pool.size(), desc.Width, desc.Height, (int)desc.Format);
+            return tex;
+        }
+    }
+
+    // Not found in pool, create new
+    TexturePtr tex;
+    D3D11_TEXTURE2D_DESC staging_desc = desc;
+    staging_desc.Usage = D3D11_USAGE_STAGING;
+    staging_desc.BindFlags = 0;
+    staging_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    staging_desc.MiscFlags = 0;
+
+    HRESULT hr = device->CreateTexture2D(&staging_desc, nullptr, &tex);
+    if (FAILED(hr)) {
+        throw std::runtime_error("Failed to create staging texture for CPU readback");
+    }
+    GVA_DEBUG("Texture pool MISS: created new W=%dx%d Format=%d", desc.Width, desc.Height, (int)desc.Format);
+    return tex;
+}
+
+void D3D11TexturePool::release(ID3D11Texture2D* tex) {
+    if (!tex) return;
+
+    D3D11_TEXTURE2D_DESC desc;
+    tex->GetDesc(&desc);
+    PoolKey key = std::make_tuple(desc.Width, desc.Height, desc.Format);
+    {
+        std::lock_guard<std::mutex> lock(pool_mutex);
+        if (pool.size() >= MAX_POOL_SIZE) {
+            // Remove oldest entry (first in map) to make room
+            pool.erase(pool.begin());
+        }
+        pool[key] = tex;
+    }
+}
+
+void D3D11TexturePool::clear() {
+    std::lock_guard<std::mutex> lock(pool_mutex);
+    pool.clear();
+}
+
 ImageMap *ImageMap::Create(MemoryType type) {
     ImageMap *map = nullptr;
     switch (type) {
@@ -46,11 +100,9 @@ Image D3D11ImageMap_SystemMemory::Map(const Image &image) {
     ID3D11Device* device = static_cast<ID3D11Device*>(image.d3d11_device);
     if (!d3d11_device_context) {
         if (d3d11_context) {
-            // Use the context from D3D11Context wrapper (preferred)
             d3d11_device_context = d3d11_context->DeviceContext();
-            d3d11_device_context->AddRef();  // Add reference since we're storing it
+            d3d11_device_context->AddRef();
         } else {
-            // Fallback: get immediate context from device
             device->GetImmediateContext(&d3d11_device_context);
         }
     }
@@ -59,54 +111,60 @@ Image D3D11ImageMap_SystemMemory::Map(const Image &image) {
     D3D11_TEXTURE2D_DESC desc;
     d3d11_texture->GetDesc(&desc);
 
-    // Reuse staging texture if size matches, otherwise recreate
+    // Use texture pool for staging textures
     bool need_new_staging = !staging_texture;
     if (staging_texture) {
         D3D11_TEXTURE2D_DESC existing_desc;
         staging_texture->GetDesc(&existing_desc);
-        if (existing_desc.Width != desc.Width || existing_desc.Height != desc.Height || 
+        if (existing_desc.Width != desc.Width || existing_desc.Height != desc.Height ||
             existing_desc.Format != desc.Format) {
+            // Return old texture to pool
+            if (s_texture_pool) {
+                s_texture_pool->release(staging_texture.Get());
+            }
             staging_texture.Reset();
             need_new_staging = true;
         }
     }
 
     if (need_new_staging) {
-        // Create staging texture with same format but CPU-readable
-        D3D11_TEXTURE2D_DESC staging_desc = desc;
-        staging_desc.Usage = D3D11_USAGE_STAGING;
-        staging_desc.BindFlags = 0;
-        staging_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-        staging_desc.MiscFlags = 0;
+        if (s_texture_pool) {
+            // Acquire from pool or create new
+            staging_texture = s_texture_pool->acquire(device, desc);
+        } else {
+            // Fallback: create directly if no pool
+            D3D11_TEXTURE2D_DESC staging_desc = desc;
+            staging_desc.Usage = D3D11_USAGE_STAGING;
+            staging_desc.BindFlags = 0;
+            staging_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+            staging_desc.MiscFlags = 0;
 
-        HRESULT hr = device->CreateTexture2D(&staging_desc, nullptr, &staging_texture);
-        if (FAILED(hr)) {
-            throw std::runtime_error("Failed to create staging texture for CPU readback");
+            HRESULT hr = device->CreateTexture2D(&staging_desc, nullptr, &staging_texture);
+            if (FAILED(hr)) {
+                throw std::runtime_error("Failed to create staging texture for CPU readback");
+            }
         }
     }
 
-    // Copy from render target to staging texture
-    // Use GStreamer D3D11 device lock for thread-safe DeviceContext access
+
+    // Lock only for critical D3D11 operations (CopyResource and Map)
+    // All DeviceContext calls must be under lock per D3D11/GStreamer requirements
     if (d3d11_context) {
         d3d11_context->Lock();
     }
+
+    // CopyResource queues the GPU work
     d3d11_device_context->CopyResource(staging_texture.Get(), d3d11_texture.Get());
-    if (d3d11_context) {
-        d3d11_context->Unlock();
-    }
 
     num_planes = 1;
     if (desc.Format == DXGI_FORMAT_NV12) {
         num_planes = 2;
     }
 
-    // Map the staging texture
+    // Map the staging texture - this waits for GPU copy to complete
+    // We must keep lock held for all DeviceContext operations
     for (int plane = 0; plane < num_planes; ++plane) {
         D3D11_MAPPED_SUBRESOURCE mapped_resource = {};
-
-        if (d3d11_context) {
-            d3d11_context->Lock();
-        }
         HRESULT hr = d3d11_device_context->Map(
             staging_texture.Get(),
             plane,
@@ -114,12 +172,10 @@ Image D3D11ImageMap_SystemMemory::Map(const Image &image) {
             0,
             &mapped_resource
         );
-        if (d3d11_context) {
-            d3d11_context->Unlock();
-        }
-
         if (FAILED(hr)) {
-            // Clean up on failure
+            if (d3d11_context) {
+                d3d11_context->Unlock();
+            }
             Unmap();
             throw std::runtime_error("Failed to map staging texture subresource to system memory");
         }
@@ -127,6 +183,9 @@ Image D3D11ImageMap_SystemMemory::Map(const Image &image) {
         image_sys.stride[plane] = mapped_resource.RowPitch;
     }
 
+    if (d3d11_context) {
+        d3d11_context->Unlock();
+    }
     return image_sys;
 }
 
@@ -142,8 +201,13 @@ void D3D11ImageMap_SystemMemory::Unmap() {
             d3d11_context->Unlock();
         }
         num_planes = 0;
+
+        // Return staging texture to pool for reuse
+        if (s_texture_pool) {
+            s_texture_pool->release(staging_texture.Get());
+        }
+        staging_texture.Reset();
     }
-    // Note: we keep staging_texture and d3d11_device_context for reuse
 }
 
 D3D11ImageMap_D3D11Texture::D3D11ImageMap_D3D11Texture() {

@@ -72,9 +72,6 @@ void appendStr(std::ostringstream &oss, const std::string &s, char delim = ' ') 
 }
 
 InferenceBackend::MemoryType memoryTypeFromCaps(GstCaps *caps) {
-#if _MSC_VER
-    return InferenceBackend::MemoryType::D3D11;
-#endif
     const auto caps_feature = get_caps_feature(caps);
     switch (caps_feature) {
     case SYSTEM_MEMORY_CAPS_FEATURE:
@@ -749,11 +746,7 @@ std::unique_ptr<Renderer> Impl::createRenderer(std::shared_ptr<ColorConverter> c
         }
     }
     _backend_type = "CPU";
-#if _MSC_VER
-    auto buf_mapper = BufferMapperFactory::createMapper(InferenceBackend::MemoryType::D3D11);
-#else
     auto buf_mapper = BufferMapperFactory::createMapper(InferenceBackend::MemoryType::SYSTEM);
-#endif
     return create_cpu_renderer(format, converter, std::move(buf_mapper));
 }
 

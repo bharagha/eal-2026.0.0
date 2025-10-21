@@ -21,6 +21,8 @@
 #include <tuple>
 #include <utility>
 
+#undef max
+
 using namespace InferenceBackend;
 
 namespace {
@@ -82,16 +84,19 @@ ImageInferenceAsyncD3D11::ImageInferenceAsyncD3D11(const InferenceBackend::Infer
     _d3d11_converter = std::unique_ptr<D3D11Converter>(new D3D11Converter(_d3d11_context.get()));
 
     auto inference_image_info = get_pool_image_info(_inference);
-    size_t image_pool_size = safe_mul(safe_convert<size_t>(inference_image_info.batch), _inference->GetNireq());
-    if (image_pool_size < thread_pool_size)
-        image_pool_size = thread_pool_size;
+
+    size_t inference_buffers = safe_mul(safe_convert<size_t>(inference_image_info.batch), _inference->GetNireq());
+    size_t pool_threads = static_cast<size_t>(thread_pool_size) * 3;
+    size_t image_pool_size = std::max(inference_buffers, pool_threads);
+
+    GVA_INFO("D3D11 async preprocessing configuration:");
+    GVA_INFO("-- Inference buffers needed: %lu (nireq=%u, batch=%u)",
+             inference_buffers, _inference->GetNireq(), inference_image_info.batch);
+    GVA_INFO("-- Thread pool size: %lu", thread_pool_size);
+    GVA_INFO("-- D3D11 image pool size: %lu (ensures enough buffering for pipelining)", image_pool_size);
 
     _d3d11_image_pool =
         create_d3d11_image_pool(inference_image_info, image_pool_size, _d3d11_context.get(), 0.0f);
-
-    GVA_INFO("D3D11 async preprocessing configuration:");
-    GVA_INFO("-- Thread pool size: %lu", thread_pool_size);
-    GVA_INFO("-- D3D11 image pool size: %lu", image_pool_size);
 }
 
 void ImageInferenceAsyncD3D11::SubmitInference(D3D11Image *d3d11_image, IFrameBase::Ptr frame,

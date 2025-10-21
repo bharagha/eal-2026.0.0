@@ -5,12 +5,14 @@
  ******************************************************************************/
 
 #include "d3d11_context.h"
+#include "d3d11_image_map.h"
 
 #include "inference_backend/logger.h"
 
 #include <cassert>
 #include <mutex>
 #include <vector>
+#include <map>
 
 #include <fcntl.h>
 #include <gst/d3d11/gstd3d11device.h>
@@ -27,6 +29,9 @@ std::mutex& D3D11Context::GetContextMutex() {
 D3D11Context::D3D11Context(ID3D11Device* d3d11_device) : _device(d3d11_device) {
     create_config_and_contexts();
     create_supported_pixel_formats();
+    // Initialize texture pool
+    _texture_pool = std::make_shared<D3D11TexturePool>();
+    D3D11ImageMap_SystemMemory::SetTexturePool(_texture_pool);
 }
 
 D3D11Context::D3D11Context(dlstreamer::ContextPtr display_context)
@@ -38,6 +43,9 @@ D3D11Context::D3D11Context(dlstreamer::ContextPtr display_context)
     
     create_config_and_contexts();
     create_supported_pixel_formats();
+    // Initialize texture pool
+    _texture_pool = std::make_shared<D3D11TexturePool>();
+    D3D11ImageMap_SystemMemory::SetTexturePool(_texture_pool);
 }
 
 D3D11Context::~D3D11Context() {
@@ -113,10 +121,10 @@ void D3D11Context::CreateVideoProcessorAndEnumerator(
     content_desc.Usage = D3D11_VIDEO_USAGE_OPTIMAL_SPEED;
     
     // Set frame rates (200 fps as default)
-    content_desc.InputFrameRate.Numerator = 200;
-    content_desc.InputFrameRate.Denominator = 1;
-    content_desc.OutputFrameRate.Numerator = 200;
-    content_desc.OutputFrameRate.Denominator = 1;
+    content_desc.InputFrameRate.Numerator = 0;
+    content_desc.InputFrameRate.Denominator = 0;
+    content_desc.OutputFrameRate.Numerator = 0;
+    content_desc.OutputFrameRate.Denominator = 0;
     
     // Create enumerator
     HRESULT hr = _video_device->CreateVideoProcessorEnumerator(&content_desc, video_processor_enumerator.GetAddressOf());
@@ -128,6 +136,42 @@ void D3D11Context::CreateVideoProcessorAndEnumerator(
     hr = _video_device->CreateVideoProcessor(video_processor_enumerator.Get(), 0, video_processor.GetAddressOf());
     if (FAILED(hr)) {
         throw std::runtime_error("Failed to create video processor");
+    }
+}
+
+void D3D11Context::GetCachedVideoProcessor(
+    uint32_t input_width, uint32_t input_height,
+    uint32_t output_width, uint32_t output_height,
+    Microsoft::WRL::ComPtr<ID3D11VideoProcessor>& video_processor,
+    Microsoft::WRL::ComPtr<ID3D11VideoProcessorEnumerator>& video_processor_enumerator) {
+
+    ProcessorCacheKey key = {input_width, input_height, output_width, output_height};
+
+    {
+        std::lock_guard<std::mutex> lock(_processor_cache_mutex);
+        auto it = _processor_cache.find(key);
+        if (it != _processor_cache.end()) {
+            video_processor = it->second.processor;
+            video_processor_enumerator = it->second.enumerator;
+            GVA_DEBUG("D3D11 VideoProcessor cache HIT: %ux%u -> %ux%u",
+                     input_width, input_height, output_width, output_height);
+            return;
+        }
+    }
+
+    // Cache miss - create new processor
+    GVA_DEBUG("D3D11 VideoProcessor cache MISS: %ux%u -> %ux%u, creating new",
+             input_width, input_height, output_width, output_height);
+    CreateVideoProcessorAndEnumerator(input_width, input_height, output_width, output_height,
+                                      video_processor, video_processor_enumerator);
+
+    // Store in cache
+    {
+        std::lock_guard<std::mutex> lock(_processor_cache_mutex);
+        ProcessorCacheValue val;
+        val.processor = video_processor;
+        val.enumerator = video_processor_enumerator;
+        _processor_cache[key] = val;
     }
 }
 

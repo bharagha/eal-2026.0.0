@@ -12,11 +12,14 @@
 #include <mutex>
 #include <set>
 #include <stdexcept>
+#include <memory>
 #include <d3d11.h>
 #include <dxgi.h>
 #include <wrl/client.h>
 
 namespace InferenceBackend {
+
+class D3D11TexturePool;  // Forward declaration
 
 class D3D11Context {
   public:
@@ -37,6 +40,7 @@ class D3D11Context {
     /**
      * Lock the GStreamer D3D11 device for thread-safe access.
      * Must be called before any ID3D11DeviceContext or DXGI operations.
+     * Use this instead of GetContextMutex() when working with GStreamer devices.
      */
     void Lock();
 
@@ -45,12 +49,26 @@ class D3D11Context {
      */
     void Unlock();
 
+    // Texture pool access
+    std::shared_ptr<D3D11TexturePool> GetTexturePool() const { return _texture_pool; }
+
     void CreateVideoProcessorAndEnumerator(
         uint32_t input_width, uint32_t input_height,
         uint32_t output_width, uint32_t output_height,
         Microsoft::WRL::ComPtr<ID3D11VideoProcessor>& video_processor,
         Microsoft::WRL::ComPtr<ID3D11VideoProcessorEnumerator>& video_processor_enumerator);
-    
+
+    /**
+     * Get or create a cached video processor for common dimensions.
+     * Reuses the same processor across multiple frames to avoid creation overhead (5ms per creation).
+     * Cache is keyed by (input_w, input_h, output_w, output_h).
+     */
+    void GetCachedVideoProcessor(
+        uint32_t input_width, uint32_t input_height,
+        uint32_t output_width, uint32_t output_height,
+        Microsoft::WRL::ComPtr<ID3D11VideoProcessor>& video_processor,
+        Microsoft::WRL::ComPtr<ID3D11VideoProcessorEnumerator>& video_processor_enumerator);
+
     bool IsPixelFormatSupported(DXGI_FORMAT format) const;
 
   private:
@@ -62,6 +80,25 @@ class D3D11Context {
     std::set<DXGI_FORMAT> _supported_pixel_formats;
     GstD3D11Device *_gst_device = nullptr; // GstD3D11Device* for proper locking
 
+    // Texture pool for staging textures
+    std::shared_ptr<D3D11TexturePool> _texture_pool;
+
+    // Video processor cache: key = (input_w, input_h, output_w, output_h)
+    struct ProcessorCacheKey {
+        uint32_t input_w, input_h, output_w, output_h;
+        bool operator<(const ProcessorCacheKey& other) const {
+            if (input_w != other.input_w) return input_w < other.input_w;
+            if (input_h != other.input_h) return input_h < other.input_h;
+            if (output_w != other.output_w) return output_w < other.output_w;
+            return output_h < other.output_h;
+        }
+    };
+    struct ProcessorCacheValue {
+        Microsoft::WRL::ComPtr<ID3D11VideoProcessor> processor;
+        Microsoft::WRL::ComPtr<ID3D11VideoProcessorEnumerator> enumerator;
+    };
+    std::map<ProcessorCacheKey, ProcessorCacheValue> _processor_cache;
+    std::mutex _processor_cache_mutex;
 
     /* private helper methods */
     void create_config_and_contexts();

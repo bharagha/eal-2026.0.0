@@ -10,12 +10,10 @@
 #include "safe_arithmetic.hpp"
 #include "utils.h"
 
-
 #include <cstring>
 #include <stdexcept>
 #include <string>
 #include <algorithm>
-#include <chrono>
 
 using namespace InferenceBackend;
 
@@ -204,12 +202,12 @@ void D3D11Converter::Convert(const Image &src, D3D11Image &d3d11_dst, const Inpu
     uint32_t input_height = static_cast<uint32_t>(src.height);
     uint32_t output_width = static_cast<uint32_t>(d3d11_dst.image.width);
     uint32_t output_height = static_cast<uint32_t>(d3d11_dst.image.height);
-    
-    // Create processor and enumerator
+
+    // Get cached processor (reuse if dimensions match, create if new)
     Microsoft::WRL::ComPtr<ID3D11VideoProcessor> video_processor;
     Microsoft::WRL::ComPtr<ID3D11VideoProcessorEnumerator> video_processor_enumerator;
-    _context->CreateVideoProcessorAndEnumerator(input_width, input_height, output_width, output_height,
-                                                video_processor, video_processor_enumerator);
+    _context->GetCachedVideoProcessor(input_width, input_height, output_width, output_height,
+                                      video_processor, video_processor_enumerator);
     
     // Get source and destination textures
     ID3D11Texture2D* src_texture = nullptr;
@@ -310,18 +308,16 @@ void D3D11Converter::Convert(const Image &src, D3D11Image &d3d11_dst, const Inpu
     query_desc.Query = D3D11_QUERY_EVENT;
     query_desc.MiscFlags = 0;
 
-
-    hr = _context->Device()->CreateQuery(&query_desc, &query);
+    /*hr = _context->Device()->CreateQuery(&query_desc, &query);
     if (FAILED(hr)) {
         throw std::runtime_error("D3D11Converter::Convert: Failed to create D3D11 event query");
-    }
+    }*/
 
     // Use GStreamer D3D11 device lock for thread-safe DeviceContext access
     // Required per GStreamer documentation: concurrent calls for ID3D11DeviceContext and DXGI API are not allowed
     _context->Lock();
 
-    _context->DeviceContext()->Begin(query.Get());
-
+    //_context->DeviceContext()->Begin(query.Get());
     hr = video_context->VideoProcessorBlt(
         video_processor.Get(),
         output_view.Get(),  // Output directly to destination texture
@@ -333,12 +329,9 @@ void D3D11Converter::Convert(const Image &src, D3D11Image &d3d11_dst, const Inpu
         _context->Unlock();
         throw std::runtime_error("D3D11Converter::Convert: VideoProcessorBlt failed");
     }
-
-    _context->DeviceContext()->End(query.Get());
-
+    //_context->DeviceContext()->End(query.Get());
     _context->Unlock();
 
-    // Store query in destination image for async GPU synchronization
     d3d11_dst.gpu_event_query = query;
 }
 
