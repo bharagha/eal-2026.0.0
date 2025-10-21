@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from uuid import UUID
 
 import api.api_schemas as schemas
+from managers.pipeline_manager import PipelineManager
 from gstpipeline import PipelineLoader
 from optimize import PipelineOptimizer
 from explore import GstInspector
@@ -16,29 +17,12 @@ TEMP_DIR = tempfile.gettempdir()
 
 router = APIRouter()
 gst_inspector = GstInspector()
+pipeline_manager = PipelineManager()
 
 
 @router.get("", response_model=List[schemas.Pipeline])
 def get_pipelines():
-    pipeline_infos = []
-    for pipeline in PipelineLoader.list():
-        pipeline_gst, config = PipelineLoader.load(pipeline)
-        pipeline_infos.append(
-            schemas.Pipeline(
-                name=config.get("name", "Unnamed Pipeline"),
-                version=config.get("version", "0.0.1"),
-                description=config.get("definition", config.get("description", "")),
-                type=schemas.PipelineType.GSTREAMER,
-                parameters=schemas.PipelineParameters(
-                    default={
-                        "launch_string": pipeline_gst.get_default_gst_launch(
-                            elements=gst_inspector.get_elements()
-                        )
-                    }
-                ),
-            )
-        )
-    return pipeline_infos
+    return pipeline_manager.get_pipelines()
 
 
 @router.post(
@@ -57,10 +41,11 @@ def get_pipelines():
         500: {"description": "Internal server error"},
     },
 )
-def create_pipeline(body: schemas.PipelineDefinition):
+def create_pipeline(body: schemas.Pipeline):
     """Create a custom pipeline from a launch string."""
+    # TODO: Validate the launch string
     try:
-        # TODO: Validate the launch string and create pipeline
+        pipeline_manager.add_pipeline(body)
 
         location = f"/pipelines/{body.name}/{body.version}"
         return JSONResponse(
@@ -68,8 +53,8 @@ def create_pipeline(body: schemas.PipelineDefinition):
             status_code=201,
             headers={"Location": location},
         )
-    except HTTPException:
-        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to create pipeline: {str(e)}"
@@ -88,6 +73,16 @@ def validate_pipeline(body: schemas.PipelineValidation):
     """Validate launch string pipeline."""
     # TODO: Implement actual validation logic
     return JSONResponse(content={"message": "Pipeline valid"}, status_code=200)
+
+
+@router.get("/{name}/{version}", response_model=schemas.Pipeline)
+def get_pipeline(name: str, version: str):
+    try:
+        return pipeline_manager.get_pipeline_by_name_and_version(name, version)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @router.post("/{name}/{version}/run")

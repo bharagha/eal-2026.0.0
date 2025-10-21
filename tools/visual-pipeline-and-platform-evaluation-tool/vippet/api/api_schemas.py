@@ -65,14 +65,6 @@ class Pipeline(BaseModel):
     version: str
     description: str
     type: PipelineType
-    parameters: Optional[PipelineParameters]
-
-
-class PipelineDefinition(BaseModel):
-    name: str
-    version: str
-    description: Optional[str]
-    type: PipelineType
     launch_string: str
     parameters: Optional[PipelineParameters]
 
