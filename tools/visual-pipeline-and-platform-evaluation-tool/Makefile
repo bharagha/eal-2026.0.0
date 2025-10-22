@@ -121,7 +121,7 @@ shell-videogenerator: env-setup ## Open shell in videogenerator container
 	$(MAKE) shell SERVICE=videogenerator
 
 stop: ## Stop the docker compose services
-	@VIPPET_SERVICE=$$(DOCKER_TAG=$(VERSION) docker compose ps --services | grep "^vippet-" | head -n 1 || echo ""); \
+	@VIPPET_SERVICE=$$(docker compose ps --services | grep "^vippet-" | head -n 1 || echo ""); \
 	docker compose down models collector videogenerator $$VIPPET_SERVICE
 
 clean: ## Clean all build artifacts
