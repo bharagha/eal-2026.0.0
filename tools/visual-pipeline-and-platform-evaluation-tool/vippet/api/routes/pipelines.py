@@ -41,7 +41,7 @@ def get_pipelines():
         500: {"description": "Internal server error"},
     },
 )
-def create_pipeline(body: schemas.Pipeline):
+def create_pipeline(body: schemas.PipelineDefinition):
     """Create a custom pipeline from a launch string."""
     # TODO: Validate the launch string
     try:
@@ -85,7 +85,7 @@ def get_pipeline(name: str, version: str):
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
-@router.post("/{name}/{version}/run")
+@router.post("/{name}/{version}")
 def run_pipeline(name: str, version: str, body: schemas.PipelineRequestRun):
     # Download the pipeline recording file
     file_name = os.path.basename(str(body.source.uri))
