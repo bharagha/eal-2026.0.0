@@ -20,7 +20,6 @@ PRIVATE
     dlstreamer_openvino
     dlstreamer_gst
     openvino_inference
-    d3d11
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

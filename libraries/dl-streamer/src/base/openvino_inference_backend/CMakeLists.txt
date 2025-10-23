@@ -7,9 +7,10 @@
 set(TARGET_NAME "openvino_inference_backend")
 
 find_package(OpenVINO REQUIRED Runtime)
-find_package(OpenCL)
 pkg_search_module(VA va libva REQUIRED)
-pkg_check_modules(GSTD3D11 gstreamer-d3d11-1.0>=1.16 REQUIRED)
+if(WIN32)
+    pkg_check_modules(GSTD3D11 gstreamer-d3d11-1.0>=1.16 REQUIRED)
+endif()
 
 add_library(${TARGET_NAME} OBJECT openvino.cpp openvino.hpp)
 set_compile_flags(${TARGET_NAME})
@@ -24,15 +25,3 @@ PRIVATE
     dlstreamer_logger
     ${GSTD3D11_LIBRARIES}
 )
-
-if (OpenCL_FOUND)
-target_include_directories(${TARGET_NAME}
-PRIVATE
-        ${OpenCL_INCLUDE_DIRS}
-)
-
-target_link_libraries(${TARGET_NAME}
-PUBLIC
-        ${OpenCL_LIBRARY}
-)
-endif()

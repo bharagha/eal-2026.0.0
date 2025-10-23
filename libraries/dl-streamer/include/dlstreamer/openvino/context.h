@@ -12,12 +12,6 @@
 #include <openvino/openvino.hpp>
 #include <openvino/runtime/intel_gpu/properties.hpp>
 #include <openvino/runtime/intel_gpu/remote_properties.hpp>
-#if _MSC_VER
-#include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
-#include <openvino/runtime/intel_gpu/ocl/dx.hpp>
-#include <d3d11_1.h>
-#include <gst/d3d11/gstd3d11.h>
-#endif
 
 namespace dlstreamer {
 

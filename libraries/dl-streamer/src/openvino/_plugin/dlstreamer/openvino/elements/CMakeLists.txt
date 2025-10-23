@@ -10,7 +10,7 @@ find_package(OpenVINO REQUIRED)
 pkg_search_module(VA va libva REQUIRED)
 
 set(SOURCES elements.cpp)
-set(LINK_LIBS openvino::runtime logger dlstreamer_api openvino_inference d3d11)
+set(LINK_LIBS openvino::runtime logger dlstreamer_api openvino_inference)
 
 foreach(TYPE SHARED STATIC)
     if(${TYPE} STREQUAL "SHARED")

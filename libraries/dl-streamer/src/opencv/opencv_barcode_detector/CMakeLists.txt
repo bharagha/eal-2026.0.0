@@ -10,8 +10,6 @@ find_package(OpenCV REQUIRED)
 
 add_library(${TARGET_NAME} OBJECT opencv_barcode_detector.cpp)
 set_compile_flags(${TARGET_NAME})
-message("MARCIN")
-message(${OpenCV_INCLUDE_DIRS})
 target_include_directories(${TARGET_NAME}
 PRIVATE
         ${OpenCV_INCLUDE_DIRS}
