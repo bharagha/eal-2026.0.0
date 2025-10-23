@@ -889,8 +889,6 @@ class OpenVinoNewApiImpl {
             return {image_bgrx_to_tensor(image)};
 
         case FourCC::FOURCC_NV12:
-            if (image.type == MemoryType::D3D11)
-                return image_nv12_d3d_to_tensor(image);
             if (image.type != MemoryType::VAAPI)
                 return image_nv12_to_tensor(image);
             return image_nv12_surface_to_tensor(image);
@@ -978,25 +976,6 @@ class OpenVinoNewApiImpl {
         }
 
         return {y_tensor, uv_tensor};
-    }
-
-    std::vector<ov::Tensor> image_nv12_d3d_to_tensor(const Image &image) {
-        auto rmt_ctx = _openvino_context->remote_context<ov::intel_gpu::ocl::D3DContext>();
-        auto width = image.width;
-        auto height = image.height;
-
-        //ov::AnyMap tensor_params = {{ov::intel_gpu::shared_mem_type.name(), "DX_BUFFER"},
-        //                            {ov::intel_gpu::va_plane.name(), uint32_t(0)}};
-        
-        //ov::AnyMap tensor_params = {{ov::intel_gpu::shared_mem_type.name(), "VA_SURFACE"},
-        //                            {ov::intel_gpu::dev_object_handle.name(), "d3d11"},
-        //                            {ov::intel_gpu::va_plane.name(), uint32_t(0)}};
-
-        auto param_input= _model->get_parameters().at(0);
-
-        auto tensor = rmt_ctx.create_tensor(param_input->get_element_type(), param_input->get_shape());
-    
-        return {tensor};
     }
 
     std::vector<ov::Tensor> image_nv12_surface_to_tensor(const Image &image) {
@@ -1093,14 +1072,6 @@ class OpenVinoNewApiImpl {
 
         auto ppp = ov::preprocess::PrePostProcessor(_model);
         configure_model_inputs(config, ppp);
-/*
-        ppp.input().tensor().set_element_type(ov::element::u8)
-                            .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                            .set_memory_type(ov::intel_gpu::memory_type::surface);
-        ppp.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
-        ppp.input().model().set_layout("NCHW");
-*/
-
         _model = ppp.build();
         _model_format = config.model_format();
 
@@ -1359,12 +1330,11 @@ class OpenVinoNewApiImpl {
         }
 
         // print_input_and_outputs_info(*_model);
-        if (_openvino_context) {     
+        if (_openvino_context) {
             _compiled_model = core().compile_model(_model, _openvino_context->remote_context(), ov_params);
         } else {
             _compiled_model = core().compile_model(_model, _device, ov_params);
         }
-
         GVA_INFO("Network loaded to device");
 
         auto supported_properties = _compiled_model.get_property(ov::supported_properties);
@@ -1408,10 +1378,6 @@ class OpenVinoNewApiImpl {
 
     dlstreamer::ContextPtr create_remote_context() {
         // FIXME: invert to reduce nesting
-        /*if (_memory_type == MemoryType::D3D11) {
-            auto d3d11_context = dlstreamer::D3D11Context::create();
-            _openvino_context = std::make_shared<dlstreamer::OpenVINOContext>(core(), _device, d3d11_context);
-        }*/
         if (is_device_gpu() && !is_device_multi() &&
             (_memory_type == MemoryType::VAAPI || _memory_type == MemoryType::SYSTEM)) {
             if (_app_context) {
@@ -1480,7 +1446,6 @@ OpenVINOImageInference::OpenVINOImageInference(const InferenceBackend::Inference
 
         const auto pp_type = cfg_helper.pp_type();
 
-        // FIXME: why VAAPI ?
         if (pp_type == InferenceBackend::ImagePreprocessorType::OPENCV ||
             pp_type == InferenceBackend::ImagePreprocessorType::D3D11) {
 
