@@ -21,7 +21,6 @@
 #endif
 #endif
 
-
 // signed integer
 template <typename Type>
 using IsSignedIntegral = std::integral_constant<bool, std::is_integral<Type>::value and std::is_signed<Type>::value>;
