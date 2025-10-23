@@ -414,7 +414,7 @@ static void gst_gva_watermark_impl_class_init(GstGvaWatermarkImplClass *klass) {
 
 Impl::Impl(GstVideoInfo *info, DEVICE_SELECTOR device, InferenceBackend::MemoryType mem_type,
            dlstreamer::ContextPtr context, bool obb)
-    : _vinfo(info), _obb(obb), _mem_type(mem_type) {
+    : _vinfo(info), _mem_type(mem_type), _obb(obb) {
     assert(_vinfo);
     if (GST_VIDEO_INFO_COLORIMETRY(_vinfo).matrix == GstVideoColorMatrix::GST_VIDEO_COLOR_MATRIX_UNKNOWN)
         throw std::runtime_error("GST_VIDEO_COLOR_MATRIX_UNKNOWN");

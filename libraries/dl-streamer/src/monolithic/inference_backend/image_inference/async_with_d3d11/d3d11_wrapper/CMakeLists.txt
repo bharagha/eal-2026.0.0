@@ -4,44 +4,44 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-set (TARGET_NAME "d3d11_wrapper")
-
-find_package(PkgConfig REQUIRED)
-
-# Find GStreamer D3D11
 if(WIN32)
-    pkg_check_modules(GSTD3D11 gstreamer-d3d11-1.0>=1.16 REQUIRED)
+        set (TARGET_NAME "d3d11_wrapper")
+
+        find_package(PkgConfig REQUIRED)
+
+        # Find GStreamer D3D11
+        pkg_check_modules(GSTD3D11 gstreamer-d3d11-1.0>=1.16 REQUIRED)
+
+        file (GLOB MAIN_SRC
+                ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+        )
+
+        file (GLOB MAIN_HEADERS
+                ${CMAKE_CURRENT_SOURCE_DIR}/*.h
+        )
+
+        add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
+        set_compile_flags(${TARGET_NAME})
+
+        target_include_directories(${TARGET_NAME}
+        PUBLIC
+                ${CMAKE_CURRENT_SOURCE_DIR}
+                ${VA_INCLUDE_DIRS}
+                ${GSTD3D11_INCLUDE_DIRS}
+        PRIVATE
+                ${VADRM_INCLUDE_DIRS}
+        )
+
+        target_link_libraries(${TARGET_NAME}
+        PUBLIC
+                logger
+                pre_proc
+                opencv_pre_proc
+                utils
+                d3d11
+                dxgi
+                ${GSTD3D11_LIBRARIES}
+        PRIVATE
+                utils
+        )
 endif()
-
-file (GLOB MAIN_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-)
-
-file (GLOB MAIN_HEADERS
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-)
-
-add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
-set_compile_flags(${TARGET_NAME})
-
-target_include_directories(${TARGET_NAME}
-PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${VA_INCLUDE_DIRS}
-        ${GSTD3D11_INCLUDE_DIRS}
-PRIVATE
-        ${VADRM_INCLUDE_DIRS}
-)
-
-target_link_libraries(${TARGET_NAME}
-PUBLIC
-        logger
-        pre_proc
-        opencv_pre_proc
-        utils
-        d3d11
-        dxgi
-        ${GSTD3D11_LIBRARIES}
-PRIVATE
-        utils
-)

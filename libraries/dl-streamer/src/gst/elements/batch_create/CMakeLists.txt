@@ -28,15 +28,20 @@ target_include_directories(${TARGET_NAME}
 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${VA_INCLUDE_DIRS}
-    ${GSTD3D11_INCLUDE_DIRS}
 )
 
+if(WIN32)
+    target_include_directories(${TARGET_NAME} PUBLIC ${GSTD3D11_INCLUDE_DIRS})
+endif()
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
     dlstreamer_gst
     batch_split
-     ${GSTD3D11_LIBRARIES}
 )
+
+if(WIN32)
+    target_link_libraries(${TARGET_NAME} PUBLIC ${GSTD3D11_LIBRARIES})
+endif()
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

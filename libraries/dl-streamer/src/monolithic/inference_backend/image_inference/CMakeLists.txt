@@ -36,8 +36,11 @@ PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/openvino
         ${CMAKE_CURRENT_SOURCE_DIR}/async_with_va_api
-        ${CMAKE_CURRENT_SOURCE_DIR}/async_with_d3d11
 )
+
+if(WIN32)
+        target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/async_with_d3d11)
+endif()
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC

@@ -20,14 +20,20 @@ PRIVATE
     openvino::runtime
     dlstreamer_api
     dlstreamer_logger
-    ${GSTD3D11_LIBRARIES}
 )
+
+if(WIN32)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${GSTD3D11_LIBRARIES})
+endif()
 
 target_include_directories(${TARGET_NAME}
 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../monolithic/inference_backend/include/inference_backend/
     ${VA_INCLUDE_DIRS}
-    ${GSTD3D11_INCLUDE_DIRS}
 )
+
+if(WIN32)
+    target_include_directories(${TARGET_NAME} PRIVATE ${GSTD3D11_INCLUDE_DIRS})
+endif()
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

@@ -7,9 +7,11 @@
 #pragma once
 
 #include "dlstreamer/gst/mappers/gst_to_cpu.h"
-#include "dlstreamer/gst/mappers/gst_to_d3d11.h"
 #include "dlstreamer/gst/mappers/gst_to_dma.h"
 #include "dlstreamer/gst/mappers/gst_to_vaapi.h"
+#ifdef _MSC_VER
+#include "dlstreamer/gst/mappers/gst_to_d3d11.h"
+#endif
 #include "inference_backend/image.h"
 
 namespace InferenceBackend {
@@ -111,8 +113,10 @@ class BufferMapperFactory {
             return std::make_shared<dlstreamer::MemoryMapperGSTToVAAPI>(nullptr, output_context);
         case InferenceBackend::MemoryType::USM_DEVICE_POINTER:
             throw std::runtime_error("Not impemented");
+#ifdef _MSC_VER
         case InferenceBackend::MemoryType::D3D11:
             return std::make_shared<dlstreamer::MemoryMapperGSTToD3D11>(nullptr, output_context);
+#endif
         case InferenceBackend::MemoryType::ANY:
         default:
             break;

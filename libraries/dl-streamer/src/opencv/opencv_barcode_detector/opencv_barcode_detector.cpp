@@ -14,6 +14,8 @@
 #include <opencv2/imgproc.hpp>
 #if (CV_VERSION_MAJOR > 4 || (CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR > 7))
 #include <opencv2/objdetect/barcode.hpp>
+#else
+#include <opencv2/barcode.hpp>
 #endif
 #include <sstream>
 #include <string>

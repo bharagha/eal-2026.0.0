@@ -45,8 +45,11 @@ PUBLIC
         utils
         logger
         dlstreamer_logger
-	d3d11
 )
+
+if(WIN32)
+    target_link_libraries(${TARGET_NAME} PUBLIC d3d11)
+endif()
 
 if (OpenCL_FOUND)
 target_include_directories(${TARGET_NAME}
