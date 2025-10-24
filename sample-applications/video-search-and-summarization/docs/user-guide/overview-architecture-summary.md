@@ -43,7 +43,7 @@ The VLM, LLM, and Embedding microservices are provided as part of Intel Edge AI 
 The application flow involves the following steps:
 
 1. **Create the Video Summarization pipeline**
-   - **Configure the pipeline**: The _video summarization UI microservice_ provides the user a means to configure the different capabilities required on the video summarization pipeline. A separate user guide is planned to provide all required details on how to setup the pipeline.
+   - **Configure the pipeline**: The _Video Summarization UI microservice_ provides the user a means to configure the different capabilities required on the video summarization pipeline. A separate user guide is planned to provide all required details on how to setup the pipeline.
    - **Create the pipeline**: The configuration done on the UI is received by the _Video summarization pipeline manager microservice_. The pipeline manager configures the required microservices as per the capabilities and configuration requested by the user.    
 2. **Input Video Sources**:
    - **Provide video**: The user provides the source of the video to be summarized. The UI provides means to configure the input video. Currently, only offline video processing is supported by reading from local storage. In future, live camera streaming support will also be provided. The pipeline manager stores the video into a local object store.
