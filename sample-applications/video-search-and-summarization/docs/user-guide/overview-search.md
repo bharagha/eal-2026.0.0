@@ -10,8 +10,8 @@ Video Search is a foundational retrieval-augmented generation (RAG) pipeline for
 
 The Video Search pipeline is designed to:
 - Demonstrate how you can use Intel's Edge AI catalog of inference microservices to quickly build and deploy on Intel's Edge AI systems portfolios. 
-- Serve as a blueprint for building similar scalable and modular solutions that can be deployed on Intel Edge AI systems.
-- Showcase how popular frameworks like LangChain framework can be used to quickly implement or customize a video search pipeline and deploy the same on Intel's Edge AI systems.
+- Serve as a blueprint for building similar scalable and modular solutions that can be deployed on Intel's Edge AI systems.
+- Showcase how popular frameworks like LangChain framework can be used to quickly implement or customize a Video Search pipeline and deploy the same on Intel's Edge AI systems.
 - Showcase the competitiveness of Intel's Edge AI systems to address varied deployment scenario requirements (edge-to-cloud).
 - Provide reference sample microservices for capabilities like video ingestion and UI frontend that reduces the effort to customize the application.
 
