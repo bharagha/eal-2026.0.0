@@ -160,6 +160,8 @@ class TestInstanceManager(unittest.TestCase):
 
         self.assertIsNotNone(status_run)
         self.assertIsNotNone(status_benchmark)
+        assert status_run is not None  # for pyright type checking
+        assert status_benchmark is not None  # for pyright type checking
         self.assertEqual(status_run.state.name, PipelineInstanceState.RUNNING)
         self.assertEqual(status_benchmark.state.name, PipelineInstanceState.RUNNING)
 
@@ -172,11 +174,23 @@ class TestInstanceManager(unittest.TestCase):
         manager = InstanceManager()
 
         # Create an instance manually and add it to the manager
+        pipeline_request_run = PipelineRequestRun(
+            source=Source(
+                type=SourceType.URI,
+                uri="test-recording-uri",
+            ),
+            parameters=PipelineParametersRun(
+                inferencing_channels=1,
+                recording_channels=0,
+                launch_config="gst-launch-1.0 -q filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
+            ),
+            tags=None,
+        )
         instance = PipelineInstance(
             id="test-instance-id",
             name="user-defined-pipelines",
             version="test-pipeline",
-            request=None,
+            request=pipeline_request_run,
             start_time=int(time.time()),
             state=PipelineInstanceState.RUNNING,
             total_fps=120,
@@ -188,6 +202,7 @@ class TestInstanceManager(unittest.TestCase):
 
         status = manager.get_instance_status(instance.id)
         self.assertIsNotNone(status)
+        assert status is not None  # for pyright type checking
         self.assertEqual(status.id, instance.id)
         self.assertEqual(status.state, instance.state)
         self.assertEqual(status.total_fps, instance.total_fps)
@@ -229,6 +244,7 @@ class TestInstanceManager(unittest.TestCase):
 
         summary = manager.get_instance_summary(instance.id)
         self.assertIsNotNone(summary)
+        assert summary is not None  # for pyright type checking
         self.assertEqual(summary.id, instance.id)
         self.assertEqual(summary.request, instance.request)
         self.assertEqual(summary.type, PipelineType.GSTREAMER)
