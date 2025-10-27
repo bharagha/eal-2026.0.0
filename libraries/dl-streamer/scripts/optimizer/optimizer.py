@@ -215,8 +215,8 @@ preprocessing_rules = {
 def preprocess_pipeline(pipeline):
     pipeline = "!".join(pipeline)
     for pattern, replacement in preprocessing_rules.items():
-            if re.search(pattern, pipeline):
-                pipeline = re.sub(pattern, replacement, pipeline)
+        if re.search(pattern, pipeline):
+            pipeline = re.sub(pattern, replacement, pipeline)
     pipeline = pipeline.split("!")
     return pipeline
 
