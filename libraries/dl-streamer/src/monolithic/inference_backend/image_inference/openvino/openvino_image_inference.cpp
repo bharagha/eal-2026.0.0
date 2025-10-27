@@ -867,8 +867,7 @@ class OpenVinoNewApiImpl {
                 else
                     format = FourCC::FOURCC_RGBX;
                 break;
-            }
-            else {
+            } else {
                 if (_model_format == "BGR")
                     format = FourCC::FOURCC_BGRP;
                 else
@@ -1246,8 +1245,7 @@ class OpenVinoNewApiImpl {
             if (_model_format == "BGR") {
                 input.tensor().set_color_format(ov::preprocess::ColorFormat::BGRX);
                 input.preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
-            }
-            else {
+            } else {
                 input.tensor().set_color_format(ov::preprocess::ColorFormat::RGBX);
                 input.preprocess().convert_color(ov::preprocess::ColorFormat::RGB);
             }
@@ -1474,7 +1472,8 @@ OpenVINOImageInference::OpenVINOImageInference(const InferenceBackend::Inference
         _impl = std::make_unique<OpenVinoNewApiImpl>(cfg_helper, context, callback, error_handler, memory_type);
 #else
         const auto pp_type = cfg_helper.pp_type();
-        _impl = std::make_unique<OpenVinoNewApiImpl>(cfg_helper, context, callback, error_handler, memory_type, pp_type);
+        _impl =
+            std::make_unique<OpenVinoNewApiImpl>(cfg_helper, context, callback, error_handler, memory_type, pp_type);
 #endif
 
         model_name = _impl->_model->get_friendly_name();
