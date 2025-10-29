@@ -1,8 +1,7 @@
 FROM docker.io/library/rust:1.88 AS qmassa
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        libudev-dev && \
+    apt-get install -y --no-install-recommends libudev-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -27,8 +26,8 @@ COPY qmassa_reader.py qmassa_reader.py
 COPY read_cpu_freq.sh read_cpu_freq.sh
 RUN chmod +x read_cpu_freq.sh
 
-COPY entrypoint.sh entrypoint.sh
-RUN chmod +x entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # nosemgrep: missing-user-entrypoint
-CMD ["/app/entrypoint.sh"]
+CMD ["/entrypoint.sh"]
