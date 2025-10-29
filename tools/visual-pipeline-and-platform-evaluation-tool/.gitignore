@@ -1,4 +1,5 @@
 __pycache__
 .coverage
-models/output/*
-videos/
+.env
+shared/models/output/*
+shared/videos/

@@ -14,7 +14,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 
-FROM intel/dlstreamer:2025.1.2-ubuntu24
+FROM intel/dlstreamer:weekly-2025.2-20251007-ubuntu24
 
 USER root
 
@@ -24,9 +24,6 @@ USER dlstreamer
 
 WORKDIR /home/dlstreamer
 
-COPY --chown=dlstreamer:dlstreamer \
-    model_manager.sh \
-    supported_models.lst \
-    /home/dlstreamer/
+COPY --chown=dlstreamer:dlstreamer models/model_manager.sh /home/dlstreamer/
 
 CMD ["./model_manager.sh"]
