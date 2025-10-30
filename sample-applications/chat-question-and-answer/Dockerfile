@@ -7,7 +7,7 @@ FROM python:3.11-slim AS python-base
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install system build dependencies (added libpq-dev, gcc, python3-dev)
+# Install system build dependencies (added libpq-dev, gcc, python3-dev for psycopg/pg_config support)
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends \
     libjemalloc-dev \
@@ -15,7 +15,7 @@ RUN apt-get update -y && \
     curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    pip install --no-cache-dir --upgrade pip setuptools wheel poetry
+    pip install --no-cache-dir --upgrade pip setuptools poetry
 
 # Copy only dependency files
 WORKDIR /app
