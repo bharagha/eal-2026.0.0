@@ -301,15 +301,15 @@ def get_optimized_pipeline(pipeline, search_duration = 300, sample_duration = 10
         add_nireq_suggestions,
     ]
 
-    start_time = time.time()
+    search_end_time = time.time() + search_duration
     for processor in processors:
-        cur_time = time.time()
-        if cur_time - start_time > search_duration:
+        remaining_duration = search_end_time - time.time()
+        if search_end_time <= time.time():
             break
 
         suggestions = prepare_suggestions(pipeline)
         processor(suggestions, context)
-        pipeline, fps = explore_pipelines(suggestions, fps, search_duration, sample_duration)
+        pipeline, fps = explore_pipelines(suggestions, fps, remaining_duration, sample_duration)
 
     # Reconstruct the pipeline as a single string and return it.
     return "!".join(pipeline), fps
