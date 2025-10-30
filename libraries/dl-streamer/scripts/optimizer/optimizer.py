@@ -116,7 +116,8 @@ def scan_system():
 def explore_pipelines(suggestions, base_fps, search_duration, sample_duration):
     start_time = time.time()
     combinations = itertools.product(*suggestions)
-    best_pipeline = list(next(combinations)) # first element is original pipeline, use it as baseline
+    # first element is the original pipeline, use it as baseline
+    best_pipeline = list(next(combinations)) 
     best_fps = base_fps
     for combination in combinations:
         combination = list(combination)
