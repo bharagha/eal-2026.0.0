@@ -133,15 +133,40 @@ RERANKER_ENDPOINT = os.getenv("RERANKER_ENDPOINT", "http://localhost:9090/rerank
 callbacks = [streaming_stdout.StreamingStdOutCallbackHandler()]
 
 async def context_retriever_fn(chain_inputs: dict):
+    """
+    Retrieve relevant documents for a given question and conversation history.
+
+    Args:
+        chain_inputs (dict): Dictionary with "question" and "history" keys.
+
+    Returns:
+        list: List of relevant Document objects (may be empty if no question or no results).
+
+    Raises:
+        ValueError: If chain_inputs is not a dict.
+    """
+    if not isinstance(chain_inputs, dict):
+        raise ValueError("Invalid input: chain_inputs must be a dictionary.")
+
+    # in process chunks we already raise value error for empty question, but to keep shape consistent we return empty list here
     question = chain_inputs.get("question", "")
     if not question:
-        return {}   # to keep shape consistent
+        return {}  # to keep shape consistent
 
     retrieved_docs = await retriever.aget_relevant_documents(question)
     return retrieved_docs     # context: list[Document]
 
 # Format the context in a readable way
 def format_docs(docs):
+    """
+    Format a list of Document objects into a readable string for prompt context.
+
+    Args:
+        docs (list): List of Document objects (each with .page_content and .metadata attributes).
+
+    Returns:
+        str: Formatted string with each document's sl.no , content and source, or a message if no docs are found.
+    """
     if not docs:
         return "No relevant context found."
     
@@ -156,12 +181,39 @@ def format_docs(docs):
     return "\n\n".join(formatted_docs)
 
 async def process_chunks(conversation_messages, max_tokens):
-    # Combine all messages for context
+    """
+    Process a list of conversation messages and stream the LLM-generated answer.
+
+    This function builds the retrieval-augmented generation (RAG) chain, including context retrieval,
+    reranking, prompt formatting, and LLM inference. It streams the output as server-sent events.
+
+    Args:
+        conversation_messages (list): List of message objects, each with 'role' and 'content'.
+        The last message is treated as the user's question.
+
+        max_tokens (int): Maximum number of tokens for the LLM response (if supported by backend).
+
+    Yields:
+        str: Server-sent event strings ("data: ...\n\n") with the LLM's output chunks.
+
+    Raises:
+        ValueError: If the question text is empty or only whitespace.
+    """
+    # All messages except the last one are considered history as last message is question
     if len(conversation_messages) > 1:
-        history = "\n".join([f"{msg.role}: {msg.content}" for msg in conversation_messages[:-1]])
+        valid_history_msgs = []
+        for msg in conversation_messages[:-1]:
+            # Check for malformed messages without 'role' or 'content' and ensure content is not None
+            if hasattr(msg, "role") and hasattr(msg, "content") and msg.content is not None:
+                valid_history_msgs.append(f"{msg.role}: {msg.content}")
+            else:
+                logging.warning("Skipping malformed message in history: %s", msg)
+        history = "\n".join(valid_history_msgs)
     else:
+        # In case there is 1 or no message object, history will be considered empty
         history = ""
 
+    # Raise valueError if question is empty or only whitespace
     question_text = conversation_messages[-1].content
     if not question_text or not question_text.strip():
         raise ValueError("Question text cannot be empty")
@@ -197,20 +249,18 @@ async def process_chunks(conversation_messages, max_tokens):
     re_ranker = CustomReranker(reranking_endpoint=RERANKER_ENDPOINT)
     re_ranker_lambda = RunnableLambda(re_ranker.rerank)
 
-    print(f"Final Prompt: {prompt}")
-
     # RAG Chain
     chain = (
-    RunnableParallel({
-        "context": context_retriever,  # context retrieved from vector store
-        "question": lambda x: x["question"],  # passes through the question
-        "history": lambda x: x["history"]  # passes through the history
-    })
-    | re_ranker_lambda
-    | {"context": (lambda x: format_docs(x["context"])), "question": lambda x: x["question"], "history": lambda x: x["history"]}
-    | prompt
-    | model
-    | StrOutputParser()
+        RunnableParallel({
+            "context": context_retriever,  # context retrieved from vector store
+            "question": lambda x: x["question"],  # passes through the question
+            "history": lambda x: x["history"]  # passes through the history
+        })
+        | re_ranker_lambda
+        | {"context": (lambda x: format_docs(x["context"])), "question": lambda x: x["question"], "history": lambda x: x["history"]}
+        | prompt
+        | model
+        | StrOutputParser()
     )
 
     # Run the chain with all inputs

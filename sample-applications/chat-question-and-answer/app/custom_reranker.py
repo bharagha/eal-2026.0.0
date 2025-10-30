@@ -31,7 +31,6 @@ class CustomReranker:
             raise ValueError("Context is required for reranker")
 
     def rerank(self, retrieved_docs: Dict[str, Any]) -> Dict[str, Any]:
-        logging.info(f"Reranking documents: {retrieved_docs}")
         self.validate_retrieved_docs(retrieved_docs=retrieved_docs)
         if len(retrieved_docs["context"]) > 0:
             return self.rerank_tei(retrieved_docs=retrieved_docs)
@@ -53,13 +52,18 @@ class CustomReranker:
             headers={"Content-Type": "application/json"},
         )
         if response.status_code == 200:
-            logging.info(response.json())
-
             res = response.json()
-            maxRank = max(res, key=lambda x: x["score"])
+            # Sort by score descending, pick top 3 or all if less than 3
+            sorted_results = sorted(res, key=lambda x: x["score"], reverse=True)
+            top_k = min(3, len(sorted_results))
+            reranked_context = [
+                retrieved_docs["context"][item["index"]] for item in sorted_results[:top_k]
+            ]
+            logging.info(f"Reranked context for question '{retrieved_docs['question']}': {reranked_context}")
+
             return {
                 "question": retrieved_docs["question"],
-                "context": [retrieved_docs["context"][maxRank["index"]]],
+                "context": reranked_context,
                 "history": retrieved_docs.get("history", "")
             }
         else:

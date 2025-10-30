@@ -1,7 +1,6 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import logging
 import os
 import uvicorn
 from fastapi import FastAPI
@@ -109,8 +108,8 @@ async def query_chain(payload: QuestionRequest):
     """
     Handles POST requests to the /chat endpoint.
 
-    This endpoint receives a question in the form of a JSON payload, validates the input,
-    and returns a streaming response with the processed chunks of the question text.
+    This endpoint receives a conversation history along with the question in the form of a JSON payload, validates
+    the input, and returns a streaming response with the processed chunks of the question text.
 
     Args:
         payload (QuestionRequest): The request payload containing conversation history with the input question text
@@ -118,7 +117,8 @@ async def query_chain(payload: QuestionRequest):
         or set to 1024 if provided.
 
     Returns:
-        StreamingResponse: A streaming response with the processed chunks of the question text.
+        StreamingResponse: A streaming response that delivers processed chunks generated from both the conversation
+        history and the user question.
 
     Raises:
         HTTPException: If the input question text is empty or not provided, a 422 status code is returned.
@@ -127,9 +127,6 @@ async def query_chain(payload: QuestionRequest):
         # conversation_messages contain conversation history with roles and content along with current question
         conversation_messages = payload.conversation_messages
         question_text = conversation_messages[-1].content  # latest user message
-
-        logging.info(f"Received question: {question_text}")
-        logging.info(f"conversation_messages: {conversation_messages}")
 
         max_tokens = payload.max_tokens if payload.max_tokens else 512
         if max_tokens > 1024:
