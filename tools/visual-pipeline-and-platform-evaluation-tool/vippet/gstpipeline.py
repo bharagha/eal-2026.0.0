@@ -1,85 +1,24 @@
 import importlib
 import os
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
-
+from typing import Dict, List, Tuple
 import yaml
 
 
 class GstPipeline:
-    def __init__(self):
-        self._diagram = None
-        self._bounding_boxes = None
-        self._default_gst_launch = None
-
-    def evaluate(
-        self,
-        constants: dict,
-        parameters: dict,
-        regular_channels: int,
-        inference_channels: int,
-        elements: list,
-    ) -> str:
-        raise NotImplementedError(
-            "The evaluate method must be implemented by subclasses"
-        )
-
-    def get_default_gst_launch(
-        self,
-        elements,
-    ) -> str:
-        raise NotImplementedError(
-            "The get_default_gst_launch method must be implemented by subclasses"
-        )
-
-    def diagram(self) -> Path:
-        if self._diagram is None:
-            raise ValueError("Diagram is not defined")
-
-        return self._diagram
-
-    def bounding_boxes(self) -> List:
-        if self._bounding_boxes is None:
-            raise ValueError("Bounding Boxes is not defined")
-
-        return self._bounding_boxes
-
-
-class CustomGstPipeline(GstPipeline):
-    """
-    A pipeline class that accepts a custom GST launch string directly.
-    """
-
-    def __init__(
-        self,
-        launch_string: str,
-        diagram_path: Optional[Path] = None,
-        bounding_boxes: Optional[List] = None,
-    ):
-        super().__init__()
+    def __init__(self, launch_string):
         self._launch_string = launch_string
-        self._diagram = diagram_path
-        self._bounding_boxes = bounding_boxes
 
     def evaluate(
         self,
-        constants: dict,
-        parameters: dict,
         regular_channels: int,
         inference_channels: int,
-        elements: list,
     ) -> str:
         # Remove "gst-launch-1.0 -q " prefix if present
         launch = self._launch_string.lstrip()
         if launch.startswith("gst-launch-1.0 -q "):
             launch = launch[len("gst-launch-1.0 -q ") :]
         return "gst-launch-1.0 -q " + (launch * inference_channels)
-
-    def get_default_gst_launch(
-        self,
-        elements: list,
-    ) -> str:
-        return self._launch_string
 
 
 class PipelineLoader:
@@ -151,12 +90,7 @@ class PipelineLoader:
         return pipeline_cls(), config
 
     @staticmethod
-    def load_from_launch_string(
-        launch_string: str,
-        name: str = "Custom Pipeline",
-        diagram_path: Optional[Path] = None,
-        bounding_boxes: Optional[List] = None,
-    ) -> Tuple[CustomGstPipeline, Dict]:
+    def load_from_launch_string(launch_string: str) -> GstPipeline:
         """
         Load a custom pipeline from a launch string.
 
@@ -167,23 +101,8 @@ class PipelineLoader:
             bounding_boxes: Optional list of bounding boxes for UI interaction
 
         Returns:
-            Tuple of (CustomGstPipeline instance, config dict)
+            GstPipeline instance
         """
-        pipeline = CustomGstPipeline(launch_string, diagram_path, bounding_boxes)
+        pipeline = GstPipeline(launch_string)
 
-        # Create a basic config for the custom pipeline
-        config = {
-            "name": name,
-            "metadata": {
-                "classname": "CustomGstPipeline",
-                "enabled": True,
-                "description": f"Custom pipeline: {name}",
-            },
-            "parameters": {
-                "run": {
-                    "recording_channels": True  # Assume custom pipelines support recording channels
-                }
-            },
-        }
-
-        return pipeline, config
+        return pipeline

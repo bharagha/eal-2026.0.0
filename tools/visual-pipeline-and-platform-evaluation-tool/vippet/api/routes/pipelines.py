@@ -173,4 +173,10 @@ def delete_pipeline(name: str, version: str):
     response_model=List[schemas.PipelineInstanceStatus],
 )
 def stop_pipeline_instance(instance_id: str):
-    return []
+    """Stop a running pipeline instance."""
+    success = instance_manager.stop_instance(instance_id)
+    if not success:
+        return JSONResponse(content={"message": "Instance not found"}, status_code=404)
+    return JSONResponse(
+        content={"message": f"Instance {instance_id} stopped"}, status_code=200
+    )
