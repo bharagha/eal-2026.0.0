@@ -199,6 +199,7 @@
           "pipelines"
         ],
         "summary": "Stop Pipeline Instance",
+        "description": "Stop a running pipeline instance.",
         "operationId": "stop_pipeline_instance",
         "parameters": [
           {
@@ -943,6 +944,17 @@
               }
             ],
             "title": "Non Ai Streams"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
           }
         },
         "type": "object",
@@ -954,7 +966,8 @@
           "total_fps",
           "per_stream_fps",
           "ai_streams",
-          "non_ai_streams"
+          "non_ai_streams",
+          "error_message"
         ],
         "title": "PipelineInstanceStatus"
       },
