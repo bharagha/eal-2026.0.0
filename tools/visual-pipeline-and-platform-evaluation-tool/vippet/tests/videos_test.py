@@ -103,10 +103,6 @@ class TestVideosManager(unittest.TestCase):
             os.environ["RECORDINGS_PATH"] = self.original_recordings_path
         else:
             os.environ.pop("RECORDINGS_PATH", None)
-        # Reset singleton instance
-        import videos
-
-        videos._videos_manager_instance = None
 
     def test_videos_manager_invalid_directory(self):
         """Test VideosManager raises RuntimeError for invalid directory."""
@@ -450,16 +446,14 @@ class TestGetVideosManager(unittest.TestCase):
             os.environ["RECORDINGS_PATH"] = self.original_recordings_path
         else:
             os.environ.pop("RECORDINGS_PATH", None)
-        import videos
-
-        videos._videos_manager_instance = None
 
     def test_get_videos_manager_singleton(self):
         """Test that get_videos_manager returns the same instance."""
         with patch("videos.RECORDINGS_PATH", self.temp_dir):
-            manager1 = get_videos_manager()
-            manager2 = get_videos_manager()
-            self.assertIs(manager1, manager2)
+            with patch("videos._videos_manager_instance", None):
+                manager1 = get_videos_manager()
+                manager2 = get_videos_manager()
+                self.assertIs(manager1, manager2)
 
     @patch("videos.VideosManager")
     @patch("sys.exit")
@@ -467,12 +461,9 @@ class TestGetVideosManager(unittest.TestCase):
         """Test that initialization failure causes sys.exit."""
         mock_vm.side_effect = Exception("Initialization failed")
 
-        import videos
-
-        videos._videos_manager_instance = None
-
-        get_videos_manager()
-        mock_exit.assert_called_once_with(1)
+        with patch("videos._videos_manager_instance", None):
+            get_videos_manager()
+            mock_exit.assert_called_once_with(1)
 
 
 if __name__ == "__main__":

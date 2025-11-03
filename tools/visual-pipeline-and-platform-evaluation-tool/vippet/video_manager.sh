@@ -63,6 +63,9 @@ while IFS=$'\t' read -r url filename; do
     fi
 
     echo "[INFO] Downloaded and moved '$filename' to $target_path."
+# Use yq to convert YAML to tab-separated values:
+# - For each recording, output fields or "__MISSING__" if field is missing/null
+# - Output format: url<tab>filename
 done < <(yq -r '
   .[] | [
     (if .url // null | tostring | test("^[ \t\r\n]*$") then "__MISSING__" else .url end),
