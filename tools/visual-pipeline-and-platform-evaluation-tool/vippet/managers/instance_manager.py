@@ -168,7 +168,7 @@ class InstanceManager:
             return pipeline_instance_summary
 
     def stop_instance(self, instance_id: str) -> tuple[bool, str]:
-        """Stop a running pipeline instance by calling cancel on its runner/benchmark. Returns (success, message)."""
+        """Stop a running pipeline instance by calling cancel on its runner. Returns (success, message)."""
         with self.lock:
             if instance_id not in self.instances:
                 msg = f"Instance {instance_id} not found"
@@ -176,7 +176,7 @@ class InstanceManager:
                 return False, msg
 
             if instance_id not in self.runners:
-                msg = f"No active runner or benchmark found for instance {instance_id}. It may have already completed or was never started."
+                msg = f"No active runner found for instance {instance_id}. It may have already completed or was never started."
                 self.logger.warning(msg)
                 return False, msg
 
@@ -187,13 +187,13 @@ class InstanceManager:
                 self.logger.warning(msg)
                 return False, msg
 
-            runner_or_benchmark = self.runners.get(instance_id)
-            if runner_or_benchmark is None:
-                msg = f"No runner/benchmark found for instance {instance_id}"
+            runner = self.runners.get(instance_id)
+            if runner is None:
+                msg = f"No active runner found for instance {instance_id}"
                 self.logger.warning(msg)
                 return False, msg
 
-        runner_or_benchmark.cancel()
+        runner.cancel()
         msg = f"Instance {instance_id} stopped"
         self.logger.info(msg)
         return True, msg
@@ -321,7 +321,7 @@ class InstanceManager:
             # Initialize Benchmark
             benchmark = Benchmark()
 
-            # Store benchmark for this instance
+            # Store benchmark runner for this instance
             with self.lock:
                 self.runners[instance_id] = benchmark
 

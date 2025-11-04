@@ -177,7 +177,7 @@ def stop_pipeline_instance(instance_id: str):
     success, message = instance_manager.stop_instance(instance_id)
     if success:
         return JSONResponse(content={"message": message}, status_code=200)
-    if "not found" in message.lower():
+    if "not found" in message.lower() or "no active runner found" in message.lower():
         return JSONResponse(content={"message": message}, status_code=404)
     if "not running" in message.lower():
         return JSONResponse(content={"message": message}, status_code=409)
