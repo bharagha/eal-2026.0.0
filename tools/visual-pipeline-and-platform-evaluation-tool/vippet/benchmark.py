@@ -39,7 +39,7 @@ class Benchmark:
         self.logger = logging.getLogger(__name__)
 
     def run(
-        self, pipeline_cls: GstPipeline, fps_floor: float, rate: int
+        self, pipeline_description: GstPipeline, fps_floor: float, rate: int
     ) -> BenchmarkResult:
         """Run the benchmark and return the best configuration."""
         n_streams = 1
@@ -54,7 +54,7 @@ class Benchmark:
             ai_streams = math.ceil(n_streams * (rate / 100))
             non_ai_streams = n_streams - ai_streams
 
-            results = self.runner.run(pipeline_cls, non_ai_streams, ai_streams)
+            results = self.runner.run(pipeline_description, non_ai_streams, ai_streams)
 
             # Check for cancellation
             if self.runner.is_cancelled():

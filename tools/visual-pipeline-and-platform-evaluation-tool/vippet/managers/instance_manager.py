@@ -176,7 +176,7 @@ class InstanceManager:
                 return False, msg
 
             if instance_id not in self.runners:
-                msg = f"Runner/benchmark for instance {instance_id} not found"
+                msg = f"No active runner or benchmark found for instance {instance_id}. It may have already completed or was never started."
                 self.logger.warning(msg)
                 return False, msg
 
@@ -252,7 +252,11 @@ class InstanceManager:
                 self.runners[instance_id] = runner
 
             # Run the pipeline
-            results = runner.run(gst_pipeline, recording_channels, inferencing_channels)
+            results = runner.run(
+                pipeline_description=gst_pipeline,
+                regular_channels=recording_channels,
+                inference_channels=inferencing_channels,
+            )
 
             # Update instance with results
             with self.lock:
@@ -323,7 +327,7 @@ class InstanceManager:
 
             # Run the benchmark
             results = benchmark.run(
-                pipeline_cls=gst_pipeline,
+                pipeline_description=gst_pipeline,
                 fps_floor=pipeline_request.parameters.fps_floor,
                 rate=pipeline_request.parameters.ai_stream_rate,
             )

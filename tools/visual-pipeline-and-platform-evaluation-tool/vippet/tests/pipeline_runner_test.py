@@ -59,7 +59,7 @@ class TestPipelineRunner(unittest.TestCase):
 
         runner = PipelineRunner()
         results = runner.run(
-            pipeline_cmd=self.pipeline, regular_channels=2, inference_channels=2
+            pipeline_description=self.pipeline, regular_channels=2, inference_channels=2
         )
 
         self.assertIsInstance(results, PipelineRunResult)
@@ -82,7 +82,7 @@ class TestPipelineRunner(unittest.TestCase):
         runner = PipelineRunner()
         runner.cancel()
         results = runner.run(
-            pipeline_cmd=self.pipeline, regular_channels=2, inference_channels=2
+            pipeline_description=self.pipeline, regular_channels=2, inference_channels=2
         )
 
         self.assertTrue(runner.is_cancelled())

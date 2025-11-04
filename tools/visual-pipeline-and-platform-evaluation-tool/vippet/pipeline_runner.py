@@ -60,7 +60,7 @@ class PipelineRunner:
 
     def run(
         self,
-        pipeline_cmd: str | GstPipeline,
+        pipeline_description: GstPipeline,
         regular_channels: int = 0,
         inference_channels: int = 1,
     ) -> PipelineRunResult:
@@ -68,20 +68,20 @@ class PipelineRunner:
         Run a GStreamer pipeline and extract FPS metrics.
 
         Args:
-            pipeline_cmd: The GStreamer pipeline command string to execute,
-                         or a GstPipeline object that will be evaluated.
+            pipeline_description (GstPipeline): The GStreamer pipeline description to execute.
             regular_channels: Number of regular (non-AI) channels.
             inference_channels: Number of inference (AI) channels.
 
         Returns:
-            PipelineRunResult containing exit code, FPS metrics, and output.
+            PipelineRunResult containing total_fps, per_stream_fps, and num_streams.
 
         Raises:
             RuntimeError: If pipeline execution fails.
         """
-        # If a GstPipeline object is passed, evaluate it first
-        if isinstance(pipeline_cmd, GstPipeline):
-            pipeline_cmd = pipeline_cmd.evaluate(regular_channels, inference_channels)
+        # Construct the pipeline command
+        pipeline_cmd = "gst-launch-1.0 -q " + pipeline_description.evaluate(
+            regular_channels, inference_channels
+        )
 
         total_channels = inference_channels + regular_channels
 
