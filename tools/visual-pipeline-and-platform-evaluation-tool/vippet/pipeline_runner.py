@@ -114,7 +114,6 @@ class PipelineRunner:
             while process.poll() is None:
                 if self.cancelled:
                     process.terminate()
-                    # self.cancelled = False
                     self.logger.info("Process cancelled, terminating")
                     break
 
@@ -160,7 +159,12 @@ class PipelineRunner:
                     elif r == process.stderr:
                         process_stderr.append(line)
 
-                    if ps.Process(process.pid).status() == "zombie":
+                    try:
+                        if ps.Process(process.pid).status() == "zombie":
+                            exit_code = process.wait()
+                            break
+                    except ps.NoSuchProcess:
+                        # Process has already terminated
                         exit_code = process.wait()
                         break
 

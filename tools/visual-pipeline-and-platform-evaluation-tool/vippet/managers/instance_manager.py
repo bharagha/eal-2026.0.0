@@ -167,55 +167,36 @@ class InstanceManager:
 
             return pipeline_instance_summary
 
-    def stop_instance(self, instance_id: str) -> bool:
-        """Stop a running pipeline instance by calling cancel on its runner/benchmark."""
+    def stop_instance(self, instance_id: str) -> tuple[bool, str]:
+        """Stop a running pipeline instance by calling cancel on its runner/benchmark. Returns (success, message)."""
         with self.lock:
-            # Check if instance exists
             if instance_id not in self.instances:
-                self.logger.warning(f"Instance {instance_id} not found")
-                return False
+                msg = f"Instance {instance_id} not found"
+                self.logger.warning(msg)
+                return False, msg
 
-            # Check if runner/benchmark exists
             if instance_id not in self.runners:
-                self.logger.warning(
-                    f"Runner/benchmark for instance {instance_id} not found"
-                )
-                return False
+                msg = f"Runner/benchmark for instance {instance_id} not found"
+                self.logger.warning(msg)
+                return False, msg
 
             instance = self.instances[instance_id]
 
-            # Check if instance is running
             if instance.state != PipelineInstanceState.RUNNING:
-                self.logger.warning(
-                    f"Instance {instance_id} is not running (state: {instance.state})"
-                )
-                return False
+                msg = f"Instance {instance_id} is not running (state: {instance.state})"
+                self.logger.warning(msg)
+                return False, msg
 
-            # Get the runner/benchmark for this instance
             runner_or_benchmark = self.runners.get(instance_id)
-
             if runner_or_benchmark is None:
-                self.logger.warning(
-                    f"No runner/benchmark found for instance {instance_id}"
-                )
-                return False
+                msg = f"No runner/benchmark found for instance {instance_id}"
+                self.logger.warning(msg)
+                return False, msg
 
-        # Call cancel outside of lock to avoid deadlock
-        try:
-            runner_or_benchmark.cancel()
-            self.logger.info(f"Cancelled instance {instance_id}")
-        except Exception as e:
-            self._update_instance_error(
-                instance_id, f"Error cancelling instance {instance_id}: {e}"
-            )
-            return False
-
-        # After cancelling, update instance state
-        with self.lock:
-            instance.state = PipelineInstanceState.ABORTED
-            instance.end_time = int(time.time() * 1000)
-            instance.error_message = "Cancelled by user"
-        return True
+        runner_or_benchmark.cancel()
+        msg = f"Instance {instance_id} stopped"
+        self.logger.info(msg)
+        return True, msg
 
     def _update_instance_error(self, instance_id: str, error_message: str):
         """Update instance with error state."""
@@ -281,8 +262,11 @@ class InstanceManager:
                     # Check if instance was cancelled while running
                     if runner.is_cancelled():
                         self.logger.info(
-                            f"Pipeline {instance_id} was cancelled, skipping result update"
+                            f"Pipeline {instance_id} was cancelled, updating state to ABORTED"
                         )
+                        instance.state = PipelineInstanceState.ABORTED
+                        instance.end_time = int(time.time() * 1000)
+                        instance.error_message = "Cancelled by user"
                     else:
                         # Normal completion
                         instance.state = PipelineInstanceState.COMPLETED
@@ -344,20 +328,19 @@ class InstanceManager:
                 rate=pipeline_request.parameters.ai_stream_rate,
             )
 
-            self.logger.info(
-                f"Benchmark completed for instance {instance_id}: streams={results.n_streams}, ai={results.ai_streams}, non_ai={results.non_ai_streams}, fps={results.per_stream_fps}"
-            )
-
             # Update instance with results
             with self.lock:
                 if instance_id in self.instances:
                     instance = self.instances[instance_id]
 
                     # Check if instance was cancelled while running
-                    if instance.state == PipelineInstanceState.ABORTED:
+                    if benchmark.runner.is_cancelled():
                         self.logger.info(
-                            f"Benchmark {instance_id} was cancelled, skipping result update"
+                            f"Benchmark {instance_id} was cancelled, updating state to ABORTED"
                         )
+                        instance.state = PipelineInstanceState.ABORTED
+                        instance.end_time = int(time.time() * 1000)
+                        instance.error_message = "Cancelled by user"
                     else:
                         # Normal completion
                         instance.state = PipelineInstanceState.COMPLETED
@@ -367,6 +350,10 @@ class InstanceManager:
                         instance.per_stream_fps = results.per_stream_fps
                         instance.ai_streams = results.ai_streams
                         instance.non_ai_streams = results.non_ai_streams
+
+                        self.logger.info(
+                            f"Benchmark completed for instance {instance_id}: streams={results.n_streams}, ai={results.ai_streams}, non_ai={results.non_ai_streams}, fps={results.per_stream_fps}"
+                        )
 
                 # Clean up benchmark after completion
                 self.runners.pop(instance_id, None)

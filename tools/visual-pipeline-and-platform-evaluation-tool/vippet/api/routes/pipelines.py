@@ -174,9 +174,11 @@ def delete_pipeline(name: str, version: str):
 )
 def stop_pipeline_instance(instance_id: str):
     """Stop a running pipeline instance."""
-    success = instance_manager.stop_instance(instance_id)
-    if not success:
-        return JSONResponse(content={"message": "Instance not found"}, status_code=404)
-    return JSONResponse(
-        content={"message": f"Instance {instance_id} stopped"}, status_code=200
-    )
+    success, message = instance_manager.stop_instance(instance_id)
+    if success:
+        return JSONResponse(content={"message": message}, status_code=200)
+    if "not found" in message.lower():
+        return JSONResponse(content={"message": message}, status_code=404)
+    if "not running" in message.lower():
+        return JSONResponse(content={"message": message}, status_code=409)
+    return JSONResponse(content={"message": message}, status_code=500)
