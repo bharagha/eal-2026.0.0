@@ -146,6 +146,7 @@ class Identifier(GstBase.BaseTransform):
         self._max_iou_distance = None
         self._max_age = None
         self._n_init = None
+        self.__write_result = None
 
     def __get_properties(self):
         self._object_class = self.property["object-class"]
@@ -200,7 +201,8 @@ class Identifier(GstBase.BaseTransform):
             if len(tensors) > 2:
                 # TODO: create special label for embedding
                 Gst.warning(
-                    "Limitation: must be only 1 tensor meta per ROI which is embedding, except detection meta."
+                    "Limitation: must be only 1 tensor meta per ROI which " +
+                    "is embedding, except detection meta."
                 )
                 continue
 

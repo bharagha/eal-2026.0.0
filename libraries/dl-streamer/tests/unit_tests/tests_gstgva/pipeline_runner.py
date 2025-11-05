@@ -24,17 +24,18 @@ Gst.init(None)
 
 class TestGenericPipelineRunner(unittest.TestCase):
     def set_pipeline(
-        self, 
-        pipeline, 
-        image_path=None,
-        ground_truth=None,
-        check_only_bbox_number=None,
-        check_additional_info=None,
-        check_frame_data=None,
-        ground_truth_per_frame=None,
-        image_repeat_num=None,
-        check_first_skip=None,
-        check_format=None
+        # pylint: disable=unused-argument
+        self,
+        pipeline,
+        image_path,
+        ground_truth,
+        check_only_bbox_number=False,
+        check_additional_info=True,
+        check_frame_data=True,
+        ground_truth_per_frame=False,
+        image_repeat_num=7,
+        check_first_skip=0,
+        check_format=True,
     ):
         self.exceptions = []
 

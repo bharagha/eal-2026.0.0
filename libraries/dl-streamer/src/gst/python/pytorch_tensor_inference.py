@@ -203,7 +203,7 @@ class InferencePyTorch(GstBase.BaseTransform):
             model_name_arr = model_str.split(".")
             if len(model_name_arr) < 2:
                 raise AttributeError(
-                    f"Invalid module name in property 'model'. It must include at least " +
+                    "Invalid module name in property 'model'. It must include at least " +
                     f"the name of the import module and the name of the model. Got: {model_str}"
                 )
 
