@@ -50,7 +50,7 @@ def execute_qmassa_command():
             stderr=subprocess.DEVNULL,
         )
     except Exception as e:
-        logging.error(
+        logger.error(
             f"Error running qmassa command: {' '.join(qmassa_command)}. Exception: {e}"
         )
         sys.exit(1)
