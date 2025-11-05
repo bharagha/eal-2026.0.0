@@ -355,12 +355,14 @@ def prepare_suggestions(pipeline):
 def main():
     parser = argparse.ArgumentParser(
         prog="DLStreamer Pipeline Optimization Tool",
-        description="Use this tool to try and find versions of your pipeline that will run with increased performance.",  # pylint: disable=line-too-long
+        description=("Use this tool to try and find versions of " +
+                     "your pipeline that will run with increased performance."),
     )
     parser.add_argument(
         "--search-duration",
         default=300,
-        help="Duration of time which should be spent searching for optimized pipelines (default: %(default)ss)",
+        help=("Duration of time which should be spent searching " +
+              "for optimized pipelines (default: %(default)ss)"),
     )  # pylint: disable=line-too-long
     parser.add_argument(
         "--sample-duration",

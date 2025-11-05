@@ -18,9 +18,8 @@ DLSTREAMER_URL = (
 )
 PIPELINE_ZOO_URL = "https://github.com/dlstreamer/pipeline-zoo-models/tree/main/"
 
-dldt_str = "dl" + "dt"
-openvino_str = "open" + "vino"
-dlstreamer_name = "Deep " + "Learning" + " Streamer"
+DLDT_STR = "dl" + "dt"
+OPENVINO_STR = "open" + "vino"
 
 parser = ArgumentParser(add_help=False)
 _args = parser.add_argument_group("Options")
@@ -53,17 +52,17 @@ deffective_models = []
 for root, dirs, files in os.walk(args.open_model_zoo + "/models", topdown=False):
     name = os.path.basename(root)
     if "composite-model.yml" in files:
-        with open(os.path.join(root, "composite-model.yml")) as f:
+        with open(os.path.join(root, "composite-model.yml"), encoding='utf-8') as f:
             models[name] = yaml.safe_load(f)
     if "model.yml" in files and not os.path.exists(os.path.join(root, "../composite-model.yml")):
-        with open(os.path.join(root, "model.yml")) as f:
+        with open(os.path.join(root, "model.yml"), encoding='utf-8') as f:
             models[name] = yaml.safe_load(f)
     if "README.md" in files:
         if name not in models:
             print("WARNING: README.md without model.yml:", name)
             models[name] = {}
         cnt = 0
-        with open(os.path.join(root, "README.md")) as f:
+        with open(os.path.join(root, "README.md"), encoding='utf-8') as f:
             for line in f.readlines():
                 vec = [x.strip() for x in line.split("|")]
                 if len(vec) < 3 or vec[1].startswith("---"):
@@ -75,14 +74,13 @@ for root, dirs, files in os.walk(args.open_model_zoo + "/models", topdown=False)
                 models[name][vec[1]] = vec[2]
     if name in models:
         if "models/intel/" in root:
-            models[name]["source"] = "intel"  # openvino_str
+            models[name]["source"] = "intel"  # OPENVINO_STR
         elif "models/public/" in root:
             models[name]["source"] = "public"
-        format = models[name].get("framework", "").replace(dldt_str, openvino_str)
-        if openvino_str not in format:
-            format += ", " + openvino_str
-        models[name]["format"] = format
-        # models[name]['readme'] = 'https://docs.openvino.ai/latest/omz_models_model_' + name.replace('-', '_').replace('.', '_') + '.html'
+        format_str = models[name].get("framework", "").replace(DLDT_STR, OPENVINO_STR)
+        if OPENVINO_STR not in format_str:
+            format_str += ", " + OPENVINO_STR
+        models[name]["format"] = format_str
         models[name]["readme"] = "/".join(
             (OV_MODEL_ZOO_URL, "models", models[name]["source"], name)
         )
@@ -152,7 +150,7 @@ for file in os.listdir(accuracy_checker):
 # for each model, find which OMZ demo supports it
 for root, dirs, files in os.walk(args.open_model_zoo, topdown=False):
     if "models.lst" in files:
-        with open(os.path.join(root, "models.lst")) as f:
+        with open(os.path.join(root, "models.lst"), encoding='utf-8') as f:
             demo_url = root.split("/")
             demo_url = "/".join(demo_url[demo_url.index("demos") :])
             demo_url = "/".join((OV_MODEL_ZOO_URL, demo_url))
@@ -185,7 +183,7 @@ if args.model_index is not None:
         # validate(model_index, json.load(mis))
         for name, m in model_index.items():
             if "dlstreamer_support" not in m:
-                m["dlstreamer_support"] = openvino_str
+                m["dlstreamer_support"] = OPENVINO_STR
             if "labels-file" in m:
                 m["labels-file"] = DLSTREAMER_URL + "samples/" + m["labels-file"]
             if "model-proc" in m:
@@ -205,7 +203,7 @@ if args.model_index is not None:
                     )
                     deffective_models.append(name)
                 if "format" not in m:
-                    m["format"] = openvino_str
+                    m["format"] = OPENVINO_STR
                 models[name] = m
 
 # remove models that we don't want to include, e.g. preview/deprecation
@@ -271,5 +269,5 @@ for key, value in models.items():
 
     models_filtered[key] = value
 
-with open(args.output, "w") as file:
+with open(args.output, "w", encoding='utf-8') as file:
     yaml.dump(models_filtered, file)

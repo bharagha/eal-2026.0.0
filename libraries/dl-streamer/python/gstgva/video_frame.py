@@ -238,7 +238,7 @@ class VideoFrame:
                     h, w = meta.height, meta.width
                     requested_size = h * w * bytes_per_pix
                 else:
-                    warn("Video meta is {}. Can't get shape.".format(meta), stacklevel=2)
+                    warn(f"Video meta is {meta}. Can't get shape.", stacklevel=2)
 
             try:
                 if mapped_data_size < requested_size:
@@ -288,7 +288,7 @@ class VideoFrame:
         n_planes = self.__video_info.finfo.n_planes
         if n_planes not in [2, 3]:
             raise RuntimeError(
-                "VideoFrame.__repack_video_frame: Unsupported number of planes {}".format(n_planes)
+                f"VideoFrame.__repack_video_frame: Unsupported number of planes {n_planes}"
             )
 
         h, w = self.__video_info.height, self.__video_info.width

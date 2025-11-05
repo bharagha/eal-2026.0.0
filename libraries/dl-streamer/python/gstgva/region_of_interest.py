@@ -132,7 +132,7 @@ class RegionOfInterest(object):
     # @return object id as an int, None if failed to get
     def object_id(self) -> int | None:
         for trk_mtd in self.__od_meta.meta:
-            if trk_mtd.id == self.__od_meta.id or type(trk_mtd) != GstAnalytics.TrackingMtd:
+            if trk_mtd.id == self.__od_meta.id or not isinstance(trk_mtd, GstAnalytics.TrackingMtd):
                 continue
 
             rel = self.__od_meta.meta.get_relation(self.__od_meta.id, trk_mtd.id)
@@ -172,7 +172,7 @@ class RegionOfInterest(object):
                 )
 
         for trk_mtd in self.__od_meta.meta:
-            if trk_mtd.id == self.__od_meta.id or type(trk_mtd) != GstAnalytics.TrackingMtd:
+            if trk_mtd.id == self.__od_meta.id or not isinstance(trk_mtd, GstAnalytics.TrackingMtd):
                 continue
 
             rel = self.__od_meta.meta.get_relation(self.__od_meta.id, trk_mtd.id)

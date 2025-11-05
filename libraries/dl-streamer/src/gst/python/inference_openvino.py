@@ -105,9 +105,10 @@ class InferenceOpenVINO(GstBase.BaseTransform):
             ":".join(str(d) for d in np.array(info.shape)[::-1]) for info in infos
         ]  # dims in reverse order
         types = [self.TYPE_NAME[info.element_type.get_type_name()] for info in infos]
-        caps_str = "other/tensors,num_tensors=(uint){num},types={types},dimensions={shapes}".format(
-            num=len(infos), types=",".join(types), shapes=",".join(shapes)
-        )
+        num = len(infos)
+        types = ",".join(types)
+        shapes = ",".join(shapes)
+        caps_str = f"other/tensors,num_tensors=(uint){num},types={types},dimensions={shapes}"
         my_caps = Gst.Caps.from_string(caps_str)
         if filter:
             my_caps = my_caps.intersect(filter)
@@ -161,9 +162,7 @@ class InferenceOpenVINO(GstBase.BaseTransform):
         self.srcpad.push(dst)
 
     def do_sink_event(self, event):
-        if (
-            event.type == Gst.EventType.EOS or event.type == Gst.EventType.FLUSH_STOP
-        ) and self.infer_queue:
+        if event.type in (Gst.EventType.EOS, Gst.EventType.FLUSH_STOP) and self.infer_queue:
             self.infer_queue.wait_all()
         return GstBase.BaseTransform.do_sink_event(self, event)
 

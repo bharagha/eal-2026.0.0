@@ -60,7 +60,8 @@ class Identifier(GstBase.BaseTransform):
     __gstmetadata__ = (
         "ID assignment tracking algorithm",
         "Transform",
-        "ID assignment SORT type tracking algorithm which require embedding from each ROI to cosine comparison.",
+        ("ID assignment SORT type tracking algorithm which require " +
+         "embedding from each ROI to cosine comparison."),
         "Intel Corporation",
     )
 
