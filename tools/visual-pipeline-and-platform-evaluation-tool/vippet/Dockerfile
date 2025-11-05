@@ -40,7 +40,6 @@ RUN \
 
 COPY --chown=dlstreamer:dlstreamer \
     vippet/*.py \
-    vippet/app.css \
     vippet/entrypoint.sh \
     vippet/video_manager.sh \
     /home/dlstreamer/vippet/

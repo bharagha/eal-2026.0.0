@@ -20,7 +20,7 @@ class TestGstPipeline(unittest.TestCase):
 
     # TODO: Implement test for GstPipeline as part of ITEP-80181
     def test_evaluate_method(self):
-        launch_string = self.pipeline.evaluate(regular_channels=0, inference_channels=1)
+        launch_string = self.pipeline.evaluate(regular_channels=0, inference_channels=3)
         self.assertFalse(launch_string.startswith("gst-launch-1.0 -q "))
 
 
