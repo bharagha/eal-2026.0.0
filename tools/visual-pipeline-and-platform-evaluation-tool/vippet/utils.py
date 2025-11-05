@@ -271,18 +271,18 @@ def get_video_resolution(video_path):
     try:
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            logging.error(f"Cannot open video file: {video_path}")
+            logger.error(f"Cannot open video file: {video_path}")
             return default_width, default_height
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         cap.release()
         # If width or height is zero, return defaults and log warning
         if width == 0 or height == 0:
-            logging.warning(f"Could not read video resolution for file: {video_path}")
+            logger.warning(f"Could not read video resolution for file: {video_path}")
             return default_width, default_height
         return width, height
     except Exception:
-        logging.error(
+        logger.error(
             f"Exception occurred while reading video resolution for file: {video_path}"
         )
         return default_width, default_height
