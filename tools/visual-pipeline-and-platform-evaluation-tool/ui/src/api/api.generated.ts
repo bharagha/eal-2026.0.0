@@ -3,7 +3,7 @@ export const addTagTypes = [
   "pipelines",
   "devices",
   "models",
-  "metrics",
+  "convert",
 ] as const;
 const injectedRtkApi = api
   .enhanceEndpoints({
@@ -124,9 +124,21 @@ const injectedRtkApi = api
         query: () => ({ url: `/models` }),
         providesTags: ["models"],
       }),
-      getMetrics: build.query<GetMetricsApiResponse, GetMetricsApiArg>({
-        query: () => ({ url: `/metrics` }),
-        providesTags: ["metrics"],
+      toConfig: build.mutation<ToConfigApiResponse, ToConfigApiArg>({
+        query: (queryArg) => ({
+          url: `/convert/to-config`,
+          method: "POST",
+          body: queryArg.launchString,
+        }),
+        invalidatesTags: ["convert"],
+      }),
+      toString: build.mutation<ToStringApiResponse, ToStringApiArg>({
+        query: (queryArg) => ({
+          url: `/convert/to-string`,
+          method: "POST",
+          body: queryArg.launchConfig,
+        }),
+        invalidatesTags: ["convert"],
       }),
     }),
     overrideExisting: false,
@@ -201,23 +213,42 @@ export type GetDevicesApiArg = void;
 export type GetModelsApiResponse =
   /** status 200 Successful Response */ Model[];
 export type GetModelsApiArg = void;
-export type GetMetricsApiResponse =
-  /** status 200 Successful Response */ MetricSample[];
-export type GetMetricsApiArg = void;
+export type ToConfigApiResponse =
+  /** status 200 Successful Response */ LaunchConfig;
+export type ToConfigApiArg = {
+  launchString: LaunchString;
+};
+export type ToStringApiResponse =
+  /** status 200 Successful Response */ LaunchString;
+export type ToStringApiArg = {
+  launchConfig: LaunchConfig;
+};
 export type PipelineType = "GStreamer" | "FFmpeg";
+export type Node = {
+  id: string;
+  type: string;
+  data: {
+    [key: string]: string;
+  };
+};
+export type Edge = {
+  id: string;
+  source: string;
+  target: string;
+};
+export type LaunchConfig = {
+  nodes: Node[];
+  edges: Edge[];
+};
 export type PipelineParameters = {
-  default: {
-    [key: string]: any;
-  } | null;
+  default: object | null;
 };
 export type Pipeline = {
   name: string;
   version: string;
   description: string;
   type: PipelineType;
-  launch_config: {
-    [key: string]: any;
-  };
+  launch_config: LaunchConfig;
   parameters: PipelineParameters | null;
 };
 export type ValidationError = {
@@ -264,7 +295,7 @@ export type Source = {
 export type PipelineParametersRun = {
   inferencing_channels?: number;
   recording_channels?: number;
-  launch_config: string;
+  launch_config: LaunchConfig;
 };
 export type PipelineRequestRun = {
   async_?: boolean | null;
@@ -277,7 +308,7 @@ export type PipelineRequestRun = {
 export type PipelineParametersBenchmark = {
   fps_floor?: number;
   ai_stream_rate?: number;
-  launch_config: string;
+  launch_config: LaunchConfig;
 };
 export type PipelineRequestBenchmark = {
   async_?: boolean | null;
@@ -292,18 +323,28 @@ export type PipelineInstanceSummary = {
   request: PipelineRequestRun | PipelineRequestBenchmark;
   type: string;
 };
+export type PipelineParametersRun2 = {
+  inferencing_channels?: number;
+  recording_channels?: number;
+  launch_config: LaunchConfig;
+};
 export type PipelineRequestRun2 = {
   async_?: boolean | null;
   source: Source;
-  parameters: PipelineParametersRun;
+  parameters: PipelineParametersRun2;
   tags: {
     [key: string]: string;
   } | null;
 };
+export type PipelineParametersBenchmark2 = {
+  fps_floor?: number;
+  ai_stream_rate?: number;
+  launch_config: LaunchConfig;
+};
 export type PipelineRequestBenchmark2 = {
   async_?: boolean | null;
   source: Source;
-  parameters: PipelineParametersBenchmark;
+  parameters: PipelineParametersBenchmark2;
   tags: {
     [key: string]: string;
   } | null;
@@ -311,9 +352,7 @@ export type PipelineRequestBenchmark2 = {
 export type PipelineRequestOptimize = {
   async_?: boolean | null;
   source: Source;
-  parameters: {
-    [key: string]: any;
-  } | null;
+  parameters: object | null;
   tags: {
     [key: string]: string;
   } | null;
@@ -331,14 +370,11 @@ export type ModelCategory = "classification" | "detection";
 export type Model = {
   name: string;
   display_name: string;
-  category: ModelCategory;
+  category: ModelCategory | null;
   precision: string | null;
 };
-export type MetricSample = {
-  name: string;
-  description: string;
-  timestamp: number;
-  value: number;
+export type LaunchString = {
+  launch_string: string;
 };
 export const {
   useGetPipelinesQuery,
@@ -362,6 +398,6 @@ export const {
   useLazyGetDevicesQuery,
   useGetModelsQuery,
   useLazyGetModelsQuery,
-  useGetMetricsQuery,
-  useLazyGetMetricsQuery,
+  useToConfigMutation,
+  useToStringMutation,
 } = injectedRtkApi;
