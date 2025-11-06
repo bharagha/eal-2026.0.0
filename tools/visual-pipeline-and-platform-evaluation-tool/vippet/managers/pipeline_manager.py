@@ -2,9 +2,6 @@ import logging
 
 from gstpipeline import PipelineLoader
 from api.api_schemas import PipelineType, Pipeline, PipelineDefinition
-from explore import GstInspector
-
-gst_inspector = GstInspector()
 
 
 class PipelineManager:
@@ -57,10 +54,9 @@ class PipelineManager:
     def load_predefined_pipelines(self):
         predefined_pipelines = []
         for pipeline_name in PipelineLoader.list():
-            pipeline_gst, config = PipelineLoader.load(pipeline_name)
-            launch_string = pipeline_gst.get_default_gst_launch(
-                gst_inspector.get_elements()
-            )
+            config = PipelineLoader.config(pipeline_name)
+
+            launch_string = config.get("launch_string", "")
             launch_cfg = {
                 "converted_launch_string": launch_string
             }  # TODO: Convert launch_string to launch_config in JSON format

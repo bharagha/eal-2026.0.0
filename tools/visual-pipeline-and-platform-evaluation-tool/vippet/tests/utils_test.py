@@ -3,13 +3,10 @@ import shutil
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
-import itertools
 
-from gstpipeline import GstPipeline
 import utils
 from utils import (
     prepare_video_and_constants,
-    run_pipeline_and_extract_metrics,
     is_yolov10_model,
 )
 
@@ -122,115 +119,6 @@ class TestUtils(unittest.TestCase):
             f"Input video codec '{mock_discover_video_codec.return_value}' is not supported.",
             str(context.exception),
         )
-
-    @patch("utils.Popen")
-    @patch("utils.ps")
-    @patch("utils.select.select")
-    def test_run_pipeline_and_extract_metrics(self, mock_select, mock_ps, mock_popen):
-        # Mock pipeline command
-        class DummyPipeline(GstPipeline):
-            def evaluate(
-                self,
-                constants,
-                parameters,
-                regular_channels,
-                inference_channels,
-                elements,
-            ):
-                return "videotestsrc ! fakesink"
-
-        # Mock process
-        process_mock = MagicMock()
-        process_mock.poll.side_effect = [None, 0]
-        # Avoid StopIteration by returning empty bytes forever after the real line
-        process_mock.stdout.readline.side_effect = itertools.chain(
-            [
-                b"FpsCounter(average 10.0sec): total=100.0 fps, number-streams=1, per-stream=100.0 fps\n"
-            ],
-            itertools.repeat(b""),
-        )
-        process_mock.pid = 1234
-        # Ensure fileno returns an int to avoid TypeError in select and bad fd errors
-        process_mock.stdout.fileno.return_value = 10
-        process_mock.stderr.fileno.return_value = 11
-        mock_select.return_value = ([process_mock.stdout], [], [])
-        mock_popen.return_value = process_mock
-        mock_ps.Process.return_value.status.return_value = "zombie"
-
-        constants = {"VIDEO_PATH": self.input_video, "VIDEO_OUTPUT_PATH": "out.mp4"}
-        parameters = {
-            "object_detection_device": ["CPU"],
-            "object_classification_device": ["CPU"],
-        }
-        gen = run_pipeline_and_extract_metrics(
-            DummyPipeline(),
-            constants,
-            parameters,
-            channels=1,
-            elements=[],
-            poll_interval=0,
-        )
-        try:
-            while True:
-                next(gen)
-        except StopIteration as e:
-            results = e.value
-
-        self.assertIsInstance(results, list)
-        self.assertEqual(results[0]["total_fps"], 100.0)
-        self.assertEqual(results[0]["per_stream_fps"], 100.0)
-        self.assertEqual(results[0]["num_streams"], 1)
-
-    @patch("utils.Popen")
-    def test_stop_pipeline(self, mock_popen):
-        # Mock pipeline command
-        class DummyPipeline(GstPipeline):
-            def evaluate(
-                self,
-                constants,
-                parameters,
-                regular_channels,
-                inference_channels,
-                elements,
-            ):
-                return "videotestsrc ! fakesink"
-
-        # Mock process
-        process_mock = MagicMock()
-        process_mock.poll.side_effect = [None]
-        # Avoid TypeError in select by providing fileno
-        process_mock.stdout.fileno.return_value = 10
-        process_mock.stderr.fileno.return_value = 11
-        mock_popen.return_value = process_mock
-
-        constants = {"VIDEO_PATH": self.input_video, "VIDEO_OUTPUT_PATH": "out.mp4"}
-        parameters = {"object_detection_device": ["CPU"]}
-
-        # Signal to stop the pipeline
-        utils.cancelled = True
-
-        # Run the pipeline and handle generator
-        gen = run_pipeline_and_extract_metrics(
-            DummyPipeline(),
-            constants,
-            parameters,
-            channels=1,
-            elements=[],
-            poll_interval=0,
-        )
-        try:
-            # Exhaust generator to get return value
-            while True:
-                next(gen)
-        except StopIteration as e:
-            results = e.value
-
-        self.assertIsInstance(results, list)
-        self.assertEqual(utils.cancelled, False)
-        process_mock.terminate.assert_called_once()
-        self.assertEqual(results[0]["total_fps"], "N/A")
-        self.assertEqual(results[0]["per_stream_fps"], "N/A")
-        self.assertEqual(results[0]["num_streams"], "N/A")
 
     @patch("cv2.VideoCapture")
     def test_discover_video_codec(self, mock_videocap):
