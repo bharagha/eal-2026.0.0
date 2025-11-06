@@ -8,16 +8,14 @@
 #  @brief This file contains gstgva.tensor.Tensor class which contains and describes neural
 # network inference result
 
+# pylint: disable=missing-module-docstring
+
+from typing import List
+from warnings import warn
+from enum import Enum
 import ctypes
 import numpy
 import gi
-from typing import List
-from warnings import warn
-
-gi.require_version("Gst", "1.0")
-gi.require_version("GstAnalytics", "1.0")
-
-from enum import Enum
 from gi.repository import GObject, Gst, GstAnalytics, GLib
 from .util import (
     libgst,
@@ -28,6 +26,9 @@ from .util import (
     G_VALUE_POINTER,
 )
 from .util import GVATensorMeta
+
+gi.require_version("Gst", "1.0")
+gi.require_version("GstAnalytics", "1.0")
 
 
 ## @brief This class represents tensor - map-like storage for inference result information,
@@ -45,8 +46,7 @@ from .util import GVATensorMeta
 # Tensor objects will be available for access and modification from
 # RegionOfInterest and VideoFrame instances
 class Tensor:
-    # TODO: find a way to get these enums from C/C++ code and avoid duplicating
-
+    # pylint: disable=missing-class-docstring,too-many-public-methods
     ## @brief This enum describes model layer precision
     class PRECISION(Enum):
         UNSPECIFIED = 255  # Unspecified value. Used by default
@@ -115,11 +115,13 @@ class Tensor:
     ## @brief Get inference result blob dimensions info
     #  @return list of dimensions
     def dims(self) -> List[int]:
+        # pylint: disable=missing-function-docstring
         return self["dims"]
 
     ## @brief Get inference results blob precision
     #  @return PRECISION, PRECISION.UNSPECIFIED if can't be read
     def precision(self) -> PRECISION:
+        # pylint: disable=missing-function-docstring
         precision = self["precision"]
 
         if precision is None:
@@ -130,6 +132,7 @@ class Tensor:
     ## @brief Get inference result blob layout
     #  @return LAYOUT, LAYOUT.ANY if can't be read
     def layout(self) -> LAYOUT:
+        # pylint: disable=missing-function-docstring
         try:
             return self.LAYOUT(self["layout"])
         except:
@@ -138,6 +141,7 @@ class Tensor:
     ## @brief Get raw inference result blob data
     #  @return numpy.ndarray of values representing raw inference data, None if data can't be read
     def data(self) -> numpy.ndarray | None:
+        # pylint: disable=missing-function-docstring
         if self.precision() == self.PRECISION.UNSPECIFIED:
             return None
 
@@ -157,6 +161,7 @@ class Tensor:
     ## @brief Get name as a string
     #  @return Tensor instance's name
     def name(self) -> str:
+        # pylint: disable=missing-function-docstring
         name = libgst.gst_structure_get_name(self.__structure)
         if name:
             return name.decode("utf-8")
@@ -165,21 +170,25 @@ class Tensor:
     ## @brief Get model name which was used for inference
     #  @return model name as a string, None if failed to get
     def model_name(self) -> str:
+        # pylint: disable=missing-function-docstring
         return self["model_name"]
 
     ## @brief Get inference result blob layer name
     #  @return layer name as a string, None if failed to get
     def layer_name(self) -> str:
+        # pylint: disable=missing-function-docstring
         return self["layer_name"]
 
     ## @brief Get inference result type
     #  @return type as a string, None if failed to get
     def type(self) -> str:
+        # pylint: disable=missing-function-docstring
         return self["type"]
 
     ## @brief Get confidence of inference result
     #  @return confidence of inference result as a float, None if failed to get
     def confidence(self) -> float:
+        # pylint: disable=missing-function-docstring
         return self["confidence"]
 
     ## @brief Get label. This label is set for Tensor instances produced by gvaclassify element.
@@ -187,78 +196,78 @@ class Tensor:
     # if called for detection Tensor. To get detection class label, use RegionOfInterest.label
     #  @return label as a string, None if failed to get
     def label(self) -> str:
+        # pylint: disable=missing-function-docstring
         if not self.is_detection():
-            return self["label"]
-        else:
-            raise RuntimeError("Detection GVA::Tensor can't have label.")
+            return self["label"]   
+        raise RuntimeError("Detection GVA::Tensor can't have label.")
 
     ## @brief Get object id
     #  @return object id as an int, None if failed to get
     def object_id(self) -> int:
+        # pylint: disable=missing-function-docstring
         return self["object_id"]
 
     ## @brief Get format
     #  @return format as a string, None if failed to get
     def format(self) -> str:
+        # pylint: disable=missing-function-docstring
         return self["format"]
 
     ## @brief Get list of fields contained in Tensor instance
     #  @return List of fields contained in Tensor instance
     def fields(self) -> List[str]:
+        # pylint: disable=missing-function-docstring
         return [
             libgst.gst_structure_nth_field_name(self.__structure, i).decode("utf-8")
-            for i in range(self.__len__())
+            for i in range(len(self))
         ]
 
     ## @brief Get item by the field name
     #  @param key Field name
     #  @return Item, None if failed to get
     def __getitem__(self, key):
+        # pylint: disable=too-many-return-statements
         key = key.encode("utf-8")
         gtype = libgst.gst_structure_get_field_type(self.__structure, key)
         if gtype == hash(GObject.TYPE_INVALID):  # key is not found
             return None
-        elif gtype == hash(GObject.TYPE_STRING):
+        if gtype == hash(GObject.TYPE_STRING):
             res = libgst.gst_structure_get_string(self.__structure, key)
             return res.decode("utf-8") if res else None
-        elif gtype == hash(GObject.TYPE_INT):
+        if gtype == hash(GObject.TYPE_INT):
             value = ctypes.c_int()
             res = libgst.gst_structure_get_int(self.__structure, key, ctypes.byref(value))
             return value.value if res else None
-        elif gtype == hash(GObject.TYPE_DOUBLE):
+        if gtype == hash(GObject.TYPE_DOUBLE):
             value = ctypes.c_double()
             res = libgst.gst_structure_get_double(self.__structure, key, ctypes.byref(value))
             return value.value if res else None
-        elif gtype == hash(GObject.TYPE_VARIANT):
-            # TODO Returning pointer for now that can be used with other ctypes functions
-            #      Return more useful python value
+        if gtype == hash(GObject.TYPE_VARIANT):
             return libgst.gst_structure_get_value(self.__structure, key)
-        elif gtype == hash(GObject.TYPE_POINTER):
-            # TODO Returning pointer for now that can be used with other ctypes functions
-            #      Return more useful python value
+        if gtype == hash(GObject.TYPE_POINTER):
             return libgst.gst_structure_get_value(self.__structure, key)
-        else:
-            # try to get value as GValueArray (e.g., "dims" key)
-            gvalue_array = G_VALUE_ARRAY_POINTER()
-            is_array = libgst.gst_structure_get_array(
-                self.__structure, key, ctypes.byref(gvalue_array)
-            )
-            if not is_array:
-                # Fallback return value
-                libgst.g_value_array_free(gvalue_array)
-                return libgst.gst_structure_get_value(self.__structure, key)
+
+        # try to get value as GValueArray (e.g., "dims" key)
+        gvalue_array = G_VALUE_ARRAY_POINTER()
+        is_array = libgst.gst_structure_get_array(
+            self.__structure, key, ctypes.byref(gvalue_array)
+        )
+        if not is_array:
+            # Fallback return value
+            libgst.g_value_array_free(gvalue_array)
+            return libgst.gst_structure_get_value(self.__structure, key)
+        
+        value = []
+        for i in range(0, gvalue_array.contents.n_values):
+            g_value = libgobject.g_value_array_get_nth(gvalue_array, ctypes.c_uint(i))
+            if g_value.contents.g_type == hash(GObject.TYPE_FLOAT):
+                value.append(libgobject.g_value_get_float(g_value))
+            elif g_value.contents.g_type == hash(GObject.TYPE_UINT):
+                value.append(libgobject.g_value_get_uint(g_value))
             else:
-                value = list()
-                for i in range(0, gvalue_array.contents.n_values):
-                    g_value = libgobject.g_value_array_get_nth(gvalue_array, ctypes.c_uint(i))
-                    if g_value.contents.g_type == hash(GObject.TYPE_FLOAT):
-                        value.append(libgobject.g_value_get_float(g_value))
-                    elif g_value.contents.g_type == hash(GObject.TYPE_UINT):
-                        value.append(libgobject.g_value_get_uint(g_value))
-                    else:
-                        raise TypeError("Unsupported value type for GValue array")
-                libgst.g_value_array_free(gvalue_array)
-                return value
+                raise TypeError("Unsupported value type for GValue array")
+        libgst.g_value_array_free(gvalue_array)
+        return value
 
     ## @brief Get number of fields contained in Tensor instance
     #  @return Number of fields contained in Tensor instance
@@ -284,39 +293,44 @@ class Tensor:
     ## @brief Get label id
     #  @return label id as an int, None if failed to get
     def label_id(self) -> int:
+        # pylint: disable=missing-function-docstring
         return self["label_id"]
 
     ## @brief Get inference-id property value of GVA element from which this Tensor came
     #  @return inference-id property value of GVA element from which this Tensor came,
     # None if failed to get
     def element_id(self) -> str:
+        # pylint: disable=missing-function-docstring
         return self["element_id"]
 
     ## @brief Set Tensor instance's name
     def set_name(self, name: str) -> None:
+        # pylint: disable=missing-function-docstring
         libgst.gst_structure_set_name(self.__structure, name.encode("utf-8"))
 
     ## @brief Get inference result blob layout as a string
     #  @return layout as a string, "ANY" if can't be read
     def layout_as_string(self) -> str:
+        # pylint: disable=missing-function-docstring
         layout = self.layout()
         if layout == self.LAYOUT.NCHW:
             return "NCHW"
-        elif layout == self.LAYOUT.NHWC:
+        if layout == self.LAYOUT.NHWC:
             return "NHWC"
-        elif layout == self.LAYOUT.NC:
+        if layout == self.LAYOUT.NC:
             return "NC"
-        else:
-            return "ANY"
+        return "ANY"
 
     ## @brief Get inference results blob precision as a string
     #  @return precision as a string, "UNSPECIFIED" if can't be read
     def precision_as_string(self) -> str:
+        # pylint: disable=missing-function-docstring
         return self.__precision_str[self.precision()]
 
     ## @brief Set label. It will raise exception if called for detection Tensor
     #  @param label label name as a string
     def set_label(self, label: str) -> None:
+        # pylint: disable=missing-function-docstring
         if not self.is_detection():
             self["label"] = label
         else:
@@ -326,16 +340,19 @@ class Tensor:
     #  @param field_name field name
     #  @return True if field with this name is found, False otherwise
     def has_field(self, field_name: str) -> bool:
-        return True if self[field_name] else False
+        # pylint: disable=missing-function-docstring
+        return bool(self[field_name])
 
     ## @brief Check if this Tensor is detection Tensor (contains detection results)
     #  @return True if tensor contains detection results, False otherwise
     def is_detection(self) -> bool:
+        # pylint: disable=missing-function-docstring
         return self.name() == "detection"
 
     ## @brief Get underlying GstStructure
     #  @return C-style pointer to GstStructure
     def get_structure(self) -> ctypes.c_void_p:
+        # pylint: disable=missing-function-docstring
         return self.__structure
 
     ## @brief Construct Tensor instance from C-style GstStructure
@@ -352,16 +369,16 @@ class Tensor:
     #  @param item Item
     def __setitem__(self, key: str, item) -> None:
         gvalue = GObject.Value()
-        if type(item) is str:
+        if isinstance(item, str):
             gvalue.init(GObject.TYPE_STRING)
             gvalue.set_string(item)
-        elif type(item) is int:
+        elif isinstance(item, int):
             gvalue.init(GObject.TYPE_INT)
             gvalue.set_int(item)
-        elif type(item) is float:
+        elif isinstance(item, float):
             gvalue.init(GObject.TYPE_DOUBLE)
             gvalue.set_double(item)
-        elif type(item) is list:
+        elif isinstance(item, list):
             # code below doesn't work though it's very similar to C code used in GVA which works
             # gvalue_array = GObject.Value()
             # libgobject.g_value_init(hash(gvalue), ctypes.c_size_t(24))  # 24 is G_TYPE_INT
@@ -389,7 +406,7 @@ class Tensor:
                 value = libgst.gst_buffer_iterate_meta_filtered(
                     hash(buffer), ctypes.byref(gpointer), meta_api
                 )
-            except Exception as error:
+            except Exception:
                 value = None
 
             if not value:
@@ -399,6 +416,7 @@ class Tensor:
             yield Tensor(tensor_meta.data)
 
     def convert_to_meta(self, relation_meta: GstAnalytics.RelationMeta) -> GstAnalytics.Mtd | None:
+        # pylint: disable=missing-function-docstring
         mtd = None
         if self.type() == "classification_result":
             confidence_level = self.confidence() if self.confidence() is not None else 0.0
@@ -414,10 +432,11 @@ class Tensor:
 
     @staticmethod
     def convert_to_tensor(mtd: GstAnalytics.Mtd) -> ctypes.c_void_p | None:
+        # pylint: disable=missing-function-docstring
         structure = libgst.gst_structure_new_empty("tensor".encode("utf-8"))
         tensor = Tensor(structure)
 
-        if type(mtd) == GstAnalytics.ClsMtd:
+        if isinstance(mtd, GstAnalytics.ClsMtd):
             class_count = mtd.get_length()
             result_confidence = 0.0
             result_label = ""
@@ -435,8 +454,7 @@ class Tensor:
                         result_label += " "
                     result_label += label
 
-                if confidence > result_confidence:
-                    result_confidence = confidence
+                result_confidence = max(result_confidence, confidence)
 
             tensor.set_name("classification")
             tensor.set_label(result_label)
@@ -447,7 +465,7 @@ class Tensor:
             for cls_descriptor_mtd in mtd.meta:
                 if (
                     cls_descriptor_mtd.id == mtd.id
-                    or type(cls_descriptor_mtd) != GstAnalytics.ClsMtd
+                    or not isinstance(cls_descriptor_mtd, GstAnalytics.ClsMtd)
                 ):
                     continue
 

@@ -9,17 +9,19 @@
 # class to control region of interest for particular gstgva.video_frame.VideoFrame
 # with gstgva.tensor.Tensor instances attached
 
-import ctypes
-import numpy
+# pylint: disable=missing-module-docstring
+
 from typing import List
 from collections import namedtuple
+import ctypes
+import numpy
+import gi
 
 from gi.repository import GstVideo, GLib, GObject, Gst, GstAnalytics
 from .tensor import Tensor
 from .util import VideoRegionOfInterestMeta
 from .util import libgst, libgobject, libgstvideo, GLIST_POINTER
 
-import gi
 
 gi.require_version("GstVideo", "1.0")
 gi.require_version("GLib", "2.0")
@@ -37,7 +39,8 @@ Rect = namedtuple("Rect", "x y w h")
 # elements with two classification models. Such RegionOfInterest will have bounding box
 # coordinates filled and will have 3 Tensor objects attached - 1 Tensor object with
 # detection result and 2 Tensor objects with classification results coming from 2 classifications
-class RegionOfInterest(object):
+class RegionOfInterest():
+    # pylint: disable=missing-class-docstring
 
     def __init__(self, od_meta: GstAnalytics.ODMtd, roi_meta: VideoRegionOfInterestMeta):
         self.__roi_meta = roi_meta
@@ -74,6 +77,7 @@ class RegionOfInterest(object):
     ## @brief Get bounding box of the RegionOfInterest as pixel coordinates in original image
     #  @return Bounding box coordinates of the RegionOfInterest
     def rect(self) -> Rect:
+        # pylint: disable=missing-function-docstring
         success, x, y, w, h, _, _ = self.__od_meta.get_oriented_location()
 
         if not success:
@@ -86,6 +90,7 @@ class RegionOfInterest(object):
     ## @brief Get bounding box of the RegionOfInterest as normalized coordinates in the range [0, 1]
     #  @return Bounding box coordinates of the RegionOfInterest
     def normalized_rect(self):
+        # pylint: disable=missing-function-docstring
         detection = self.detection()
         return Rect(
             x=detection["x_min"],
@@ -113,6 +118,7 @@ class RegionOfInterest(object):
     ## @brief Get class label of this RegionOfInterest
     #  @return Class label of this RegionOfInterest
     def label(self) -> str:
+        # pylint: disable=missing-function-docstring
         label_quark = self.__od_meta.get_obj_type()
 
         if label_quark:
@@ -124,6 +130,7 @@ class RegionOfInterest(object):
     # @return detection confidence from analytics metadata
     # @throws std::runtime_error if confidence cannot be read from metadata
     def confidence(self) -> float:
+        # pylint: disable=missing-function-docstring
         success, confidence = self.__od_meta.get_confidence_lvl()
 
         if not success:
@@ -137,6 +144,7 @@ class RegionOfInterest(object):
     ## @brief Get object id using analytics tracking metadata
     # @return object id as an int, None if failed to get
     def object_id(self) -> int | None:
+        # pylint: disable=missing-function-docstring
         for trk_mtd in self.__od_meta.meta:
             if trk_mtd.id == self.__od_meta.id or not isinstance(trk_mtd, GstAnalytics.TrackingMtd):
                 continue
@@ -161,6 +169,7 @@ class RegionOfInterest(object):
     ## @brief Set object id using analytics tracking metadata
     # @param object_id Object ID to set
     def set_object_id(self, object_id: int):
+        # pylint: disable=missing-function-docstring
         # Set in ROI meta for backward compatibility
         if self.meta():
             s_object_id = libgstvideo.gst_video_region_of_interest_meta_get_param(
@@ -210,13 +219,15 @@ class RegionOfInterest(object):
     ## @brief Get all Tensor instances added to this RegionOfInterest
     # @return list of Tensor instances added to this RegionOfInterest
     def tensors(self) -> List[Tensor]:
+        # pylint: disable=missing-function-docstring
         return self._tensors
 
     ## @brief Get all Tensor instances added to this RegionOfInterest (in old metadata format)
     # @return list of Tensor instances added to this RegionOfInterest
     def get_gst_roi_params(self) -> List[Tensor]:
+        # pylint: disable=missing-function-docstring
         result = []
-
+        # pylint: disable=protected-access
         param = self.__roi_meta._params
         while param:
             tensor_structure = param.contents.data
@@ -235,6 +246,7 @@ class RegionOfInterest(object):
     # @return detection Tensor, empty if there were no detection Tensor objects added
     # to this RegionOfInterest when this method was called
     def detection(self) -> Tensor:
+        # pylint: disable=missing-function-docstring
         if not self._detection:
             gst_structure = libgst.gst_structure_new_empty("detection".encode("utf-8"))
             detection_tensor = Tensor(gst_structure)
@@ -244,13 +256,14 @@ class RegionOfInterest(object):
     ## @brief Get label_id from analytics metadata or detection Tensor
     # @return label_id if exists, otherwise 0
     def label_id(self) -> int:
+        # pylint: disable=missing-function-docstring
         label_quark = self.__od_meta.get_obj_type()
 
         cls_descriptor_mtd = None
         for cls_descriptor_mtd in self.__od_meta.meta:
             if (
                 cls_descriptor_mtd.id == self.__od_meta.id
-                or type(cls_descriptor_mtd) != GstAnalytics.ClsMtd
+                or not isinstance(cls_descriptor_mtd, GstAnalytics.ClsMtd)
             ):
                 continue
 
@@ -275,6 +288,7 @@ class RegionOfInterest(object):
     # @param tensor Tensor object to add to this RegionOfInterest.
     # This function does not take ownership of tensor passed, but only copies its contents
     def add_tensor(self, tensor: Tensor):
+        # pylint: disable=missing-function-docstring
         s = tensor.get_structure()
 
         if not s:
@@ -306,18 +320,21 @@ class RegionOfInterest(object):
     # Tensors are represented as GstStructures added to GstVideoRegionOfInterestMeta.params
     # @return VideoRegionOfInterestMeta containing bounding box and tensors (inference results)
     def meta(self) -> VideoRegionOfInterestMeta:
+        # pylint: disable=missing-function-docstring
         return self.__roi_meta
 
     ## @brief Get region ID from analytics metadata
     # @return Region id as an int. Can be a positive or negative integer, but never zero.
     def region_id(self):
+        # pylint: disable=missing-function-docstring
         return self.__od_meta.id
 
     ## @brief Retrieves the parent object detection ID for this region of interest.
     # @return The ID of the parent object detection metadata if found, None otherwise.
     def parent_id(self) -> int | None:
+        # pylint: disable=missing-function-docstring
         for rlt_mtd in self.__od_meta.meta:
-            if rlt_mtd.id == self.__od_meta.id or type(rlt_mtd) != GstAnalytics.ODMtd:
+            if rlt_mtd.id == self.__od_meta.id or not isinstance(rlt_mtd, GstAnalytics.ODMtd):
                 continue
 
             rel = self.__od_meta.meta.get_relation(self.__od_meta.id, rlt_mtd.id)
@@ -340,7 +357,7 @@ class RegionOfInterest(object):
             return
 
         for od_mtd in relation_meta:
-            if type(od_mtd) != GstAnalytics.ODMtd:
+            if not isinstance(od_mtd, GstAnalytics.ODMtd):
                 continue
 
             value = None

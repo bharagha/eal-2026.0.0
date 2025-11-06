@@ -4,15 +4,17 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
+# pylint: disable=missing-module-docstring
+
 import ctypes
 from contextlib import contextmanager
 import gi
+from gi.repository import GstVideo, GstAudio, GLib, GObject, Gst
 
 gi.require_version("GstVideo", "1.0")
 gi.require_version("GstAudio", "1.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gst", "1.0")
-from gi.repository import GstVideo, GstAudio, GLib, GObject, Gst
 
 # libgstreamer
 libgst = ctypes.CDLL("libgstreamer-1.0.so.0")
@@ -22,6 +24,7 @@ GST_VAAPI_VIDEO_MEMORY_NAME = "GstVaapiVideoMemory"
 
 
 class GstMapInfo(ctypes.Structure):
+    # pylint: disable=missing-class-docstring,too-few-public-methods
     _fields_ = [
         ("memory", ctypes.c_void_p),  # GstMemory *memory
         ("flags", ctypes.c_int),  # GstMapFlags flags
@@ -37,6 +40,7 @@ GST_MAP_INFO_POINTER = ctypes.POINTER(GstMapInfo)
 
 
 class GUnion(ctypes.Union):
+    # pylint: disable=missing-class-docstring,too-few-public-methods
     _fields_ = [
         ("v_int", ctypes.c_int),
         ("v_uint", ctypes.c_uint),
@@ -51,6 +55,7 @@ class GUnion(ctypes.Union):
 
 
 class GValue(ctypes.Structure):
+    # pylint: disable=missing-class-docstring,too-few-public-methods
     _fields_ = [("g_type", ctypes.c_size_t), ("data", GUnion)]
 
 
@@ -58,6 +63,7 @@ G_VALUE_POINTER = ctypes.POINTER(GValue)
 
 
 class GValueArray(ctypes.Structure):
+    # pylint: disable=missing-class-docstring,too-few-public-methods
     _fields_ = [
         ("n_values", ctypes.c_uint32),
         ("values", ctypes.c_void_p),
@@ -66,6 +72,7 @@ class GValueArray(ctypes.Structure):
 
 
 class GstMiniObject(ctypes.Structure):
+    # pylint: disable=missing-class-docstring,too-few-public-methods
     _fields_ = [
         ("type", ctypes.c_void_p),
         ("refcount", ctypes.c_int),
@@ -75,6 +82,7 @@ class GstMiniObject(ctypes.Structure):
 
 
 class GstMemory(ctypes.Structure):
+    # pylint: disable=missing-class-docstring,too-few-public-methods
     _fields_ = [
         ("mini_object", GstMiniObject),
         ("allocator", ctypes.c_void_p),
@@ -187,6 +195,7 @@ libgst.gst_util_seqnum_next.restype = ctypes.c_uint
 
 
 def is_vaapi_buffer(_buffer):
+    # pylint: disable=missing-function-docstring
     if _buffer is None:
         raise TypeError("Passed buffer is None")
     mem = libgst.gst_buffer_get_memory(hash(_buffer), 0)
@@ -200,6 +209,7 @@ def is_vaapi_buffer(_buffer):
 
 @contextmanager
 def GST_PAD_PROBE_INFO_BUFFER(info):
+    # pylint: disable=missing-function-docstring
     _buffer = info.get_buffer()
     _buffer.mini_object.refcount -= 1
     try:
@@ -210,6 +220,7 @@ def GST_PAD_PROBE_INFO_BUFFER(info):
 
 @contextmanager
 def TRANSFORM_IP_BUFFER(_buffer):
+    # pylint: disable=missing-function-docstring
     _buffer.mini_object.refcount -= 1
     try:
         yield _buffer
@@ -219,6 +230,7 @@ def TRANSFORM_IP_BUFFER(_buffer):
 
 @contextmanager
 def gst_buffer_data(_buffer, flags):
+    # pylint: disable=missing-function-docstring
     if _buffer is None:
         raise TypeError("Cannot pass NULL to gst_buffer_map")
 
@@ -246,11 +258,13 @@ libgobject = ctypes.CDLL("libgobject-2.0.so.0")
 
 
 class GList(ctypes.Structure):
+    # pylint: disable=missing-class-docstring,too-few-public-methods
     pass
 
 
 GLIST_POINTER = ctypes.POINTER(GList)
 
+# pylint: disable=protected-access
 GList._fields_ = [("data", ctypes.c_void_p), ("next", GLIST_POINTER), ("prev", GLIST_POINTER)]
 
 
@@ -307,6 +321,7 @@ libgstvideo = ctypes.CDLL("libgstvideo-1.0.so.0")
 
 # VideoRegionOfInterestMeta
 class VideoRegionOfInterestMeta(ctypes.Structure):
+    # pylint: disable=missing-class-docstring,too-few-public-methods
     _fields_ = [
         ("_meta_flags", ctypes.c_int),
         ("_info", ctypes.c_void_p),
@@ -341,6 +356,7 @@ libgstvideo.gst_buffer_get_video_region_of_interest_meta_id.restype = ctypes.c_v
 
 # GVATensorMeta
 class GVATensorMeta(ctypes.Structure):
+    # pylint: disable=missing-class-docstring,too-few-public-methods
     _fields_ = [
         ("_meta_flags", ctypes.c_int),
         ("_info", ctypes.c_void_p),
@@ -349,10 +365,11 @@ class GVATensorMeta(ctypes.Structure):
 
     @classmethod
     def add_tensor_meta(cls, buffer):
+        # pylint: disable=missing-function-docstring
         try:
             tensor_meta_info = libgst.gst_meta_get_info("GstGVATensorMeta".encode("utf-8"))
             value = libgst.gst_buffer_add_meta(hash(buffer), tensor_meta_info, None)
-        except Exception as error:
+        except Exception:
             value = None
 
         if not value:
@@ -362,16 +379,19 @@ class GVATensorMeta(ctypes.Structure):
 
 
 class GVAJSONMetaStr(str):
+    # pylint: disable=missing-class-docstring
     def __new__(cls, meta, content):
         return super().__new__(cls, content)
 
     def __init__(self, meta, content):
+        # pylint: disable=unused-argument
         self.meta = meta
         super().__init__()
 
 
 # GVAJSONMeta
 class GVAJSONMeta(ctypes.Structure):
+    # pylint: disable=missing-class-docstring
     _fields_ = [
         ("_meta_flags", ctypes.c_int),
         ("_info", ctypes.c_void_p),
@@ -379,18 +399,21 @@ class GVAJSONMeta(ctypes.Structure):
     ]
 
     def get_message(self):
+        # pylint: disable=missing-function-docstring
         return GVAJSONMetaStr(self, self._message.decode("utf-8"))
 
     @classmethod
     def remove_json_meta(cls, buffer, meta):
+        # pylint: disable=missing-function-docstring
         return libgst.gst_buffer_remove_meta(hash(buffer), ctypes.byref(meta))
 
     @classmethod
     def add_json_meta(cls, buffer, message):
+        # pylint: disable=missing-function-docstring
         try:
             json_meta_info = libgst.gst_meta_get_info("GstGVAJSONMeta".encode("utf-8"))
             value = libgst.gst_buffer_add_meta(hash(buffer), json_meta_info, None)
-        except Exception as error:
+        except Exception:
             value = None
 
         if value is None:
@@ -402,6 +425,7 @@ class GVAJSONMeta(ctypes.Structure):
 
     @classmethod
     def iterate(cls, buffer):
+        # pylint: disable=missing-function-docstring
         try:
             meta_api = hash(GObject.GType.from_name("GstGVAJSONMetaAPI"))
         except:
@@ -412,7 +436,7 @@ class GVAJSONMeta(ctypes.Structure):
                 value = libgst.gst_buffer_iterate_meta_filtered(
                     hash(buffer), ctypes.byref(gpointer), meta_api
                 )
-            except Exception as error:
+            except Exception:
                 value = None
 
             if not value:
