@@ -5,7 +5,8 @@
 # ==============================================================================
 
 ## @file tensor.py
-#  @brief This file contains gstgva.tensor.Tensor class which contains and describes neural network inference result
+#  @brief This file contains gstgva.tensor.Tensor class which contains and describes neural
+# network inference result
 
 import ctypes
 import numpy
@@ -29,16 +30,20 @@ from .util import (
 from .util import GVATensorMeta
 
 
-## @brief This class represents tensor - map-like storage for inference result information, such as output blob
-# description (output layer dims, layout, rank, precision, etc.), inference result in a raw and interpreted forms.
-# Tensor is based on GstStructure and, in general, can contain arbitrary (user-defined) fields of simplest data types,
-# like integers, floats & strings.
-# Tensor can contain only raw inference result (such Tensor is produced by gvainference in Gstreamer pipeline),
-# detection result (such Tensor is produced by gvadetect in Gstreamer pipeline and it's called detection Tensor), or
-# both raw & interpreted inference results (such Tensor is produced by gvaclassify in Gstreamer pipeline).
-# Tensors can be created and used on their own, or they can be created within RegionOfInterest or VideoFrame instances.
-# Usually, in Gstreamer pipeline with GVA elements (gvadetect, gvainference, gvaclassify) Tensor objects will be
-# available for access and modification from RegionOfInterest and VideoFrame instances
+## @brief This class represents tensor - map-like storage for inference result information,
+# such as output blob description (output layer dims, layout, rank, precision, etc.),
+# inference result in a raw and interpreted forms.
+# Tensor is based on GstStructure and, in general, can contain arbitrary (user-defined) fields of
+# simplest data types, like integers, floats & strings.
+# Tensor can contain only raw inference result (such Tensor is produced by gvainference in
+# Gstreamer pipeline), detection result (such Tensor is produced by gvadetect in Gstreamer
+# pipeline and it's called detection Tensor), or both raw & interpreted inference results
+# (such Tensor is produced by gvaclassify in Gstreamer pipeline).
+# Tensors can be created and used on their own, or they can be created within
+# RegionOfInterest or VideoFrame instances.
+# Usually, in Gstreamer pipeline with GVA elements (gvadetect, gvainference, gvaclassify)
+# Tensor objects will be available for access and modification from
+# RegionOfInterest and VideoFrame instances
 class Tensor:
     # TODO: find a way to get these enums from C/C++ code and avoid duplicating
 
@@ -177,7 +182,8 @@ class Tensor:
     def confidence(self) -> float:
         return self["confidence"]
 
-    ## @brief Get label. This label is set for Tensor instances produced by gvaclassify element. It will raise exception
+    ## @brief Get label. This label is set for Tensor instances produced by gvaclassify element.
+    # It will raise exception
     # if called for detection Tensor. To get detection class label, use RegionOfInterest.label
     #  @return label as a string, None if failed to get
     def label(self) -> str:
@@ -281,7 +287,8 @@ class Tensor:
         return self["label_id"]
 
     ## @brief Get inference-id property value of GVA element from which this Tensor came
-    #  @return inference-id property value of GVA element from which this Tensor came, None if failed to get
+    #  @return inference-id property value of GVA element from which this Tensor came,
+    # None if failed to get
     def element_id(self) -> str:
         return self["element_id"]
 
@@ -333,7 +340,8 @@ class Tensor:
 
     ## @brief Construct Tensor instance from C-style GstStructure
     #  @param structure C-style pointer to GstStructure to create Tensor instance from.
-    # There are much simpler ways for creating and obtaining Tensor instances - see RegionOfInterest and VideoFrame classes
+    # There are much simpler ways for creating and obtaining Tensor instances - see
+    # RegionOfInterest and VideoFrame classes
     def __init__(self, structure: ctypes.c_void_p):
         self.__structure = structure
         if not self.__structure:
@@ -361,7 +369,8 @@ class Tensor:
             # for i in item:
             #     libgobject.g_value_set_int(hash(gvalue),i)
             #     libgst.gst_value_array_append_value(hash(gvalue_array),hash(gvalue))
-            # libgst.gst_structure_set_value(self.__structure, key.encode('utf-8'), hash(gvalue_array))
+            # libgst.gst_structure_set_value(self.__structure, key.encode('utf-8'),
+            # hash(gvalue_array))
             raise NotImplementedError
         else:
             raise TypeError

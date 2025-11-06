@@ -5,7 +5,9 @@
 # ==============================================================================
 
 ## @file region_of_interest.py
-#  @brief This file contains gstgva.region_of_interest.RegionOfInterest class to control region of interest for particular gstgva.video_frame.VideoFrame with gstgva.tensor.Tensor instances attached
+#  @brief This file contains gstgva.region_of_interest.RegionOfInterest
+# class to control region of interest for particular gstgva.video_frame.VideoFrame
+# with gstgva.tensor.Tensor instances attached
 
 import ctypes
 import numpy
@@ -17,21 +19,24 @@ from .util import VideoRegionOfInterestMeta
 from .util import libgst, libgobject, libgstvideo, GLIST_POINTER
 
 import gi
+from gi.repository import GstVideo, GLib, GObject, Gst, GstAnalytics
 
 gi.require_version("GstVideo", "1.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gst", "1.0")
 gi.require_version("GstAnalytics", "1.0")
-from gi.repository import GstVideo, GLib, GObject, Gst, GstAnalytics
 
 Rect = namedtuple("Rect", "x y w h")
 
 
-## @brief This class represents region of interest - object describing detection result (bounding box) and containing
-# multiple Tensor objects (inference results) attached by multiple models. For example, it can be region of interest with detected face and recognized age
-# and sex of a person. It can be produced by a pipeline with gvadetect with detection model and two gvaclassify
-# elements with two classification models. Such RegionOfInterest will have bounding box coordinates filled and will have 3 Tensor objects
-# attached - 1 Tensor object with detection result and 2 Tensor objects with classification results coming from 2 classifications
+## @brief This class represents region of interest - object describing detection
+# result (bounding box) and containing multiple Tensor objects (inference results)
+# attached by multiple models. For example, it can be region of interest with detected
+# face and recognized age and sex of a person. It can be produced by a pipeline with
+# gvadetect with detection model and two gvaclassify
+# elements with two classification models. Such RegionOfInterest will have bounding box
+# coordinates filled and will have 3 Tensor objects attached - 1 Tensor object with
+# detection result and 2 Tensor objects with classification results coming from 2 classifications
 class RegionOfInterest(object):
 
     def __init__(self, od_meta: GstAnalytics.ODMtd, roi_meta: VideoRegionOfInterestMeta):
@@ -123,7 +128,8 @@ class RegionOfInterest(object):
 
         if not success:
             raise RuntimeError(
-                "RegionOfInterest:confidence: Failed to get confidence level from analytics metadata"
+                "RegionOfInterest:confidence: Failed to get " +
+                "confidence level from analytics metadata"
             )
 
         return confidence
@@ -144,7 +150,8 @@ class RegionOfInterest(object):
 
             if not success:
                 raise RuntimeError(
-                    "RegionOfInterest:object_id: Failed to get tracking info from analytics metadata"
+                    "RegionOfInterest:object_id: Failed to get " +
+                    "tracking info from analytics metadata"
                 )
 
             return tracking_id
@@ -184,7 +191,8 @@ class RegionOfInterest(object):
                 GstAnalytics.RelTypes.NONE, self.__od_meta.id, trk_mtd.id
             ):
                 raise RuntimeError(
-                    "RegionOfInterest:set_object_id: Failed to remove existing relation to tracking metadata"
+                    "RegionOfInterest:set_object_id: Failed to remove " +
+                    "existing relation to tracking metadata"
                 )
 
         success, trk_mtd = self.__od_meta.meta.add_tracking_mtd(object_id, 0)
@@ -218,13 +226,14 @@ class RegionOfInterest(object):
 
         return result
 
-    ## @brief Returns detection Tensor, last added to this RegionOfInterest. As any other Tensor, returned detection
-    # Tensor can contain arbitrary information. If you use RegionOfInterest based on VideoRegionOfInterestMeta
-    # attached by gvadetect by default, then this Tensor will contain "label_id", "confidence", "x_min", "x_max",
-    # "y_min", "y_max" fields.
+    ## @brief Returns detection Tensor, last added to this RegionOfInterest.
+    # As any other Tensor, returned detection
+    # Tensor can contain arbitrary information. If you use RegionOfInterest
+    # based on VideoRegionOfInterestMeta attached by gvadetect by default, then this
+    # Tensor will contain "label_id", "confidence", "x_min", "x_max", # "y_min", "y_max" fields.
     # If RegionOfInterest doesn't have detection Tensor, it will be created in-place
-    # @return detection Tensor, empty if there were no detection Tensor objects added to this RegionOfInterest when
-    # this method was called
+    # @return detection Tensor, empty if there were no detection Tensor objects added
+    # to this RegionOfInterest when this method was called
     def detection(self) -> Tensor:
         if not self._detection:
             gst_structure = libgst.gst_structure_new_empty("detection".encode("utf-8"))
@@ -292,7 +301,8 @@ class RegionOfInterest(object):
         if tensor.is_detection():
             self._detection = tensor
 
-    ## @brief Get VideoRegionOfInterestMeta containing bounding box information and tensors (inference results).
+    ## @brief Get VideoRegionOfInterestMeta containing bounding box information and
+    # tensors (inference results).
     # Tensors are represented as GstStructures added to GstVideoRegionOfInterestMeta.params
     # @return VideoRegionOfInterestMeta containing bounding box and tensors (inference results)
     def meta(self) -> VideoRegionOfInterestMeta:
@@ -340,7 +350,8 @@ class RegionOfInterest(object):
 
             if not value:
                 raise RuntimeError(
-                    "RegionOfInterest:_iterate: Failed to get VideoRegionOfInterestMeta by id from buffer"
+                    "RegionOfInterest:_iterate: Failed to get " +
+                    "VideoRegionOfInterestMeta by id from buffer"
                 )
 
             roi_meta = ctypes.cast(value, ctypes.POINTER(VideoRegionOfInterestMeta)).contents

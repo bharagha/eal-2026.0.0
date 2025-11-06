@@ -112,7 +112,8 @@ class BBox:
         self.confidence = confidence
 
     def __repr__(self) -> str:
-        return f"{self.top_left_x}, {self.top_left_y}, {self.bottom_right_x}, {self.bottom_right_y}, {self.confidence}"
+        return (f"{self.top_left_x}, {self.top_left_y}, {self.bottom_right_x}, " +
+                f"{self.bottom_right_y}, {self.confidence}"
 
 
 def process_labels(tensor):

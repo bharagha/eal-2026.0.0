@@ -5,7 +5,8 @@
 # ==============================================================================
 
 ## @file audio_event.py
-#  @brief This file contains gstgva.audio_event.AudioEvent class to control audio events for particular gstgva.audio_frame.AudioFrame with gstgva.tensor.Tensor instances attached
+#  @brief This file contains gstgva.audio_event.AudioEvent class to control audio events
+# for particular gstgva.audio_frame.AudioFrame with gstgva.tensor.Tensor instances attached
 
 import ctypes
 import numpy
@@ -25,11 +26,13 @@ from gi.repository import GstAudio, GLib, GObject, Gst
 
 Segment = namedtuple("Segment", "start_time end_time")
 
-## @brief This class represents audio event - object describing detection result (audio segment) and containing multiple
-# Tensor objects (inference results) attached by multiple models. For example, it can be audio event with detected
-# speech and converts speech to text. It can be produced by a pipeline with gvaaudiodetect with detection model and
-# gvaspeechtotext element with speechtotext model. Such AudioEvent will have start and end timestamps filled and will
-# have 2 Tensor objects attached - 1 Tensor object with detection result, other with speech to text tensor objectresult
+## @brief This class represents audio event - object describing detection result (audio segment)
+# and containing multiple Tensor objects (inference results) attached by multiple models.
+# For example, it can be audio event with detected speech and converts speech to text.
+# It can be produced by a pipeline with gvaaudiodetect with detection model and gvaspeechtotext
+# element with speechtotext model. Such AudioEvent will have start and end timestamps filled
+# and will have 2 Tensor objects attached - 1 Tensor object with detection result, other with
+# speech to text tensor objectresult
 
 
 class AudioEvent(object):
@@ -60,13 +63,13 @@ class AudioEvent(object):
             yield Tensor(tensor_structure)
             param = param.contents.next
 
-    ## @brief Returns detection Tensor, last added to this AudioEvent. As any other Tensor, returned detection
-    # Tensor can contain arbitrary information. If you use AudioEvent based on GstGVAAudioEventMeta
-    # attached by gvaaudiodetect by default, then this Tensor will contain "label_id", "confidence", "start_timestamp",
-    # "end_timestamp" fields.
+    ## @brief Returns detection Tensor, last added to this AudioEvent. As any other Tensor,
+    # returned detection Tensor can contain arbitrary information. If you use AudioEvent based on
+    # GstGVAAudioEventMeta attached by gvaaudiodetect by default, then this Tensor will contain
+    # "label_id", "confidence", "start_timestamp", "end_timestamp" fields.
     # If AudioEvent doesn't have detection Tensor, it will be created in-place.
-    # @return detection Tensor, empty if there were no detection Tensor objects added to this AudioEvent when
-    # this method was called
+    # @return detection Tensor, empty if there were no detection Tensor objects added to this
+    # AudioEvent when this method was called
     def detection(self) -> Tensor:
         for tensor in self.tensors():
             if tensor.is_detection():
@@ -79,9 +82,11 @@ class AudioEvent(object):
         detection = self.detection()
         return detection.label_id() if detection else None
 
-    ## @brief Get AudioEventMeta containing start, end time information and tensors (inference results).
+    ## @brief Get AudioEventMeta containing start, end time information and tensors
+    # (inference results).
     # Tensors are represented as GstStructures added to GstGVAAudioEventMeta.params
-    # @return AudioEventMeta containing start, end time information and tensors (inference results)
+    # @return AudioEventMeta containing start, end time information and tensors
+    # (inference results)
     def meta(self) -> AudioEventMeta:
         return self.__event_meta
 

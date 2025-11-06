@@ -12,7 +12,9 @@ SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 IMAGE_PATH = os.path.join(SCRIPT_DIR, "test_files", "cup.jpg")
 MODULE_PATH = os.path.join(SCRIPT_DIR, "test_files", "test_module.py")
 
-PIPELINE_TEMPLATE = "filesrc location={} ! jpegparse ! vaapijpegdec ! vaapipostproc ! video/x-raw(memory:VASurface),format={} ! gvapython module={} class=MyClassVaapi function={} ! {} fakesink sync=false"
+PIPELINE_TEMPLATE = ("filesrc location={} ! jpegparse ! vaapijpegdec ! vaapipostproc ! " +
+                     "video/x-raw(memory:VASurface),format={} ! gvapython module={} " +
+                     "class=MyClassVaapi function={} ! {} fakesink sync=false")
 ENCODERS = ["", "vaapipostproc ! vaapijpegenc !"]
 FORMATS = ["NV12", "I420"]
 READ_FUNC = "read_frame_data"

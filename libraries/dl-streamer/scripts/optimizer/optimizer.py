@@ -367,7 +367,8 @@ def main():
     parser.add_argument(
         "--sample-duration",
         default=10,
-        help="Duration of sampling individual pipelines. Longer duration should offer more stable results (default: %(default)ss)",
+        help=("Duration of sampling individual pipelines. Longer duration should" +
+              "offer more stable results (default: %(default)ss)"),
     )  # pylint: disable=line-too-long
     parser.add_argument("pipeline", nargs="+", help="Pipeline to be analyzed")
     args = parser.parse_args()

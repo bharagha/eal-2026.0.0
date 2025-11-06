@@ -84,7 +84,8 @@ class BBox:
         return f"BBox({str(self)})"
 
     def __str__(self):
-        return f"<({self.x_min}, {self.y_min}, {self.x_max}, {self.y_max}), {self.additional_info}, class_id={self.class_id}, tracker_id={self.tracker_id}>"
+        return (f"<({self.x_min}, {self.y_min}, {self.x_max}, {self.y_max}), " +
+                f"{self.additional_info}, class_id={self.class_id}, tracker_id={self.tracker_id}>"
 
     @staticmethod
     def IoU(bbox_1, bbox_2):
@@ -188,7 +189,8 @@ class BBox:
             max_iou_index = None
             for i, gt_bbox in enumerate(gt_bboxes):
                 iou = BBox.IoU(pr_bbox, gt_bbox)
-                # Different components (OpenVINO™ Toolkit and its plugins, VAS OT, etc.) can change between releases. To track exact accuracy we have Regression Tests.
+                # Different components (OpenVINO™ Toolkit and its plugins, VAS OT, etc.)
+                # can change between releases. To track exact accuracy we have Regression Tests.
                 # This IoU check is just sanity check to find out if things really got bad
                 if (
                     1 >= iou > 0.7

@@ -115,10 +115,12 @@ def create_launch_string():
         source = "filesrc location"
 
     if args.output == "display":
-        sink = "gvawatermark name=gvawatermark ! videoconvert n-threads=4 ! gvafpscounter ! autovideosink sync=false"
+        sink = ("gvawatermark name=gvawatermark ! videoconvert n-threads=4" +
+                " ! gvafpscounter ! autovideosink sync=false")
     elif args.output == "display-and-json":
-        sink = "gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! \
-               gvawatermark name=gvawatermark ! videoconvert n-threads=4 ! gvafpscounter ! autovideosink sync=false"
+        sink = ("gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json" +
+                " ! gvawatermark name=gvawatermark ! videoconvert n-threads=4 ! gvafpscounter" +
+                " ! autovideosink sync=false")
     elif args.output == "json":
         sink = "gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! \
                gvafpscounter ! fakesink sync=false"

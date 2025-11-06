@@ -5,8 +5,9 @@
 # ==============================================================================
 
 ## @file video_frame.py
-#  @brief This file contains gstgva.video_frame.VideoFrame class to control particular inferenced frame
-# and attached gstgva.region_of_interest.RegionOfInterest and gstgva.tensor.Tensor instances
+#  @brief This file contains gstgva.video_frame.VideoFrame class to control particular
+# inferenced frame and attached gstgva.region_of_interest.RegionOfInterest and
+# gstgva.tensor.Tensor instances
 
 import ctypes
 import numpy
@@ -17,12 +18,6 @@ import json
 
 import gi
 
-gi.require_version("Gst", "1.0")
-gi.require_version("GstVideo", "1.0")
-gi.require_version("GObject", "2.0")
-gi.require_version("GstAnalytics", "1.0")
-gi.require_version("GLib", "2.0")
-
 from gi.repository import Gst, GstVideo, GstAnalytics, GLib
 from .util import VideoRegionOfInterestMeta
 from .util import GVATensorMeta
@@ -32,12 +27,20 @@ from .region_of_interest import RegionOfInterest
 from .tensor import Tensor
 from .util import libgst, gst_buffer_data, VideoInfoFromCaps
 
+gi.require_version("Gst", "1.0")
+gi.require_version("GstVideo", "1.0")
+gi.require_version("GObject", "2.0")
+gi.require_version("GstAnalytics", "1.0")
+gi.require_version("GLib", "2.0")
 
-## @brief This class represents video frame - object for working with RegionOfInterest and Tensor objects which
-# belong to this video frame (image). RegionOfInterest describes detected object (bounding boxes) and its Tensor
-# objects (inference results on RegionOfInterest level). Tensor describes inference results on VideoFrame level.
-# VideoFrame also provides access to underlying GstBuffer and GstVideoInfo describing frame's video information (such
-# as image width, height, channels, strides, etc.). You also can get cv::Mat object representing this video frame.
+
+## @brief This class represents video frame - object for working with RegionOfInterest and
+# Tensor objects which belong to this video frame (image). RegionOfInterest describes
+# detected object (bounding boxes) and its Tensor objects (inference results on
+# RegionOfInterest level). Tensor describes inference results on VideoFrame level.
+# VideoFrame also provides access to underlying GstBuffer and GstVideoInfo describing frame's
+# video information (such as image width, height, channels, strides, etc.).
+# You also can get cv::Mat object representing this video frame.
 class VideoFrame:
     ## @brief Construct VideoFrame instance from Gst.Buffer and GstVideo.VideoInfo or Gst.Caps.
     #  The preferred way of creating VideoFrame is to use Gst.Buffer and GstVideo.VideoInfo
@@ -71,7 +74,8 @@ class VideoFrame:
     def video_meta(self) -> GstVideo.VideoMeta:
         return GstVideo.buffer_get_video_meta(self.__buffer)
 
-    ## @brief Get GstVideo.VideoInfo of this VideoFrame. This is preferrable way of getting any image information
+    ## @brief Get GstVideo.VideoInfo of this VideoFrame. This is preferrable way of
+    # getting any image information
     #  @return GstVideo.VideoInfo of this VideoFrame
     def video_info(self) -> GstVideo.VideoInfo:
         return self.__video_info
@@ -94,8 +98,9 @@ class VideoFrame:
     #  @param label object label
     #  @param confidence detection confidence
     #  @param region_tensor base tensor for detection Tensor which will be added to this new
-    #  @param normalized if True, input coordinates are assumed to be normalized (in [0,1] interval).
-    # If False, input coordinates are assumed to be expressed in pixels (this is behavior by default)
+    #  @param normalized if True, input coordinates are assumed to be normalized
+    # (in [0,1] interval). If False, input coordinates are assumed to be expressed in pixels
+    # (this is behavior by default)
     #  @return new RegionOfInterest instance
 
     def add_region(
@@ -119,9 +124,9 @@ class VideoFrame:
             x_init, y_init, w_init, h_init = x, y, w, h
             x, y, w, h = self.__clip(x, y, w, h)
             warn(
-                "ROI coordinates [x, y, w, h] are out of image borders and will be clipped: [{}, {}, {}, {}] -> "
-                "[{}, {}, {}, {}]".format(x_init, y_init, w_init, h_init, x, y, w, h),
-                stacklevel=2,
+                "ROI coordinates [x, y, w, h] are out of image borders and " + 
+                f"will be clipped: [{x_init}, {y_init}, {y_init}, {h_init}] -> " +
+                f"[{x}, {y}, {w}, {h}]", stacklevel=2
             )
 
         relation_meta = GstAnalytics.buffer_add_analytics_relation_meta(self.__buffer)
@@ -246,10 +251,11 @@ class VideoFrame:
                 elif mapped_data_size == requested_size:
                     yield numpy.ndarray((h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8)
                 elif is_yuv_format:
-                    # In some cases image size after mapping can be larger than expected image size.
-                    # One of the reasons can be vaapi decoder which appends lines to the end of an image
-                    # so the height is multiple of 16. So we need to return an image that has the same
-                    # resolution as in video_info. That's why we drop extra lines added by decoder.
+                    # In some cases image size after mapping can be larger than expected
+                    # image size. One of the reasons can be vaapi decoder which appends
+                    # lines to the end of an image so the height is multiple of 16.
+                    # So we need to return an image that has the same resolution as
+                    # in video_info. That's why we drop extra lines added by decoder.
                     yield self.__repack_video_frame(data)
                 else:
                     raise RuntimeError("VideoFrame.data: Corrupted buffer")

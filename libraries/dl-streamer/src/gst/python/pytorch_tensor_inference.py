@@ -273,7 +273,8 @@ class InferencePyTorch(GstBase.BaseTransform):
             else:
                 if not self.input_tensors_info:
                     self.input_tensors_info = self.get_input_tensor_info_from_model()
-                # Input shapes must be specified with capsfilter before the tensor_convert element if preprocessing information could not be obtained from the model
+                # Input shapes must be specified with capsfilter before the tensor_convert
+                # element if preprocessing information could not be obtained from the model
                 my_caps = tensor_info_to_gst_caps(self.input_tensors_info)
 
             if filter:
@@ -304,7 +305,8 @@ class InferencePyTorch(GstBase.BaseTransform):
         self.model.to(self.device)  # load model to device
 
         try:
-            # The forward function can contain arbitrary python code. Forward dummy tensor to see the output
+            # The forward function can contain arbitrary python code.
+            # Forward dummy tensor to see the output
             x = torch.randn(input_tensor_info.shape, device=self.device)
             x = x.unsqueeze(0)  # add batch dimension
             output = self.model(x)[0]  # TODO: support batching
@@ -333,7 +335,8 @@ class InferencePyTorch(GstBase.BaseTransform):
         if not isinstance(preproc, ImageClassification):
             return input_tensors_info
 
-        # TODO: Parse the remaining preprocessing information and pass it to the preprocessing sub-pipeline
+        # TODO: Parse the remaining preprocessing information and pass it to
+        # the preprocessing sub-pipeline
         resize_size = preproc.resize_size
         if len(resize_size) != 1:
             Gst.warning(

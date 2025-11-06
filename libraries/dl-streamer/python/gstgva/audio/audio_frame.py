@@ -5,8 +5,8 @@
 # ==============================================================================
 
 ## @file audio_frame.py
-#  @brief This file contains gstgva.audio_frame.AudioFrame class to control particular inferenced frame
-# and attached gstgva.audio_event.AudioEvent and gstgva.tensor.Tensor instances
+#  @brief This file contains gstgva.audio_frame.AudioFrame class to control particular
+# inferenced frame and attached gstgva.audio_event.AudioEvent and gstgva.tensor.Tensor instances
 
 import ctypes
 import numpy
@@ -30,11 +30,12 @@ from ..tensor import Tensor
 from ..util import libgst, gst_buffer_data, AudioInfoFromCaps
 
 
-## @brief This class represents audio frame - object for working with AudioEvent and Tensor objects which
-# belong to this audio frame . AudioEvent describes detected object (segments) and its Tensor
-# objects (inference results on AudioEvent level). Tensor describes inference results on AudioFrame level.
-# AudioFrame also provides access to underlying GstBuffer and GstAudioInfo describing frame's audio information (such
-# as format, channels, etc.).
+## @brief This class represents audio frame - object for working with AudioEvent and Tensor
+# objects which belong to this audio frame . AudioEvent describes detected object (segments)
+# and its Tensor objects (inference results on AudioEvent level). Tensor describes inference
+# results on AudioFrame level.
+# AudioFrame also provides access to underlying GstBuffer and GstAudioInfo describing frame's
+# audio information (such as format, channels, etc.).
 class AudioFrame:
     ## @brief Construct AudioFrame instance from Gst.Buffer and GstAudio.AudioInfo or Gst.Caps.
     #  The preferred way of creating AudioFrame is to use Gst.Buffer and GstAudio.AudioInfo
@@ -54,7 +55,8 @@ class AudioFrame:
         else:
             raise RuntimeError("One of audio_info or caps is required")
 
-    ## @brief Get GstAudio.AudioInfo of this AudioFrame. This is preferrable way of getting audio information
+    ## @brief Get GstAudio.AudioInfo of this AudioFrame. This is preferrable way of
+    #  getting audio information
     #  @return GstAudio.AudioInfo of this AudioFrame
     def audio_info(self) -> GstAudio.AudioInfo:
         return self.__audio_info

@@ -230,11 +230,13 @@ with open(args.output, "w") as f:
     f.write("about model support on various inference backends and CPU/GPU devices.\n")
     f.write("\n")
     f.write(
-        "Each model has link (under model name) to original documentation with download instructions.\n"
+        "Each model has link (under model name) to original documentation " +
+        "with download instructions.\n"
     )
     f.write("\n")
     f.write(
-        "Most models are from `OpenVINO™ Open Model Zoo <https://docs.openvino.ai/latest/model_zoo.html>`__\n"
+        "Most models are from `OpenVINO™ Open Model Zoo " +
+        "<https://docs.openvino.ai/latest/model_zoo.html>`__\n"
     )
     f.write("but some models are from other sources (see column Source Repo).\n")
     f.write("\n")
@@ -247,21 +249,18 @@ with open(args.output, "w") as f:
     f.write("      - Description\n")
     f.write("    * - {0}\n".format(openvino_str))
     f.write(
-        "      - `OpenVINO™ toolkit <https://docs.openvino.ai/>`__ - as model file format (*.xml + *.bin) and inference backend in {0}\n".format(
-            dlstreamer_name
-        )
+        "      - `OpenVINO™ toolkit <https://docs.openvino.ai/>`__ - as model file " +
+        f"format (*.xml + *.bin) and inference backend in {dlstreamer_name}\n"
     )
     f.write("    * - pytorch\n")
     f.write(
-        "      - `PyTorch* framework <https://pytorch.org>`__ - as model file format and inference backend in {0}\n".format(
-            dlstreamer_name
-        )
+        "      - `PyTorch* framework <https://pytorch.org>`__ - as model file " +
+        f"format and inference backend in {dlstreamer_name}\n"
     )
     f.write("    * - tf\n")
     f.write(
-        "      - `TensorFlow* framework <https://www.tensorflow.org>`__ - as model file format and inference backend in {0}\n".format(
-            dlstreamer_name
-        )
+        "      - `TensorFlow* framework <https://www.tensorflow.org>`__ - as model file " +
+        f"format and inference backend in {dlstreamer_name}\n"
     )
     f.write("    * - onnx\n")
     f.write("      - `ONNX <https://onnx.ai>`__ - Open Neural Network Exchange file format\n")
@@ -321,7 +320,6 @@ with open(args.output, "w") as f:
             path_labels_file = os.path.basename(labels_file)
             f.write(f"      - `{path_labels_file} <{labels_file}>`__\n")
         else:
-            # f.write('      - {0}\n'.format(m.get('datasets', [{}])[0].get('name','').replace('-',' ').replace('_',' ')))
             f.write("      -\n")
         model_proc = m.get("model-proc", None)
         if model_proc:
@@ -334,9 +332,11 @@ with open(args.output, "w") as f:
     f.write("Legal Information\n")
     f.write("----------------\n")
     f.write(
-        "PyTorch, TensorFlow, Caffe, Keras, MXNet are trademarks or brand names of their respective owners.\n"
+        "PyTorch, TensorFlow, Caffe, Keras, MXNet are trademarks or brand names " +
+        "of their respective owners.\n"
     )
     f.write(
-        "All company, product and service names used in this website are for identification purposes only.\n"
+        "All company, product and service names used in this website are for " +
+        "identification purposes only.\n"
     )
     f.write("Use of these names,trademarks and brands does not imply endorsement.\n")

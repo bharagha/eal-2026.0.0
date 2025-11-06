@@ -87,16 +87,6 @@ class TensorTestCase(unittest.TestCase):
         self.assertEqual(tensor.layout_as_string(), "NCHW")
         self.assertEqual(tensor.precision_as_string(), "U8")
 
-        # Currently Tensor.__setitem__ for list -> GValueArray of GstStructure is not implemented (technical issues)
-        # dims = [1, 2, 3]
-        # tensor["dims"] = dims
-        # idx=0
-        # dims = tensor.dims()
-        # print(dims)
-        # for i in dims:
-        #     self.assertEqual(i, libgobject.g_value_get_int(libgobject.g_value_array_get_nth(test_array, ctypes.c_uint(idx)))
-        #     idx += 1
-
     def tearDown(self):
         pass
 
