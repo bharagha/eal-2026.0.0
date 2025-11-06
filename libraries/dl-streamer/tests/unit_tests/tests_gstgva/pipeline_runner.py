@@ -200,8 +200,6 @@ class TestPipelineRunner(TestGenericPipelineRunner):
                         )
                 regions.append(bbox)
             for tensor in frame.tensors():
-                # TODO: add 'is_classification' check for the Tensor using
-                # the 'type' field of this tensor
                 bbox = BBox(0, 0, 1, 1, list())
                 bbox.additional_info.append(
                     {

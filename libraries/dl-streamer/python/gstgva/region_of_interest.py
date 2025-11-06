@@ -14,12 +14,12 @@ import numpy
 from typing import List
 from collections import namedtuple
 
+from gi.repository import GstVideo, GLib, GObject, Gst, GstAnalytics
 from .tensor import Tensor
 from .util import VideoRegionOfInterestMeta
 from .util import libgst, libgobject, libgstvideo, GLIST_POINTER
 
 import gi
-from gi.repository import GstVideo, GLib, GObject, Gst, GstAnalytics
 
 gi.require_version("GstVideo", "1.0")
 gi.require_version("GLib", "2.0")

@@ -85,7 +85,8 @@ class BBox:
 
     def __str__(self):
         return (f"<({self.x_min}, {self.y_min}, {self.x_max}, {self.y_max}), " +
-                f"{self.additional_info}, class_id={self.class_id}, tracker_id={self.tracker_id}>"
+                f"{self.additional_info}, class_id={self.class_id}, " +
+                f"tracker_id={self.tracker_id}>")
 
     @staticmethod
     def IoU(bbox_1, bbox_2):

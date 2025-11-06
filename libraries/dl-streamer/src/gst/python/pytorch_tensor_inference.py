@@ -335,8 +335,6 @@ class InferencePyTorch(GstBase.BaseTransform):
         if not isinstance(preproc, ImageClassification):
             return input_tensors_info
 
-        # TODO: Parse the remaining preprocessing information and pass it to
-        # the preprocessing sub-pipeline
         resize_size = preproc.resize_size
         if len(resize_size) != 1:
             Gst.warning(
