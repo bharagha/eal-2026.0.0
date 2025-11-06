@@ -14,7 +14,7 @@ class TestPipelineManager(unittest.TestCase):
             version="test-pipeline",
             description="A test pipeline",
             type=PipelineType.GSTREAMER,
-            launch_string="gst-launch-1.0 -q filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
+            launch_string="filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
             parameters=None,
         )
 
@@ -37,7 +37,7 @@ class TestPipelineManager(unittest.TestCase):
             version="test-pipeline",
             description="A test pipeline",
             type=PipelineType.GSTREAMER,
-            launch_string="gst-launch-1.0 -q filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
+            launch_string="filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
             parameters=None,
         )
 
@@ -69,4 +69,19 @@ class TestPipelineManager(unittest.TestCase):
         manager = PipelineManager()
         pipelines = manager.get_pipelines()
         self.assertIsInstance(pipelines, list)
-        self.assertEqual(len(pipelines), 2)  # Exactly two predefined pipelines
+        self.assertEqual(len(pipelines), 2)
+
+        self.assertEqual(pipelines[0].name, "predefined_pipelines")
+        self.assertEqual(pipelines[0].version, "SimpleVideoStructurizationPipeline")
+        self.assertEqual(
+            pipelines[0].description, "Simple Video Structurization (D-T-C)"
+        )
+        self.assertIsNotNone(pipelines[0].launch_config)
+
+        self.assertEqual(pipelines[1].name, "predefined_pipelines")
+        self.assertEqual(pipelines[1].version, "SmartNVRPipeline")
+        self.assertEqual(
+            pipelines[1].description,
+            "Smart Network Video Recorder (NVR) Proxy Pipeline",
+        )
+        self.assertIsNotNone(pipelines[1].launch_config)

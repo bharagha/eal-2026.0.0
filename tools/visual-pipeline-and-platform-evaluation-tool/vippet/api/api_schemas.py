@@ -114,6 +114,7 @@ class PipelineInstanceStatus(BaseModel):
     per_stream_fps: Optional[float]
     ai_streams: Optional[int]
     non_ai_streams: Optional[int]
+    error_message: Optional[str]
 
 
 class PipelineInstanceSummary(BaseModel):
@@ -133,7 +134,7 @@ class Device(BaseModel):
 class Model(BaseModel):
     name: str
     display_name: str
-    category: ModelCategory
+    category: Optional[ModelCategory]
     precision: Optional[str]
 
 
@@ -142,3 +143,13 @@ class MetricSample(BaseModel):
     description: str
     timestamp: int
     value: float
+
+
+class Video(BaseModel):
+    filename: str
+    width: int
+    height: int
+    fps: float
+    frame_count: int
+    codec: str
+    duration: float
