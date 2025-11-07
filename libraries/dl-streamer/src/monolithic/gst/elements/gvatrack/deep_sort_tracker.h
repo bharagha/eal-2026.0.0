@@ -23,10 +23,10 @@ namespace DeepSortWrapper {
 
 // Deep SORT specific parameters
 constexpr float DEFAULT_MAX_IOU_DISTANCE = 0.7f;
-constexpr float DEFAULT_MAX_AGE = 70.0f;
+constexpr float DEFAULT_MAX_AGE = 30.0f;
 constexpr int DEFAULT_N_INIT = 3;
 constexpr float DEFAULT_MAX_COSINE_DISTANCE = 0.2f;
-constexpr int DEFAULT_NN_BUDGET = 100;
+constexpr int DEFAULT_NN_BUDGET = 10;
 
 // Track states
 enum class TrackState { Tentative = 1, Confirmed = 2, Deleted = 3 };
@@ -85,13 +85,13 @@ class Track {
     int time_since_update_;
     TrackState state_;
 
-    // Feature storage for cosine distance calculation
-    std::deque<std::vector<float>> features_;
-    int nn_budget_;
-
     // Parameters
     int n_init_;
     int max_age_;
+
+    // Feature storage for cosine distance calculation
+    std::deque<std::vector<float>> features_;
+    int nn_budget_;
 
     void initiate(const cv::Rect_<float> &bbox);
     void predict();
@@ -122,7 +122,7 @@ class FeatureExtractor {
 class DeepSortTracker : public ITracker {
   public:
     DeepSortTracker(const std::string &feature_model_path, const std::string &device = "CPU",
-                    float max_iou_distance = DEFAULT_MAX_IOU_DISTANCE, int max_age = DEFAULT_MAX_AGE,
+                    float max_iou_distance = DEFAULT_MAX_IOU_DISTANCE, float max_age = DEFAULT_MAX_AGE,
                     int n_init = DEFAULT_N_INIT, float max_cosine_distance = DEFAULT_MAX_COSINE_DISTANCE,
                     int nn_budget = DEFAULT_NN_BUDGET, dlstreamer::MemoryMapperPtr mapper = nullptr);
 
@@ -138,7 +138,7 @@ class DeepSortTracker : public ITracker {
 
     // Parameters
     float max_iou_distance_;
-    int max_age_;
+    float max_age_;
     int n_init_;
     float max_cosine_distance_;
     int nn_budget_;

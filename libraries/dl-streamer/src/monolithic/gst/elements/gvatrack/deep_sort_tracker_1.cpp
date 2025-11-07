@@ -160,22 +160,55 @@ FeatureExtractor::FeatureExtractor(const std::string &model_path, const std::str
     // Get input dimensions - handle dynamic shapes
     auto input_port = compiled_model_.input();
 
-    if (model_path.find("resnet18") != std::string::npos) {
+    // input_height_ = 128;
+    // input_width_ = 64;
+    // Check model type and set appropriate input dimensions
+    if (model_path.find("mars-small") != std::string::npos) {
+        input_height_ = 128;
+        input_width_ = 64;
+        // g_print("Detected mars-small model, using default dimensions: %dx%d\n", input_width_, input_height_);
+    } else if (model_path.find("resnet18") != std::string::npos) {
         auto input_shape = input_port.get_shape();
         input_height_ = input_shape[2];
         input_width_ = input_shape[3];
+        // g_print("Detected resnet18 model, using default dimensions: %dx%d\n", input_width_, input_height_);
+        //  Debug: log the actual shape
+        std::string shape_str = "[";
+        for (size_t i = 0; i < input_shape.size(); ++i) {
+            if (i > 0)
+                shape_str += ", ";
+            shape_str += std::to_string(input_shape[i]);
+        }
+        shape_str += "]";
+        // g_print("Model input shape: %s", shape_str.c_str());
 
         // Check if we have enough dimensions and handle dynamic dimensions
         if (input_shape.size() < 4) {
             throw std::runtime_error("Model input must have at least 4 dimensions (NCHW or NHWC)");
         }
 
-        // Static batch size - standard format
-        input_height_ = input_shape[2];
-        input_width_ = input_shape[3];
-
+        // Handle dynamic batch size - extract height and width from static dimensions
+        // For models with dynamic batch (-1), the shape is typically [-1, H, W, C] or [-1, C, H, W]
+        // Dynamic dimensions in OpenVINO are represented as very large unsigned values
+        if (input_shape[0] == 0 || input_shape[0] > 1000000) {
+            // Dynamic batch size detected
+            if (input_shape[1] == 3) {
+                // Format: [-1, C, H, W] - channels first
+                input_height_ = input_shape[2];
+                input_width_ = input_shape[3];
+            } else {
+                // Format: [-1, H, W, C] - channels last
+                input_height_ = input_shape[1];
+                input_width_ = input_shape[2];
+            }
+        } else {
+            // Static batch size - standard format
+            input_height_ = input_shape[2];
+            input_width_ = input_shape[3];
+        }
     } else {
-        GST_ERROR("Not recognized model");
+        // For other models, try to extract from input shape below
+        // g_print("Unknown model type, will extract dimensions from input shape\n");
     }
 
     // Validate extracted dimensions
@@ -183,6 +216,9 @@ FeatureExtractor::FeatureExtractor(const std::string &model_path, const std::str
         throw std::runtime_error("Invalid input dimensions detected from model: " + std::to_string(input_width_) + "x" +
                                  std::to_string(input_height_));
     }
+
+    // g_print("FeatureExtractor initialized: model=%s, device=%s, input_size=%dx%d", model_path.c_str(),
+    // device.c_str(),  input_width_, input_height_);
 }
 
 std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rect &bbox) {
@@ -201,6 +237,8 @@ std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rec
         return std::vector<float>(128, 0.0f);
     }
 
+    g_print("Extracting features for bbox: %dx%d at (%d,%d)\n", bbox.width, bbox.height, bbox.x, bbox.y);
+
     try {
         cv::Mat roi = image(bbox);
         if (roi.empty()) {
@@ -211,8 +249,11 @@ std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rec
         cv::Mat preprocessed = preprocess(roi);
         if (preprocessed.empty()) {
             GST_ERROR("Preprocessing failed, returning zero feature");
+            // g_print("Preprocessing failed for bbox: %dx%d at (%d,%d)\n", bbox.width, bbox.height, bbox.x, bbox.y);
             return std::vector<float>(128, 0.0f);
         }
+
+        // g_print("Extracted feature for bbox: %dx%d at (%d,%d)\n", bbox.width, bbox.height, bbox.x, bbox.y);
 
         // Set input tensor
         auto input_tensor = infer_request_.get_input_tensor();
@@ -230,12 +271,44 @@ std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rec
         std::memcpy(input_data, preprocessed.data, expected_size * sizeof(float));
 
         // Run inference
+        // g_print("running inference to get feature vector...\n");
         infer_request_.infer();
 
         // Get output
         auto output_tensor = infer_request_.get_output_tensor();
+        // g_print("got output tensor after running inference size %lu\n", output_tensor.get_size());
 
         std::vector<float> feature = postprocess(output_tensor);
+
+        // Print the 128-dimensional feature vector for this bbox
+        // g_print("Feature vector for bbox [%d,%d,%d,%d] (%zu dimensions):\n", bbox.x, bbox.y, bbox.width, bbox.height,
+        // feature.size());
+
+        // Option 1: Full detailed output (8 values per line)
+        /* g_print("[ ");
+        for (size_t i = 0; i < feature.size(); ++i) {
+            // g_print("%.6f", feature[i]);
+            if (i < feature.size() - 1)
+                // g_print(", ");
+                if ((i + 1) % 8 == 0 && i < feature.size() - 1)
+            // g_print("\n  "); // New line every 8 values
+        }
+        // g_print(" ]\n");
+        */
+
+        // Option 2: Compact summary (first 5, last 5, and statistics)
+        // g_print("Feature summary: [%.3f, %.3f, %.3f, %.3f, %.3f ... %.3f, %.3f, %.3f, %.3f, %.3f]\n",
+        // feature[0],
+        // feature[1], feature[2], feature[3], feature[4], feature[feature.size() - 5],
+        // feature[feature.size() - 4], feature[feature.size() - 3], feature[feature.size() - 2],
+        // feature[feature.size() - 1]);
+
+        // Option 3: Statistical summary
+        // float min_val = *std::min_element(feature.begin(), feature.end());
+        // float max_val = *std::max_element(feature.begin(), feature.end());
+        // float avg_val = std::accumulate(feature.begin(), feature.end(), 0.0f) / feature.size();
+        // g_print("Feature stats: min=%.6f, max=%.6f, avg=%.6f, norm=%.6f\n", min_val, max_val, avg_val,
+        // std::sqrt(std::inner_product(feature.begin(), feature.end(), feature.begin(), 0.0f)));
 
         return feature;
 
@@ -258,6 +331,8 @@ std::vector<std::vector<float>> FeatureExtractor::extract_batch(const cv::Mat &i
 }
 
 cv::Mat FeatureExtractor::preprocess(const cv::Mat &image) {
+    // g_print("Starting preprocess with image: %dx%d, channels=%d, type=%d\n", image.cols, image.rows,
+    // image.channels(),   image.type());
 
     // Basic safety check
     if (image.empty()) {
@@ -286,6 +361,11 @@ cv::Mat FeatureExtractor::preprocess(const cv::Mat &image) {
             return cv::Mat();
         }
 
+        // Debug information
+        // g_print("Input image: %dx%d, target: %dx%d\n", image.cols, image.rows, input_width_, input_height_);
+        // g_print("Normalized: %dx%d, channels: %d\n", normalized.cols, normalized.rows,
+        // normalized.channels());
+
         // Manual pixel-by-pixel copying with maximum safety
         int channels = normalized.channels();
         cv::Mat result = cv::Mat::zeros(1, channels * input_height_ * input_width_, CV_32F);
@@ -312,6 +392,7 @@ cv::Mat FeatureExtractor::preprocess(const cv::Mat &image) {
             return cv::Mat();
         }
 
+        // g_print("Preprocessing completed, result: %dx%d\n", result.rows, result.cols);
         return result;
     } catch (const cv::Exception &e) {
         GST_ERROR("OpenCV exception in preprocess: %s", e.what());
@@ -378,6 +459,9 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
     cv::Mat image;
     dlstreamer::ImageFormat format = static_cast<dlstreamer::ImageFormat>(sys_buffer->format());
 
+    // g_print("Input frame format: %d, channels: %d, size: %dx%d\n", static_cast<int>(format), raw_image.channels(),
+    // raw_image.cols, raw_image.rows);
+
     // Convert color space based on input format
     switch (format) {
     case dlstreamer::ImageFormat::BGR:
@@ -411,6 +495,9 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
     auto regions = frame_meta.regions();
 
     // Convert GVA regions to detections with feature extraction
+    // g_print("convert_detections with image: %dx%d, channels=%d, type=%d | regions size=%ld\n", image.cols,
+    // image.rows, image.channels(), image.type(), regions.size());
+
     std::vector<Detection> detections = convert_detections(image, regions);
 
     // Predict existing tracks
@@ -423,14 +510,20 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
     std::vector<int> unmatched_dets, unmatched_trks;
     associate_detections_to_tracks(detections, matches, unmatched_dets, unmatched_trks);
 
+    for (auto &region : regions) {
+        // region.set_object_id(55);
+    }
+
     //  Update matched tracks and assign object IDs to existing regions
     for (const auto &match : matches) {
+        g_print("Updating track %d with detection %d\n", match.second, match.first);
         tracks_[match.second]->update(detections[match.first]);
 
         // Assign tracking ID to the existing region only if track is confirmed
         // This follows Deep SORT convention where only confirmed tracks get persistent IDs
         if (match.first < static_cast<int>(regions.size()) && tracks_[match.second]->is_confirmed()) {
             regions[match.first].set_object_id(tracks_[match.second]->track_id());
+            g_print("assigning tracking ID %d to region %d\n", tracks_[match.second]->track_id(), match.first);
         }
     }
 
@@ -445,12 +538,13 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
         auto new_track = std::make_unique<Track>(detections[det_idx].bbox, next_id_++, n_init_, max_age_,
                                                  detections[det_idx].feature);
 #endif
+        // g_print("Creating new track %d for unmatched detection %d\n", new_track->track_id(), det_idx);
         int new_track_id = new_track->track_id();
         tracks_.push_back(std::move(new_track));
 
         // Note: For Deep SORT, we typically don't assign IDs to new tracks immediately
         // They need to be confirmed first (survive for n_init frames)
-        // Testing immediate ID assignment:
+        // Uncomment the following lines if you want immediate ID assignment:
         if (det_idx < static_cast<int>(regions.size())) {
             regions[det_idx].set_object_id(new_track_id);
         }
@@ -460,6 +554,9 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
     tracks_.erase(std::remove_if(tracks_.begin(), tracks_.end(),
                                  [](const std::unique_ptr<Track> &track) { return track->is_deleted(); }),
                   tracks_.end());
+
+    // Note: We no longer need to create new regions or update metadata separately
+    // since we're directly updating the existing regions with tracking IDs
 }
 
 std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
@@ -469,6 +566,7 @@ std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
 
     for (const auto &region : regions) {
         cv::Rect bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
+        // g_print("Region: [%d, %d, %d, %d]\n", bbox.x, bbox.y, bbox.width, bbox.height);
         bboxes.push_back(bbox);
     }
 
@@ -487,6 +585,9 @@ std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
     auto features = feature_extractor_->extract_batch(image, bboxes);
 #endif
 
+    // g_print("=== FEATURE EXTRACTION SUMMARY ===\n");
+    // g_print("Total detections: %zu\n", regions.size());
+
     for (size_t i = 0; i < regions.size(); ++i) {
         const auto &region = regions[i];
         cv::Rect_<float> bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
@@ -502,6 +603,7 @@ std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
 
         detections.emplace_back(bbox, confidence, features[i], -1);
     }
+    // g_print("=== END FEATURE SUMMARY ===\n");
 
     return detections;
 }
@@ -550,6 +652,11 @@ void DeepSortTracker::associate_detections_to_tracks(const std::vector<Detection
                 float cosine_dist = calculate_cosine_distance(detections[det_idx].feature, track_feature);
                 min_cosine_dist = std::min(min_cosine_dist, cosine_dist);
             }
+
+            // Debug: print feature comparison details
+            // g_print("Detection %zu vs Track %zu: IoU=%.3f, cosine_dist=%.3f, cost=%.3f\n", det_idx, trk_idx, iou,
+            // min_cosine_dist, (min_cosine_dist > max_cosine_distance_) ? 1.0f : 0.5f * (1.0f - iou) + 0.5f *
+            // min_cosine_dist);
 
             if (min_cosine_dist > max_cosine_distance_) {
                 cost_matrix[det_idx][trk_idx] = 1.0f; // No match
@@ -610,6 +717,8 @@ void DeepSortTracker::hungarian_assignment(const std::vector<std::vector<float>>
     std::vector<bool> det_assigned(cost_matrix.size(), false);
     std::vector<bool> trk_assigned(cost_matrix.empty() ? 0 : cost_matrix[0].size(), false);
 
+    g_print("running Hungarian assignment\n");
+
     for (size_t det_idx = 0; det_idx < cost_matrix.size(); ++det_idx) {
         if (det_assigned[det_idx])
             continue;
@@ -628,6 +737,7 @@ void DeepSortTracker::hungarian_assignment(const std::vector<std::vector<float>>
         }
 
         if (best_trk >= 0 && min_cost < 0.5f) { // Threshold for assignment
+            g_print("running Hungarian assignment: det_idx %ld -> best_trk %d\n", det_idx, best_trk);
             assignments.emplace_back(det_idx, best_trk);
             det_assigned[det_idx] = true;
             trk_assigned[best_trk] = true;
