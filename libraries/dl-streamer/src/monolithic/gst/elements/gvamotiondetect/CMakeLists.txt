@@ -1,3 +1,9 @@
+# ==============================================================================
+# Copyright (C) 2021-2025 Intel Corporation
+#
+# SPDX-License-Identifier: MIT
+# ==============================================================================
+
 cmake_minimum_required(VERSION 3.16)
 include(GNUInstallDirs)
 find_package(PkgConfig REQUIRED)
