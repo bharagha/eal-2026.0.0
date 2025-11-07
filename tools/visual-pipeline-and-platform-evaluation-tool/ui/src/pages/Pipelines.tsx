@@ -31,7 +31,7 @@ const Pipelines = () => {
   const { data, isSuccess } = useGetPipelineQuery(
     {
       name: "predefined_pipelines",
-      version: id!,
+      version: id ?? "",
     },
     {
       skip: !id,

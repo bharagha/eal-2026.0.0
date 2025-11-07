@@ -11,7 +11,7 @@ export const gvaTrackConfig = {
       label: "Tracking type",
       type: "select" as const,
       options: GVA_TRACKING_TYPES,
-      defaultValue: "json",
+      defaultValue: GVA_TRACKING_TYPES[0],
       description:
         "Tracking algorithm used to identify the same object in multiple frames",
     },
