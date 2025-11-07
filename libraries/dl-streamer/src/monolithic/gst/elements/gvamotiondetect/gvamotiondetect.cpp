@@ -78,16 +78,12 @@ struct _GstGvaMotionDetect {
     cv::UMat prev_small_gray; // previous downscaled grayscale for coarse motion
 
     // Block-based motion detection parameters (coarse grid)
-    int block_size;        // size in pixels at full resolution for grid blocks
+    int block_size;          // size in pixels at full resolution for grid blocks
     double motion_threshold; // ratio of changed pixels per block (0..1)
 };
 
 // Property identifiers
-enum {
-    PROP_0,
-    PROP_BLOCK_SIZE,
-    PROP_MOTION_THRESHOLD
-};
+enum { PROP_0, PROP_BLOCK_SIZE, PROP_MOTION_THRESHOLD };
 
 // GObject property handlers
 static void gst_gva_motion_detect_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec) {
@@ -180,7 +176,6 @@ static GstCaps *gst_gva_motion_detect_transform_caps(GstBaseTransform *, GstPadD
     return ret;
 }
 
-
 // -----------------------------------------------------------------------------
 // VA API helper functions (extracted from transform_ip for clarity)
 // -----------------------------------------------------------------------------
@@ -204,7 +199,6 @@ static VASurfaceID gva_motion_detect_get_surface(GstGvaMotionDetect *self, GstBu
     }
     return VA_INVALID_SURFACE;
 }
-
 
 // Convert VA surface to cv::UMat (GPU backed); returns false on failure
 static bool gva_motion_detect_convert_from_surface(GstGvaMotionDetect *self, VASurfaceID sid, int width, int height,
@@ -513,20 +507,24 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
     int block_full = std::max(16, self->block_size); // clamp
     int block_small_w = std::max(4, (int)std::round(block_full / scale_x));
     int block_small_h = std::max(4, (int)std::round(block_full / scale_y));
-    const double CHANGE_RATIO_THR = std::max(0.0, std::min(1.0, self->motion_threshold)); // fraction of changed pixels within block (property)
+    const double CHANGE_RATIO_THR =
+        std::max(0.0, std::min(1.0, self->motion_threshold)); // fraction of changed pixels within block (property)
     cv::Mat morph_cpu = morph_small.getMat(cv::ACCESS_READ);
 
     for (int by = 0; by < small_h; by += block_small_h) {
         int h_small = std::min(block_small_h, small_h - by);
-        if (h_small < 4) break;
+        if (h_small < 4)
+            break;
         for (int bx = 0; bx < small_w; bx += block_small_w) {
             int w_small = std::min(block_small_w, small_w - bx);
-            if (w_small < 4) break;
+            if (w_small < 4)
+                break;
             cv::Rect r_small(bx, by, w_small, h_small);
             cv::Mat sub = morph_cpu(r_small);
             int changed = cv::countNonZero(sub);
             double ratio = (double)changed / (double)(r_small.width * r_small.height);
-            if (ratio < CHANGE_RATIO_THR) continue; // insufficient motion in block
+            if (ratio < CHANGE_RATIO_THR)
+                continue; // insufficient motion in block
 
             // Scale to full-res
             int fx = (int)std::round(r_small.x * scale_x);
@@ -535,16 +533,21 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
             int fh = (int)std::round(r_small.height * scale_y);
 
             double area_full = (double)fw * (double)fh;
-            if (area_full / full_area < MIN_REL_AREA) continue; // too small
+            if (area_full / full_area < MIN_REL_AREA)
+                continue; // too small
 
             // Pad a little
             const int PAD = 4;
-            fx = std::max(0, fx - PAD); fy = std::max(0, fy - PAD);
-            fw = std::min(width - fx, fw + 2 * PAD); fh = std::min(height - fy, fh + 2 * PAD);
+            fx = std::max(0, fx - PAD);
+            fy = std::max(0, fy - PAD);
+            fw = std::min(width - fx, fw + 2 * PAD);
+            fh = std::min(height - fy, fh + 2 * PAD);
 
             // Clamp
-            if (fx + fw > width) fw = width - fx;
-            if (fy + fh > height) fh = height - fy;
+            if (fx + fw > width)
+                fw = width - fx;
+            if (fy + fh > height)
+                fh = height - fy;
 
             rois.push_back(MotionRect{fx, fy, fw, fh});
         }
@@ -558,10 +561,12 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
             std::vector<MotionRect> out;
             std::vector<bool> used(rois.size(), false);
             for (size_t i = 0; i < rois.size(); ++i) {
-                if (used[i]) continue;
+                if (used[i])
+                    continue;
                 MotionRect a = rois[i];
                 for (size_t j = i + 1; j < rois.size(); ++j) {
-                    if (used[j]) continue;
+                    if (used[j])
+                        continue;
                     MotionRect b = rois[j];
                     int ax2 = a.x + a.w, ay2 = a.y + a.h;
                     int bx2 = b.x + b.w, by2 = b.y + b.h;
@@ -585,7 +590,8 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
     if (!rois.empty()) {
         post_processing::TensorsTable tensors = build_motion_tensors(rois);
         post_processing::FramesWrapper frames(buf, "gvamotiondetect", nullptr);
-        post_processing::ROIToFrameAttacher attacher; DummyBlobToMetaConverter dummy;
+        post_processing::ROIToFrameAttacher attacher;
+        DummyBlobToMetaConverter dummy;
         attacher.attach(tensors, frames, dummy);
         GST_INFO_OBJECT(self, "Coarse motion ROIs attached: %zu", rois.size());
     }
@@ -640,14 +646,14 @@ static void gst_gva_motion_detect_class_init(GstGvaMotionDetectClass *klass) {
     g_object_class_install_property(
         oclass, PROP_BLOCK_SIZE,
         g_param_spec_int("block-size", "Block Size",
-                         "Full-resolution block size (pixels) used for grid motion detection",
-                         16, 512, 64, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+                         "Full-resolution block size (pixels) used for grid motion detection", 16, 512, 64,
+                         (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
-    g_object_class_install_property(
-        oclass, PROP_MOTION_THRESHOLD,
-        g_param_spec_double("motion-threshold", "Motion Threshold",
-                            "Per-block changed pixel ratio required to flag motion (0..1)",
-                            0.0, 1.0, 0.05, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(oclass, PROP_MOTION_THRESHOLD,
+                                    g_param_spec_double("motion-threshold", "Motion Threshold",
+                                                        "Per-block changed pixel ratio required to flag motion (0..1)",
+                                                        0.0, 1.0, 0.05,
+                                                        (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 }
 
 static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
@@ -656,7 +662,7 @@ static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
     self->blur_kernel = 21;
     self->blur_sigma = 5.0;
     self->frame_index = 0;
-    self->block_size = 64; // default
+    self->block_size = 64;         // default
     self->motion_threshold = 0.05; // default changed pixel ratio
 }
 
