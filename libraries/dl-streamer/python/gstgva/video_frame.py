@@ -5,20 +5,23 @@
 # ==============================================================================
 
 ## @file video_frame.py
-#  @brief This file contains gstgva.video_frame.VideoFrame class to control particular
-# inferenced frame and attached gstgva.region_of_interest.RegionOfInterest and
-# gstgva.tensor.Tensor instances
+#  @brief This file contains gstgva.video_frame.VideoFrame class to control particular inferenced frame
+# and attached gstgva.region_of_interest.RegionOfInterest and gstgva.tensor.Tensor instances
 
-# pylint: disable=missing-module-docstring
-
+import ctypes
+import numpy
 from contextlib import contextmanager
 from typing import List
 from warnings import warn
 import json
-import ctypes
-import numpy
 
 import gi
+
+gi.require_version("Gst", "1.0")
+gi.require_version("GstVideo", "1.0")
+gi.require_version("GObject", "2.0")
+gi.require_version("GstAnalytics", "1.0")
+gi.require_version("GLib", "2.0")
 
 from gi.repository import Gst, GstVideo, GstAnalytics, GLib
 from .util import VideoRegionOfInterestMeta
@@ -29,22 +32,13 @@ from .region_of_interest import RegionOfInterest
 from .tensor import Tensor
 from .util import libgst, gst_buffer_data, VideoInfoFromCaps
 
-gi.require_version("Gst", "1.0")
-gi.require_version("GstVideo", "1.0")
-gi.require_version("GObject", "2.0")
-gi.require_version("GstAnalytics", "1.0")
-gi.require_version("GLib", "2.0")
 
-
-## @brief This class represents video frame - object for working with RegionOfInterest and
-# Tensor objects which belong to this video frame (image). RegionOfInterest describes
-# detected object (bounding boxes) and its Tensor objects (inference results on
-# RegionOfInterest level). Tensor describes inference results on VideoFrame level.
-# VideoFrame also provides access to underlying GstBuffer and GstVideoInfo describing frame's
-# video information (such as image width, height, channels, strides, etc.).
-# You also can get cv::Mat object representing this video frame.
+## @brief This class represents video frame - object for working with RegionOfInterest and Tensor objects which
+# belong to this video frame (image). RegionOfInterest describes detected object (bounding boxes) and its Tensor
+# objects (inference results on RegionOfInterest level). Tensor describes inference results on VideoFrame level.
+# VideoFrame also provides access to underlying GstBuffer and GstVideoInfo describing frame's video information (such
+# as image width, height, channels, strides, etc.). You also can get cv::Mat object representing this video frame.
 class VideoFrame:
-    # pylint: disable=missing-class-docstring
     ## @brief Construct VideoFrame instance from Gst.Buffer and GstVideo.VideoInfo or Gst.Caps.
     #  The preferred way of creating VideoFrame is to use Gst.Buffer and GstVideo.VideoInfo
     #  @param buffer Gst.Buffer to which metadata is attached and retrieved
@@ -75,26 +69,21 @@ class VideoFrame:
     ## @brief Get video metadata of buffer
     #  @return GstVideo.VideoMeta of buffer, nullptr if no GstVideo.VideoMeta available
     def video_meta(self) -> GstVideo.VideoMeta:
-        # pylint: disable=missing-function-docstring
         return GstVideo.buffer_get_video_meta(self.__buffer)
 
-    ## @brief Get GstVideo.VideoInfo of this VideoFrame. This is preferrable way of
-    # getting any image information
+    ## @brief Get GstVideo.VideoInfo of this VideoFrame. This is preferrable way of getting any image information
     #  @return GstVideo.VideoInfo of this VideoFrame
     def video_info(self) -> GstVideo.VideoInfo:
-        # pylint: disable=missing-function-docstring
         return self.__video_info
 
     ## @brief Get RegionOfInterest objects attached to VideoFrame
     #  @return iterator of RegionOfInterest objects attached to VideoFrame
     def regions(self):
-        # pylint: disable=missing-function-docstring
         return RegionOfInterest._iterate(self.__buffer)
 
     ## @brief Get Tensor objects attached to VideoFrame
     #  @return iterator of Tensor objects attached to VideoFrame
     def tensors(self):
-        # pylint: disable=missing-function-docstring
         return Tensor._iterate(self.__buffer)
 
     ## @brief Attach RegionOfInterest to this VideoFrame
@@ -105,9 +94,8 @@ class VideoFrame:
     #  @param label object label
     #  @param confidence detection confidence
     #  @param region_tensor base tensor for detection Tensor which will be added to this new
-    #  @param normalized if True, input coordinates are assumed to be normalized
-    # (in [0,1] interval). If False, input coordinates are assumed to be expressed in pixels
-    # (this is behavior by default)
+    #  @param normalized if True, input coordinates are assumed to be normalized (in [0,1] interval).
+    # If False, input coordinates are assumed to be expressed in pixels (this is behavior by default)
     #  @return new RegionOfInterest instance
 
     def add_region(
@@ -121,8 +109,6 @@ class VideoFrame:
         normalized: bool = False,
         extra_params=None,
     ) -> RegionOfInterest:
-        # pylint: disable=missing-function-docstring,too-many-arguments
-        # pylint: disable=too-many-positional-arguments,too-many-locals
         if normalized:
             x = int(x * self.video_info().width)
             y = int(y * self.video_info().height)
@@ -133,9 +119,9 @@ class VideoFrame:
             x_init, y_init, w_init, h_init = x, y, w, h
             x, y, w, h = self.__clip(x, y, w, h)
             warn(
-                "ROI coordinates [x, y, w, h] are out of image borders and " + 
-                f"will be clipped: [{x_init}, {y_init}, {w_init}, {h_init}] -> " +
-                f"[{x}, {y}, {w}, {h}]", stacklevel=2
+                "ROI coordinates [x, y, w, h] are out of image borders and will be clipped: [{}, {}, {}, {}] -> "
+                "[{}, {}, {}, {}]".format(x_init, y_init, w_init, h_init, x, y, w, h),
+                stacklevel=2,
             )
 
         relation_meta = GstAnalytics.buffer_add_analytics_relation_meta(self.__buffer)
@@ -161,7 +147,9 @@ class VideoFrame:
         video_roi_meta.id = od_mtd.id
         roi = RegionOfInterest(
             od_mtd,
-            ctypes.cast(hash(video_roi_meta), ctypes.POINTER(VideoRegionOfInterestMeta)).contents,
+            ctypes.cast(
+                hash(video_roi_meta), ctypes.POINTER(VideoRegionOfInterestMeta)
+            ).contents,
         )
 
         tensor_structure = libgst.gst_structure_new_empty("detection".encode("utf-8"))
@@ -183,7 +171,6 @@ class VideoFrame:
     ## @brief Attach empty Tensor to this VideoFrame
     #  @return new Tensor instance
     def add_tensor(self) -> Tensor:
-        # pylint: disable=missing-function-docstring
         tensor_meta = GVATensorMeta.add_tensor_meta(self.__buffer)
         if tensor_meta:
             return Tensor(tensor_meta.data)
@@ -192,19 +179,18 @@ class VideoFrame:
     ## @brief Get messages attached to this VideoFrame
     #  @return messages attached to this VideoFrame
     def messages(self) -> List[str]:
-        # pylint: disable=missing-function-docstring
-        return [json_meta.get_message() for json_meta in GVAJSONMeta.iterate(self.__buffer)]
+        return [
+            json_meta.get_message() for json_meta in GVAJSONMeta.iterate(self.__buffer)
+        ]
 
     ## @brief Attach message to this VideoFrame
     #  @param message message to attach to this VideoFrame
     def add_message(self, message: str):
-        # pylint: disable=missing-function-docstring
         GVAJSONMeta.add_json_meta(self.__buffer, message)
 
     ## @brief Remove message from this VideoFrame
     #  @param message message to remove
     def remove_message(self, message: str):
-        # pylint: disable=missing-function-docstring
         if not isinstance(message, GVAJSONMetaStr) or not GVAJSONMeta.remove_json_meta(
             self.__buffer, message.meta
         ):
@@ -213,8 +199,9 @@ class VideoFrame:
     ## @brief Remove region with the specified index
     #  @param roi Region to remove
     def remove_region(self, roi) -> None:
-        # pylint: disable=missing-function-docstring
-        if not libgst.gst_buffer_remove_meta(hash(self.__buffer), ctypes.byref(roi.meta())):
+        if not libgst.gst_buffer_remove_meta(
+            hash(self.__buffer), ctypes.byref(roi.meta())
+        ):
             raise RuntimeError(
                 "VideoFrame: Underlying GstVideoRegionOfInterestMeta for RegionOfInterest "
                 "doesn't belong to this VideoFrame"
@@ -224,7 +211,6 @@ class VideoFrame:
     #  @return numpy array instance
     @contextmanager
     def data(self, flag: Gst.MapFlags = Gst.MapFlags.READ) -> numpy.ndarray:
-        # pylint: disable=missing-function-docstring
         with gst_buffer_data(self.__buffer, flag) as data:
             # pixel stride for 1st plane. works well for for 1-plane formats, like BGR, BGRA, BGRx
             bytes_per_pix = self.__video_info.finfo.pixel_stride[0]
@@ -249,36 +235,43 @@ class VideoFrame:
 
             if mapped_data_size != requested_size:
                 warn(
-                    f"Size of buffer's data: {mapped_data_size}, " +
-                    f"and requested size: {requested_size}\n" +
-                    "Let to get shape from video meta...", stacklevel=2
+                    "Size of buffer's data: {}, and requested size: {}\n"
+                    "Let to get shape from video meta...".format(
+                        mapped_data_size, requested_size
+                    ),
+                    stacklevel=2,
                 )
                 meta = self.video_meta()
                 if meta:
                     h, w = meta.height, meta.width
                     requested_size = h * w * bytes_per_pix
                 else:
-                    warn(f"Video meta is {meta}. Can't get shape.", stacklevel=2)
+                    warn(
+                        "Video meta is {}. Can't get shape.".format(meta), stacklevel=2
+                    )
 
             try:
                 if mapped_data_size < requested_size:
                     raise RuntimeError("VideoFrame.data: Corrupted buffer")
-                if mapped_data_size == requested_size:
-                    yield numpy.ndarray((h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8)
-                if is_yuv_format:
-                    # In some cases image size after mapping can be larger than expected
-                    # image size. One of the reasons can be vaapi decoder which appends
-                    # lines to the end of an image so the height is multiple of 16.
-                    # So we need to return an image that has the same resolution as
-                    # in video_info. That's why we drop extra lines added by decoder.
+                elif mapped_data_size == requested_size:
+                    yield numpy.ndarray(
+                        (h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8
+                    )
+                elif is_yuv_format:
+                    # In some cases image size after mapping can be larger than expected image size.
+                    # One of the reasons can be vaapi decoder which appends lines to the end of an image
+                    # so the height is multiple of 16. So we need to return an image that has the same
+                    # resolution as in video_info. That's why we drop extra lines added by decoder.
                     yield self.__repack_video_frame(data)
-
-                raise RuntimeError("VideoFrame.data: Corrupted buffer")
+                else:
+                    raise RuntimeError("VideoFrame.data: Corrupted buffer")
             except TypeError as e:
                 warn(
-                    str(e) +
-                    f"\nSize of buffer's data: {mapped_data_size}, " +
-                    f"and requested size: {requested_size}", stacklevel=2
+                    str(e)
+                    + "\nSize of buffer's data: {}, and requested size: {}".format(
+                        mapped_data_size, requested_size
+                    ),
+                    stacklevel=2,
                 )
                 raise e
 
@@ -307,7 +300,9 @@ class VideoFrame:
         n_planes = self.__video_info.finfo.n_planes
         if n_planes not in [2, 3]:
             raise RuntimeError(
-                f"VideoFrame.__repack_video_frame: Unsupported number of planes {n_planes}"
+                "VideoFrame.__repack_video_frame: Unsupported number of planes {}".format(
+                    n_planes
+                )
             )
 
         h, w = self.__video_info.height, self.__video_info.width
@@ -346,7 +341,9 @@ class VideoFrame:
 
     @staticmethod
     def __extract_plane(data_ptr, data_size, shape):
-        plane_raw = ctypes.cast(data_ptr, ctypes.POINTER(ctypes.c_byte * data_size)).contents
+        plane_raw = ctypes.cast(
+            data_ptr, ctypes.POINTER(ctypes.c_byte * data_size)
+        ).contents
         return numpy.ndarray(shape, buffer=plane_raw, dtype=numpy.uint8)
 
     @staticmethod
