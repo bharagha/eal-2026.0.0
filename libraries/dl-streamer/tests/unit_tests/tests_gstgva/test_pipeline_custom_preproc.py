@@ -18,7 +18,7 @@ D_MODEL_PATH = get_model_path(D_MODEL_NAME)
 
 D_OPENCV_PIPELINE_STR = f"""
 appsrc name=mysrc
-! jpegparse ! jpegdec
+! decodebin3 ! queue
 ! gvadetect pre-process-backend=opencv device=CPU model={D_MODEL_PATH} threshold=0.9
 ! appsink name=mysink emit-signals=true sync=false
 """
@@ -56,7 +56,7 @@ C_MODEL_PROC_PATH = os.path.join(SCRIPT_DIR, "test_files", "imagenet_custom_pre_
 
 C_OPENCV_PIPELINE_STR = f"""
 appsrc name=mysrc
-! jpegparse ! jpegdec
+! decodebin3 ! queue
 ! gvaclassify inference-region=full-frame pre-process-backend=opencv device=CPU model={C_MODEL_PATH} model-proc={C_MODEL_PROC_PATH}
 ! appsink name=mysink emit-signals=true sync=false
 """
