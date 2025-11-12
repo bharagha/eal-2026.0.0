@@ -74,6 +74,19 @@ class Track {
         return features_;
     }
 
+    std::string state_str() const {
+        switch (state_) {
+        case TrackState::Tentative:
+            return "Tentative";
+        case TrackState::Confirmed:
+            return "Confirmed";
+        case TrackState::Deleted:
+            return "Deleted";
+        default:
+            return "Unknown";
+        }
+    }
+
   private:
     // Kalman filter state
     cv::Mat mean_;

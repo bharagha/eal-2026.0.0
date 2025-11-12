@@ -125,7 +125,7 @@ void Track::update(const Detection &detection) {
 
 void Track::mark_missed() {
     if (state_ == TrackState::Tentative) {
-        state_ = TrackState::Deleted;
+        state_ = TrackState::Tentative; // Deleted;
     } else if (time_since_update_ > max_age_) {
         state_ = TrackState::Deleted;
     }
@@ -426,6 +426,15 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
     //  Update matched tracks and assign object IDs to existing regions
     for (const auto &match : matches) {
         tracks_[match.second]->update(detections[match.first]);
+        auto &detection = detections[match.first];
+        auto &track = tracks_[match.second];
+        cv::Rect_<float> track_bbox = track->to_bbox();
+
+        g_print("{%s} Updating matched tracks: det-bbox[%d][%.1f,%.1f,%.1fx%.1f], trk-bbox[%d][%.1f,%.1f,%.1fx%.1f], "
+                "track_id=%d, track_state=%s\n",
+                __FUNCTION__, match.first, detection.bbox.x, detection.bbox.y, detection.bbox.width,
+                detection.bbox.height, match.second, track_bbox.x, track_bbox.y, track_bbox.width, track_bbox.height,
+                track->track_id(), track->state_str().c_str());
 
         // Assign tracking ID to the existing region only if track is confirmed
         // This follows Deep SORT convention where only confirmed tracks get persistent IDs
@@ -446,20 +455,23 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
                                                  detections[det_idx].feature);
 #endif
         int new_track_id = new_track->track_id();
+        std::string track_state = new_track->state_str();
         tracks_.push_back(std::move(new_track));
+        g_print("{%s} New track created: ID=%d, bbox[%.1f, %.1f, %.1f x %.1f], state=%s\n", __FUNCTION__, new_track_id,
+                detections[det_idx].bbox.x, detections[det_idx].bbox.y, detections[det_idx].bbox.width,
+                detections[det_idx].bbox.height, track_state.c_str());
 
         // Note: For Deep SORT, we typically don't assign IDs to new tracks immediately
         // They need to be confirmed first (survive for n_init frames)
         // Testing immediate ID assignment:
         if (det_idx < static_cast<int>(regions.size())) {
-            regions[det_idx].set_object_id(new_track_id);
+            // regions[det_idx].set_object_id(new_track_id);
         }
     }
 
     // Remove deleted tracks
-    tracks_.erase(std::remove_if(tracks_.begin(), tracks_.end(),
-                                 [](const std::unique_ptr<Track> &track) { return track->is_deleted(); }),
-                  tracks_.end());
+    // tracks_.erase(std::remove_if(tracks_.begin(), tracks_.end(),[](const std::unique_ptr<Track> &track) { return
+    // track->is_deleted(); }), tracks_.end());
 }
 
 std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
@@ -493,11 +505,11 @@ std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
         float confidence = region.confidence();
 
 #if DISABLE_FEATURE_EXTRACTION
-        g_print("Detection %zu: bbox[%d,%d,%d,%d], confidence=%.3f, feature_extraction=DISABLED\n", i, (int)bbox.x,
-                (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence);
+        g_print("{%s} Detection %zu: bbox[%.1f, %.1f, %.1f x %.1f], confidence=%.3f, feature_extraction=DISABLED\n",
+                __FUNCTION__, i, bbox.x, bbox.y, bbox.width, bbox.height, confidence);
 #else
-        g_print("Detection %zu: bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu\n", i, (int)bbox.x, (int)bbox.y,
-                (int)bbox.width, (int)bbox.height, confidence, features[i].size());
+        g_print("{%s} Detection %zu: bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu\n", __FUNCTION__, i,
+                (int)bbox.x, (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence, features[i].size());
 #endif
 
         detections.emplace_back(bbox, confidence, features[i], -1);
@@ -527,13 +539,19 @@ void DeepSortTracker::associate_detections_to_tracks(const std::vector<Detection
     for (size_t det_idx = 0; det_idx < detections.size(); ++det_idx) {
         for (size_t trk_idx = 0; trk_idx < tracks_.size(); ++trk_idx) {
             if (!tracks_[trk_idx]->is_confirmed()) {
-                continue;
+                // continue;
             }
 
             cv::Rect_<float> track_bbox = tracks_[trk_idx]->to_bbox();
             float iou = calculate_iou(detections[det_idx].bbox, track_bbox);
+            g_print(
+                "{%s} Detection vs Track : det_bbox[%zu][%.1f, %.1f, %.1f, %.1f] vs track_bbox[%zu][%.1f, %.1f, %.1f, "
+                "%.1f] ; iou=%.3f\n",
+                __FUNCTION__, det_idx, detections[det_idx].bbox.x, detections[det_idx].bbox.y,
+                detections[det_idx].bbox.width, detections[det_idx].bbox.height, trk_idx, track_bbox.x, track_bbox.y,
+                track_bbox.width, track_bbox.height, iou);
 
-            if (iou > max_iou_distance_) {
+            if (iou < max_iou_distance_) {
                 cost_matrix[det_idx][trk_idx] = 1.0f; // No match
                 continue;
             }
