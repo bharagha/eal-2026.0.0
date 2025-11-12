@@ -212,26 +212,26 @@ class VideoFrame:
     @contextmanager
     def data(self, flag: Gst.MapFlags = Gst.MapFlags.READ) -> numpy.ndarray:
         with gst_buffer_data(self.__buffer, flag) as data:
-            # pixel stride for 1st plane. works well for for 1-plane formats, like BGR, BGRA, BGRx
-            bytes_per_pix = self.__video_info.finfo.pixel_stride[0]
             is_yuv_format = self.__video_info.finfo.format in [
                 GstVideo.VideoFormat.NV12,
                 GstVideo.VideoFormat.I420,
             ]
             w = self.__video_info.width
+            h = self.__video_info.height
             if is_yuv_format:
-                h = int(self.__video_info.height * 1.5)
+                bytes_per_pix = 1.5
+            elif self.__video_info.finfo.format == GstVideo.VideoFormat.BGR:
+                bytes_per_pix = 3
             elif self.__video_info.finfo.format in [
-                GstVideo.VideoFormat.BGR,
                 GstVideo.VideoFormat.BGRA,
-                GstVideo.VideoFormat.BGRX,
+                GstVideo.VideoFormat.BGRX
             ]:
-                h = self.__video_info.height
+                bytes_per_pix = 4
             else:
                 raise RuntimeError("VideoFrame.data: Unsupported format")
 
             mapped_data_size = len(data)
-            requested_size = h * w * bytes_per_pix
+            requested_size = int(h * w * bytes_per_pix)
 
             if mapped_data_size != requested_size:
                 warn(
