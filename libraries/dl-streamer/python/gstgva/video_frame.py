@@ -212,41 +212,32 @@ class VideoFrame:
     @contextmanager
     def data(self, flag: Gst.MapFlags = Gst.MapFlags.READ) -> numpy.ndarray:
         with gst_buffer_data(self.__buffer, flag) as data:
-            is_nv12_format = self.__video_info.finfo.format in [
-                GstVideo.VideoFormat.NV12
+            # pixel stride for 1st plane. works well for for 1-plane formats, like BGR, BGRA, BGRx
+            bytes_per_pix = self.__video_info.finfo.pixel_stride[0]
+            is_yuv_format = self.__video_info.finfo.format in [
+                GstVideo.VideoFormat.NV12,
+                GstVideo.VideoFormat.I420,
             ]
             w = self.__video_info.width
-            h = self.__video_info.height
-            if is_nv12_format:
-                bytes_per_pix = 1.5
+            if is_yuv_format:
+                h = int(self.__video_info.height * 1.5)
             elif self.__video_info.finfo.format in [
                 GstVideo.VideoFormat.BGR,
-                GstVideo.VideoFormat.I420
-            ]:
-                bytes_per_pix = 3
-            elif self.__video_info.finfo.format in [
                 GstVideo.VideoFormat.BGRA,
-                GstVideo.VideoFormat.BGRX
+                GstVideo.VideoFormat.BGRX,
             ]:
-                bytes_per_pix = 4
+                h = self.__video_info.height
             else:
                 raise RuntimeError("VideoFrame.data: Unsupported format")
 
             mapped_data_size = len(data)
-            requested_size = int(h * w * bytes_per_pix)
+            requested_size = h * w * bytes_per_pix
 
             if mapped_data_size != requested_size:
-                warn(
-                    "Size of buffer's data: {}, and requested size: {}\n"
-                    "Let to get shape from video meta...".format(
-                        mapped_data_size, requested_size
-                    ),
-                    stacklevel=2,
-                )
                 meta = self.video_meta()
                 if meta:
                     h, w = meta.height, meta.width
-                    requested_size = int(h * w * bytes_per_pix)
+                    requested_size = h * w * bytes_per_pix
                 else:
                     warn(
                         "Video meta is {}. Can't get shape.".format(meta), stacklevel=2
@@ -255,11 +246,11 @@ class VideoFrame:
             try:
                 if mapped_data_size < requested_size:
                     raise RuntimeError("VideoFrame.data: Corrupted buffer")
-                elif bytes_per_pix in [3, 4]:
+                elif mapped_data_size == requested_size:
                     yield numpy.ndarray(
                         (h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8
                     )
-                elif is_nv12_format:
+                elif is_yuv_format:
                     # In some cases image size after mapping can be larger than expected image size.
                     # One of the reasons can be vaapi decoder which appends lines to the end of an image
                     # so the height is multiple of 16. So we need to return an image that has the same
