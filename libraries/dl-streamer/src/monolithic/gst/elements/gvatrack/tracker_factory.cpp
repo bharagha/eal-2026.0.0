@@ -60,7 +60,7 @@ bool TrackerFactory::RegisterAll() {
         if (feature_model_path.empty()) {
             throw std::invalid_argument("Deep SORT requires feature-model property to be set");
         }
-        std::string device = gva_track->device ? gva_track->device : "CPU";
+        std::string device = "GPU";
 
         return new DeepSortWrapper::DeepSortTracker(
             feature_model_path, device, DeepSortWrapper::DEFAULT_MAX_IOU_DISTANCE, DeepSortWrapper::DEFAULT_MAX_AGE,

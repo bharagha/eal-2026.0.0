@@ -187,27 +187,52 @@ FeatureExtractor::FeatureExtractor(const std::string &model_path, const std::str
     compiled_model_ = core_.compile_model(model, device);
     infer_request_ = compiled_model_.create_infer_request();
 
-    // Get input dimensions - handle dynamic shapes
+    // Get input dimensions - handle different model types
     auto input_port = compiled_model_.input();
 
-    if (model_path.find("resnet18") != std::string::npos) {
+    if (model_path.find("mars") != std::string::npos) {
+        // MARS model: expects [1, 3, 128, 64] - NCHW format
+        const auto &partial_shape = input_port.get_partial_shape();
+        const auto &input_shape =
+            partial_shape.is_dynamic() ? partial_shape.get_min_shape() : partial_shape.get_shape();
+
+        if (input_shape.size() < 4) {
+            throw std::runtime_error("MARS model input must have at least 4 dimensions (NCHW)");
+        }
+
+        input_height_ = input_shape[2]; // Height = 128
+        input_width_ = input_shape[3];  // Width = 64
+
+        GST_INFO("MARS model detected: input shape [%lu, %lu, %lu, %lu], using H=%d, W=%d", input_shape[0],
+                 input_shape[1], input_shape[2], input_shape[3], input_height_, input_width_);
+
+    } else if (model_path.find("resnet18") != std::string::npos) {
+        // ResNet18: standard NCHW format
         auto input_shape = input_port.get_shape();
+
+        if (input_shape.size() < 4) {
+            throw std::runtime_error("ResNet18 model input must have at least 4 dimensions (NCHW)");
+        }
+
         input_height_ = input_shape[2];
         input_width_ = input_shape[3];
 
-        // Check if we have enough dimensions and handle dynamic dimensions
+        GST_INFO("ResNet18 model detected: input shape [%lu, %lu, %lu, %lu], using H=%d, W=%d", input_shape[0],
+                 input_shape[1], input_shape[2], input_shape[3], input_height_, input_width_);
+
+    } else {
+        // Generic model: assume NCHW format
+        auto input_shape = input_port.get_shape();
+
         if (input_shape.size() < 4) {
             throw std::runtime_error("Model input must have at least 4 dimensions (NCHW or NHWC)");
         }
 
-        // Static batch size - standard format
         input_height_ = input_shape[2];
         input_width_ = input_shape[3];
 
-    } else {
-        GST_ERROR("Not recognized model");
+        GST_WARNING("Unknown model type, assuming NCHW format: H=%d, W=%d", input_height_, input_width_);
     }
-
     // Validate extracted dimensions
     if (input_height_ <= 0 || input_width_ <= 0) {
         throw std::runtime_error("Invalid input dimensions detected from model: " + std::to_string(input_width_) + "x" +
@@ -247,9 +272,8 @@ std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rec
             return std::vector<float>(128, 0.0f);
         }
 
-        // Set input tensor
+        // Set input tensor and handle FP16/FP32 data type conversion
         auto input_tensor = infer_request_.get_input_tensor();
-        float *input_data = input_tensor.data<float>();
 
         // Bounds check
         size_t expected_size = preprocessed.total();
@@ -260,7 +284,30 @@ std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rec
             return std::vector<float>(128, 0.0f);
         }
 
-        std::memcpy(input_data, preprocessed.data, expected_size * sizeof(float));
+        // Handle different tensor data types
+        if (input_tensor.get_element_type() == ov::element::f16) {
+            // Model uses FP16 - convert FP32 data to FP16
+            GST_INFO("Model uses FP16, converting FP32 preprocessed data to FP16");
+
+            // Get FP16 data pointer and convert from FP32
+            ov::float16 *input_data_f16 = input_tensor.data<ov::float16>();
+            float *src_data = preprocessed.ptr<float>();
+
+            for (size_t i = 0; i < expected_size; ++i) {
+                input_data_f16[i] = static_cast<ov::float16>(src_data[i]);
+            }
+
+        } else if (input_tensor.get_element_type() == ov::element::f32) {
+            // Model uses FP32 - direct copy
+            GST_INFO("Model uses FP32, direct memcpy");
+
+            float *input_data = input_tensor.data<float>();
+            std::memcpy(input_data, preprocessed.data, expected_size * sizeof(float));
+
+        } else {
+            GST_ERROR("Unsupported tensor data type: %s", input_tensor.get_element_type().get_type_name().c_str());
+            return std::vector<float>(128, 0.0f);
+        }
 
         // Run inference
         infer_request_.infer();

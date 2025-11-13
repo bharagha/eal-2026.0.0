@@ -113,7 +113,7 @@ class Track {
 // Deep SORT feature extractor using OpenVINO
 class FeatureExtractor {
   public:
-    FeatureExtractor(const std::string &model_path, const std::string &device = "CPU");
+    FeatureExtractor(const std::string &model_path, const std::string &device = "GPU");
     ~FeatureExtractor() = default;
 
     std::vector<float> extract(const cv::Mat &image, const cv::Rect &bbox);
