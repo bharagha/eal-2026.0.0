@@ -6,28 +6,45 @@
 # ==============================================================================
 set -euo pipefail
 
-PATCH_FILE="$(dirname "$0")/gstreamer-1-26-6-vacompositor-vafilter-fixes.patch"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-if [ ! -f "$PATCH_FILE" ]; then
-  echo "Patch file not found: $PATCH_FILE" >&2
+if [ "$#" -eq 0 ]; then
+  echo "Usage: $0 <patch-file> [patch-file ...]" >&2
+  echo "Each patch file may be absolute or relative to script directory." >&2
   exit 2
 fi
 
-echo "Applying GStreamer VA patches (idempotent)..."
-# Run patch; capture exit but do not exit immediately on non-zero
-set +e
-patch --forward --batch -p1 < "$PATCH_FILE"
-rc=$?
-set -e
+apply_one() {
+  local patch_path="$1"
 
-case $rc in
-  0)
-    echo "GStreamer patch applied successfully." ;;
-  1)
-    echo "GStreamer patch already applied (hunks skipped)." ;;
-  *)
-    echo "GStreamer patch failed rc=$rc" >&2
-    exit $rc ;;
-esac
+  # Resolve relative path to script dir if not absolute and not existing
+  if [ ! -f "$patch_path" ]; then
+    patch_path="${SCRIPT_DIR}/${patch_path}"
+  fi
+  if [ ! -f "$patch_path" ]; then
+    echo "Patch file not found: $patch_path" >&2
+    return 3
+  fi
 
-exit 0
+  echo "Applying patch: $(basename "$patch_path") (idempotent)..."
+  set +e
+  patch --forward --batch -p1 < "$patch_path"
+  local rc=$?
+  set -e
+
+  case $rc in
+    0) echo "  -> applied." ;;
+    1) echo "  -> already applied (skipped)." ;;
+    *) echo "  -> failed rc=$rc" >&2; return $rc ;;
+  esac
+  return 0
+}
+
+overall_rc=0
+for p in "$@"; do
+  if ! apply_one "$p"; then
+    overall_rc=1
+  fi
+done
+
+exit $overall_rc
