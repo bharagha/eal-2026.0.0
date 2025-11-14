@@ -6,6 +6,7 @@
 
 #include "deep_sort_tracker.h"
 #include "mapped_mat.h"
+#include "vas/components/ot/kalman_filter/kalman_filter_no_opencv.h"
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -14,6 +15,10 @@
 // Set to 1 to disable features (IoU-only), set to 0 to enable full Deep SORT features
 #define DISABLE_FEATURE_EXTRACTION 0
 #define DISABLE_DBG_LOGS 1
+
+// Alternative implementation flag - use VAS Kalman filter instead of OpenCV-based implementation
+// Set to 1 to use VAS Kalman filter, set to 0 to use original OpenCV implementation
+#define USE_VAS_KALMAN_FILTER 0
 
 namespace DeepSortWrapper {
 
@@ -24,9 +29,19 @@ namespace DeepSortWrapper {
  */
 Track::Track(const cv::Rect_<float> &bbox, int track_id, int n_init, int max_age, const std::vector<float> &feature)
     : track_id_(track_id), hits_(1), age_(1), time_since_update_(0), state_(TrackState::Tentative), n_init_(n_init),
-      max_age_(max_age), nn_budget_(DEFAULT_NN_BUDGET) {
-
+      max_age_(max_age), nn_budget_(DEFAULT_NN_BUDGET)
+#if USE_VAS_KALMAN_FILTER
+      ,
+      kalman_filter_(std::make_unique<vas::KalmanFilterNoOpencv>(bbox))
+#endif
+{
+#if USE_VAS_KALMAN_FILTER
+    // VAS Kalman filter is already initialized in the initializer list
+    // Store the initial bbox for prediction/correction cycle
+    last_bbox_ = bbox;
+#else
     initiate(bbox);
+#endif
     add_feature(feature);
 }
 
@@ -60,6 +75,15 @@ void Track::initiate(const cv::Rect_<float> &bbox) {
  * @brief Predict next state using Kalman filter motion model (constant velocity)
  */
 void Track::predict() {
+#if USE_VAS_KALMAN_FILTER
+    // Use VAS Kalman filter for prediction
+    if (kalman_filter_) {
+        // Predict with default delta_t (33ms for 30fps)
+        predicted_bbox_ = kalman_filter_->Predict(0.033f);
+        last_bbox_ = predicted_bbox_;
+    }
+#else
+    // Original OpenCV-based implementation
     // State transition matrix
     cv::Mat F = cv::Mat::eye(8, 8, CV_32F);
     F.at<float>(0, 4) = 1.0f; // x += vx
@@ -87,6 +111,7 @@ void Track::predict() {
 
     // Update covariance
     covariance_ = F * covariance_ * F.t() + Q;
+#endif
 }
 
 /**
@@ -95,6 +120,14 @@ void Track::predict() {
 void Track::update(const Detection &detection) {
     predict();
 
+#if USE_VAS_KALMAN_FILTER
+    // Use VAS Kalman filter for correction
+    if (kalman_filter_) {
+        corrected_bbox_ = kalman_filter_->Correct(detection.bbox);
+        last_bbox_ = corrected_bbox_;
+    }
+#else
+    // Original OpenCV-based implementation
     // Measurement model (we observe x, y, aspect_ratio, height)
     cv::Mat H = cv::Mat::zeros(4, 8, CV_32F);
     H.at<float>(0, 0) = 1.0f; // observe x
@@ -126,6 +159,7 @@ void Track::update(const Detection &detection) {
 
     mean_ = mean_ + K * y;
     covariance_ = covariance_ - K * H * covariance_;
+#endif
 
     add_feature(detection.feature);
 
@@ -157,6 +191,11 @@ void Track::mark_missed() {
  * @brief Convert Kalman filter state back to bounding box coordinates
  */
 cv::Rect_<float> Track::to_bbox() const {
+#if USE_VAS_KALMAN_FILTER
+    // Return the last predicted/corrected bbox from VAS Kalman filter
+    return last_bbox_;
+#else
+    // Original OpenCV-based implementation
     float center_x = mean_.at<float>(0);
     float center_y = mean_.at<float>(1);
     float aspect_ratio = mean_.at<float>(2);
@@ -164,6 +203,7 @@ cv::Rect_<float> Track::to_bbox() const {
     float width = aspect_ratio * height;
 
     return cv::Rect_<float>(center_x - width / 2.0f, center_y - height / 2.0f, width, height);
+#endif
 }
 
 /**
@@ -439,8 +479,15 @@ DeepSortTracker::DeepSortTracker(const std::string &feature_model_path, const st
             max_iou_distance_, max_age_, n_init_);
 #else
 #if !DISABLE_DBG_LOGS
-    g_print("DeepSortTracker initialized: max_iou_distance=%.3f, max_age=%.3f, n_init=%d, max_cosine_distance=%.3f\n",
+#if USE_VAS_KALMAN_FILTER
+    g_print("DeepSortTracker initialized with VAS KALMAN FILTER: max_iou_distance=%.3f, max_age=%.3f, n_init=%d, "
+            "max_cosine_distance=%.3f\n",
             max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
+#else
+    g_print("DeepSortTracker initialized with OpenCV KALMAN FILTER: max_iou_distance=%.3f, max_age=%.3f, n_init=%d, "
+            "max_cosine_distance=%.3f\n",
+            max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
+#endif
 #endif
 #endif
 }
@@ -460,37 +507,7 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
 
     // Convert to RGB if needed for feature extraction (Deep SORT requires 3-channel input)
     cv::Mat image;
-    dlstreamer::ImageFormat format = static_cast<dlstreamer::ImageFormat>(sys_buffer->format());
-
-    // Convert color space based on input format
-    switch (format) {
-    case dlstreamer::ImageFormat::BGR:
-        // Already in correct format, just clone to avoid modifying original
-        image = raw_image.clone();
-        break;
-    case dlstreamer::ImageFormat::NV12:
-        cv::cvtColor(raw_image, image, cv::COLOR_YUV2BGR_NV12);
-        break;
-    case dlstreamer::ImageFormat::I420:
-        cv::cvtColor(raw_image, image, cv::COLOR_YUV2BGR_I420);
-        break;
-    case dlstreamer::ImageFormat::BGRX:
-        cv::cvtColor(raw_image, image, cv::COLOR_BGRA2BGR);
-        break;
-    case dlstreamer::ImageFormat::RGBX:
-        cv::cvtColor(raw_image, image, cv::COLOR_RGBA2BGR);
-        break;
-    default:
-        GST_ERROR("Unsupported video format %d for Deep SORT feature extraction", static_cast<int>(format));
-        // Fallback: try to use as-is if it has 3 channels
-        if (raw_image.channels() == 3) {
-            image = raw_image.clone();
-        } else {
-            GST_ERROR("Cannot convert %d-channel image to RGB", raw_image.channels());
-            return; // Early return on unsupported format
-        }
-        break;
-    }
+    do_color_space_conversion(image, raw_image, sys_buffer);
 
     auto regions = frame_meta.regions();
 
@@ -559,6 +576,40 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
     tracks_.erase(std::remove_if(tracks_.begin(), tracks_.end(),
                                  [](const std::unique_ptr<Track> &track) { return track->is_deleted(); }),
                   tracks_.end());
+}
+
+void DeepSortTracker::do_color_space_conversion(cv::Mat &image, cv::Mat &raw_image, dlstreamer::FramePtr sys_buffer) {
+    dlstreamer::ImageFormat format = static_cast<dlstreamer::ImageFormat>(sys_buffer->format());
+
+    // Convert color space based on input format
+    switch (format) {
+    case dlstreamer::ImageFormat::BGR:
+        // Already in correct format, just clone to avoid modifying original
+        image = raw_image.clone();
+        break;
+    case dlstreamer::ImageFormat::NV12:
+        cv::cvtColor(raw_image, image, cv::COLOR_YUV2BGR_NV12);
+        break;
+    case dlstreamer::ImageFormat::I420:
+        cv::cvtColor(raw_image, image, cv::COLOR_YUV2BGR_I420);
+        break;
+    case dlstreamer::ImageFormat::BGRX:
+        cv::cvtColor(raw_image, image, cv::COLOR_BGRA2BGR);
+        break;
+    case dlstreamer::ImageFormat::RGBX:
+        cv::cvtColor(raw_image, image, cv::COLOR_RGBA2BGR);
+        break;
+    default:
+        GST_ERROR("Unsupported video format %d for Deep SORT feature extraction", static_cast<int>(format));
+        // Fallback: try to use as-is if it has 3 channels
+        if (raw_image.channels() == 3) {
+            image = raw_image.clone();
+        } else {
+            GST_ERROR("Cannot convert %d-channel image to RGB", raw_image.channels());
+            return; // Early return on unsupported format
+        }
+        break;
+    }
 }
 
 /**
@@ -642,12 +693,12 @@ void DeepSortTracker::associate_detections_to_tracks(const std::vector<Detection
             float iou = calculate_iou(detections[det_idx].bbox, track_bbox);
 
 #if !DISABLE_DBG_LOGS
-            g_print(
-                "{%s} Detection vs Track : det_bbox[%zu][%.1f, %.1f, %.1f, %.1f] vs track_bbox[%zu][%.1f, %.1f, %.1f, "
-                "%.1f] ; iou=%.3f\n",
-                __FUNCTION__, det_idx, detections[det_idx].bbox.x, detections[det_idx].bbox.y,
-                detections[det_idx].bbox.width, detections[det_idx].bbox.height, trk_idx, track_bbox.x, track_bbox.y,
-                track_bbox.width, track_bbox.height, iou);
+            g_print("{%s} Detection vs Track : det_bbox[%zu][%.1f, %.1f, %.1f, %.1f] vs track_bbox[%zu][%.1f, "
+                    "%.1f, %.1f, "
+                    "%.1f] ; iou=%.3f\n",
+                    __FUNCTION__, det_idx, detections[det_idx].bbox.x, detections[det_idx].bbox.y,
+                    detections[det_idx].bbox.width, detections[det_idx].bbox.height, trk_idx, track_bbox.x,
+                    track_bbox.y, track_bbox.width, track_bbox.height, iou);
 #endif
             // Reject matches with IoU below threshold (poor overlap)
             if (iou < max_iou_distance_) {

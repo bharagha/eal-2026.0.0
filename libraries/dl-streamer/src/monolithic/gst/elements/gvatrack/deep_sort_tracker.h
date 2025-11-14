@@ -14,6 +14,11 @@
 #include <opencv2/opencv.hpp>
 #include <openvino/openvino.hpp>
 
+// Forward declaration for VAS Kalman filter
+namespace vas {
+class KalmanFilterNoOpencv;
+}
+
 #include <deque>
 #include <memory>
 #include <unordered_map>
@@ -88,7 +93,7 @@ class Track {
     }
 
   private:
-    // Kalman filter state
+    // Kalman filter state - OpenCV implementation
     cv::Mat mean_;
     cv::Mat covariance_;
 
@@ -101,10 +106,16 @@ class Track {
     // Parameters
     int n_init_;
     int max_age_;
+    int nn_budget_;
+
+    // Alternative VAS Kalman filter implementation
+    std::unique_ptr<vas::KalmanFilterNoOpencv> kalman_filter_;
+    cv::Rect_<float> last_bbox_;      // Last predicted/corrected bbox
+    cv::Rect_<float> predicted_bbox_; // Last predicted bbox
+    cv::Rect_<float> corrected_bbox_; // Last corrected bbox
 
     // Feature storage for cosine distance calculation
     std::deque<std::vector<float>> features_;
-    int nn_budget_;
 
     void initiate(const cv::Rect_<float> &bbox);
     void predict();
@@ -142,6 +153,8 @@ class DeepSortTracker : public ITracker {
     ~DeepSortTracker() override = default;
 
     void track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_meta) override;
+
+    void do_color_space_conversion(cv::Mat &image, cv::Mat &raw_image, dlstreamer::FramePtr sys_buffer);
 
   private:
     // Deep SORT algorithm components
