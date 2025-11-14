@@ -19,7 +19,7 @@ pipeline_manager = get_pipeline_manager()
 @dataclass
 class BenchmarkResult:
     n_streams: int
-    streams_per_pipeline: List[Dict]
+    streams_per_pipeline: List[PipelineRunSpec]
     per_stream_fps: float
 
     def __repr__(self):
@@ -93,7 +93,7 @@ class Benchmark:
             BenchmarkResult with optimal stream configuration.
         """
         # Validate ratios sum to 100%
-        self._calculate_streams_per_pipeline(pipeline_specs, 1)  # Validate only
+        self._calculate_streams_per_pipeline(pipeline_specs, 1)
 
         n_streams = 1
         per_stream_fps = 0.0
@@ -162,7 +162,7 @@ class Benchmark:
                 if per_stream_fps >= fps_floor:
                     best_config = (
                         n_streams,
-                        run_specs.copy(),
+                        run_specs,
                         per_stream_fps,
                     )
                     n_streams *= 2
@@ -176,7 +176,7 @@ class Benchmark:
                 if per_stream_fps >= fps_floor:
                     best_config = (
                         n_streams,
-                        run_specs.copy(),
+                        run_specs,
                         per_stream_fps,
                     )
                     lower_bound = n_streams + 1
@@ -198,7 +198,10 @@ class Benchmark:
 
             # Build streams_per_pipeline dict from best_run_specs
             streams_per_pipeline = [
-                {f"{spec.version}": spec.streams} for spec in best_run_specs
+                PipelineRunSpec(
+                    name=spec.name, version=spec.version, streams=spec.streams
+                )
+                for spec in best_run_specs
             ]
 
             bm_result = BenchmarkResult(
@@ -209,7 +212,10 @@ class Benchmark:
         else:
             # Fallback to last attempt - build streams_per_pipeline from last run_specs
             streams_per_pipeline = [
-                {f"{spec.version}": spec.streams} for spec in run_specs
+                PipelineRunSpec(
+                    name=spec.name, version=spec.version, streams=spec.streams
+                )
+                for spec in run_specs
             ]
 
             bm_result = BenchmarkResult(

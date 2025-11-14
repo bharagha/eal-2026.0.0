@@ -116,7 +116,7 @@ class PipelineInstanceStatus(BaseModel):
     total_fps: Optional[float]
     per_stream_fps: Optional[float]
     total_streams: Optional[int]
-    streams_per_pipeline: Optional[List[Dict[str, int]]]
+    streams_per_pipeline: Optional[List[PipelineRunSpec]]
     error_message: Optional[str]
 
 

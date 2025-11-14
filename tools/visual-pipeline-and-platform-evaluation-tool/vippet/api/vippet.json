@@ -1066,10 +1066,7 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": {
-                    "type": "integer"
-                  },
-                  "type": "object"
+                  "$ref": "#/components/schemas/PipelineRunSpec"
                 },
                 "type": "array"
               },

@@ -12,6 +12,7 @@ from api.api_schemas import (
     PipelineRequestBenchmark,
     PipelineInstanceSummary,
     PipelineType,
+    PipelineRunSpec,
 )
 from pipeline_runner import PipelineRunner
 from benchmark import Benchmark
@@ -34,13 +35,6 @@ class PipelineInstance:
     total_streams: Optional[int] = None
     streams_per_pipeline: Optional[List[Dict[str, int]]] = None
     error_message: Optional[str] = None
-
-
-@dataclass
-class PipelineRunSpec:
-    name: str
-    version: str
-    streams: int
 
 
 class InstanceManager:
@@ -275,7 +269,11 @@ class InstanceManager:
                         if results is not None:
                             # Build streams distribution per pipeline
                             streams_per_pipeline = [
-                                {f"{spec.version}": spec.streams}
+                                PipelineRunSpec(
+                                    name=spec.name,
+                                    version=spec.version,
+                                    streams=spec.streams,
+                                )
                                 for spec in pipeline_request.pipeline_run_specs
                             ]
 
