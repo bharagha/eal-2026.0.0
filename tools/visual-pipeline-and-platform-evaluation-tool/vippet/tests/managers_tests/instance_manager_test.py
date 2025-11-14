@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import patch
 
 from api.api_schemas import (
+    PipelineGraph,
     PipelineRequestRun,
     PipelineParametersRun,
     PipelineRequestBenchmark,
@@ -16,6 +17,42 @@ from managers.instance_manager import InstanceManager, PipelineInstance
 
 
 class TestInstanceManager(unittest.TestCase):
+    test_graph = """
+    {
+        "nodes": [
+            {
+                "id": "0",
+                "type": "filesrc",
+                "data": {
+                    "location": "/tmp/dummy-video.mp4"
+                }
+            },
+            {
+                "id": "1",
+                "type": "decodebin3",
+                "data": {}
+            },
+            {
+                "id": "2",
+                "type": "autovideosink",
+                "data": {}
+            }
+        ],
+        "edges": [
+            {
+                "id": "0",
+                "source": "0",
+                "target": "1"
+            },
+            {
+                "id": "1",
+                "source": "1",
+                "target": "2"
+            }
+        ]
+    }
+    """
+
     def test_run_pipeline_calls_execute_pipeline_and_returns_instance_id(self):
         manager = InstanceManager()
         initial_count = len(manager.instances)
@@ -28,7 +65,7 @@ class TestInstanceManager(unittest.TestCase):
             parameters=PipelineParametersRun(
                 inferencing_channels=1,
                 recording_channels=0,
-                pipeline_graph="gst-launch-1.0 -q filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
+                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
             ),
             tags=None,
         )
@@ -54,7 +91,7 @@ class TestInstanceManager(unittest.TestCase):
             parameters=PipelineParametersRun(
                 inferencing_channels=1,
                 recording_channels=0,
-                pipeline_graph="gst-launch-1.0 -q filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
+                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
             ),
             tags=None,
         )
@@ -85,7 +122,7 @@ class TestInstanceManager(unittest.TestCase):
             parameters=PipelineParametersBenchmark(
                 fps_floor=30,
                 ai_stream_rate=100,
-                pipeline_graph="gst-launch-1.0 -q filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
+                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
             ),
             tags=None,
         )
@@ -121,7 +158,7 @@ class TestInstanceManager(unittest.TestCase):
             parameters=PipelineParametersRun(
                 inferencing_channels=1,
                 recording_channels=0,
-                pipeline_graph="gst-launch-1.0 -q filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
+                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
             ),
             tags=None,
         )
@@ -134,7 +171,7 @@ class TestInstanceManager(unittest.TestCase):
             parameters=PipelineParametersBenchmark(
                 fps_floor=30,
                 ai_stream_rate=100,
-                pipeline_graph="gst-launch-1.0 -q filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
+                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
             ),
             tags=None,
         )
@@ -182,7 +219,7 @@ class TestInstanceManager(unittest.TestCase):
             parameters=PipelineParametersRun(
                 inferencing_channels=1,
                 recording_channels=0,
-                pipeline_graph="gst-launch-1.0 -q filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
+                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
             ),
             tags=None,
         )
@@ -227,7 +264,7 @@ class TestInstanceManager(unittest.TestCase):
             parameters=PipelineParametersRun(
                 inferencing_channels=1,
                 recording_channels=0,
-                pipeline_graph="gst-launch-1.0 -q filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
+                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
             ),
             tags=None,
         )

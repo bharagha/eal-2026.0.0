@@ -8,6 +8,32 @@ from api.routes.pipelines import router as pipelines_router
 
 
 class TestPipelinesAPI(unittest.TestCase):
+    test_graph = """
+    {
+        "nodes": [
+            {
+                "id": "0",
+                "type": "filesrc",
+                "data": {
+                    "location": "/tmp/license-plate-detection.mp4"
+                }
+            },
+            {
+                "id": "1",
+                "type": "autovideosink",
+                "data": {}
+            }
+        ],
+        "edges": [
+            {
+                "id": "0",
+                "source": "0",
+                "target": "1"
+            }
+        ]
+    }
+    """
+
     @classmethod
     def setUpClass(cls):
         """Set up test client once for all tests."""
@@ -23,16 +49,9 @@ class TestPipelinesAPI(unittest.TestCase):
                 version="SmartNVRPipeline",
                 description="Smart Network Video Recorder (NVR) Proxy Pipeline",
                 type=schemas.PipelineType.GSTREAMER,
-                pipeline_graph={
-                    "nodes": [
-                        {
-                            "id": "0",
-                            "type": "filesrc",
-                            "data": {"location": "/tmp/license-plate-detection.mp4"},
-                        }
-                    ],
-                    "edges": [{"id": "0", "source": "0", "target": "1"}],
-                },
+                pipeline_graph=schemas.PipelineGraph.model_validate_json(
+                    self.test_graph
+                ),
                 parameters=None,
             ),
             schemas.Pipeline(
@@ -40,16 +59,9 @@ class TestPipelinesAPI(unittest.TestCase):
                 version="TestPipeline",
                 description="Test Pipeline Description",
                 type=schemas.PipelineType.GSTREAMER,
-                pipeline_graph={
-                    "nodes": [
-                        {
-                            "id": "0",
-                            "type": "filesrc",
-                            "data": {"location": "/tmp/license-plate-detection.mp4"},
-                        }
-                    ],
-                    "edges": [{"id": "0", "source": "0", "target": "1"}],
-                },
+                pipeline_graph=schemas.PipelineGraph.model_validate_json(
+                    self.test_graph
+                ),
                 parameters=None,
             ),
         ]
@@ -161,16 +173,9 @@ class TestPipelinesAPI(unittest.TestCase):
                 version="test-pipeline",
                 description="A custom test pipeline",
                 type=schemas.PipelineType.GSTREAMER,
-                pipeline_graph={
-                    "nodes": [
-                        {
-                            "id": "0",
-                            "type": "filesrc",
-                            "data": {"location": "/tmp/license-plate-detection.mp4"},
-                        }
-                    ],
-                    "edges": [{"id": "0", "source": "0", "target": "1"}],
-                },
+                pipeline_graph=schemas.PipelineGraph.model_validate_json(
+                    self.test_graph
+                ),
                 parameters=None,
             )
         )

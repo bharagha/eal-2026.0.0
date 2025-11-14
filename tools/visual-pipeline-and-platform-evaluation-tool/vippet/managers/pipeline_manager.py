@@ -4,7 +4,8 @@ from typing import Optional
 
 from pipelines.loader import PipelineLoader
 from utils import make_tee_names_unique
-from api.api_schemas import PipelineType, Pipeline, PipelineDefinition, PipelineRunSpec
+from graph import Graph
+from api.api_schemas import PipelineType, Pipeline, PipelineDefinition, PipelineRunSpec, PipelineGraph
 
 logger = logging.getLogger("pipeline_manager")
 
@@ -37,16 +38,16 @@ class PipelineManager:
                 f"Pipeline with name '{new_pipeline.name}' and version '{new_pipeline.version}' already exists."
             )
 
-        pipeline_description = {
-            "converted_pipeline_description": new_pipeline.pipeline_description
-        }  # TODO: Convert pipeline_description to pipeline_graph in JSON format
+        pipeline_graph = Graph.from_pipeline_description(
+            new_pipeline.pipeline_description
+        ).to_dict()
 
         pipeline = Pipeline(
             name=new_pipeline.name,
             version=new_pipeline.version,
             description=new_pipeline.description,
             type=new_pipeline.type,
-            pipeline_graph=pipeline_description,
+            pipeline_graph=PipelineGraph.model_validate(pipeline_graph),
             parameters=new_pipeline.parameters,
         )
 
@@ -79,9 +80,9 @@ class PipelineManager:
             config = PipelineLoader.config(pipeline_name)
 
             pipeline_description = config.get("pipeline_description", "")
-            pipeline_graph = {
-                "converted_pipeline_description": pipeline_description
-            }  # TODO: Convert pipeline_description to pipeline_graph in JSON format
+            pipeline_graph = Graph.from_pipeline_description(
+                pipeline_description
+            ).to_dict()
 
             predefined_pipelines.append(
                 Pipeline(
@@ -89,7 +90,7 @@ class PipelineManager:
                     version=config.get("name", "UnnamedPipeline"),
                     description=config.get("display_name", "Unnamed Pipeline"),
                     type=PipelineType.GSTREAMER,
-                    pipeline_graph=pipeline_graph,
+                    pipeline_graph=PipelineGraph.model_validate(pipeline_graph),
                     parameters=None,
                 )
             )
@@ -118,10 +119,9 @@ class PipelineManager:
             )
 
             # Extract the pipeline description string
-            # TODO: Convert pipeline_graph from JSON to string if needed
-            base_pipeline_str = str(
-                pipeline.pipeline_graph["converted_pipeline_description"]
-            )
+            base_pipeline_str = Graph.from_dict(
+                pipeline.pipeline_graph.model_dump()
+            ).to_pipeline_description()
 
             # Create one pipeline instance per stream with unique tee names
             for stream_index in range(run_spec.streams):

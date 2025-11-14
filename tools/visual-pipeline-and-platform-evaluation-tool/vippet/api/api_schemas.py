@@ -44,6 +44,27 @@ class Source(BaseModel):
     uri: Optional[str]
 
 
+class PipelineDescription(BaseModel):
+    pipeline_description: str
+
+
+class Node(BaseModel):
+    id: str
+    type: str
+    data: Dict[str, str]
+
+
+class Edge(BaseModel):
+    id: str
+    source: str
+    target: str
+
+
+class PipelineGraph(BaseModel):
+    nodes: list[Node]
+    edges: list[Edge]
+
+
 class MessageResponse(BaseModel):
     message: str
 
@@ -69,7 +90,7 @@ class Pipeline(BaseModel):
     version: str
     description: str
     type: PipelineType
-    pipeline_graph: Dict[str, Any]
+    pipeline_graph: PipelineGraph
     parameters: Optional[PipelineParameters]
 
 
