@@ -77,7 +77,7 @@ const Pipelines = () => {
           parameters: {
             inferencing_channels: 20,
             recording_channels: 0,
-            launch_config: {
+            pipeline_graph: {
               nodes: apiNodes,
               edges: currentEdges,
             },
