@@ -16,11 +16,7 @@ export const useConnectionStatus = () => {
     return "text-red-600";
   };
 
-  const getStatusIcon = () => {
-    if (isConnected) return "●";
-    if (isConnecting) return "○";
-    return "●";
-  };
+  const getStatusIcon = () => (isConnected ? "●" : "○");
 
   return {
     isConnected,
