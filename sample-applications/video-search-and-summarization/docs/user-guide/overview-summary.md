@@ -64,7 +64,7 @@ Choosing which features to use involves balancing accuracy and performance. You 
 	3. What are the available compute resources for running the pipeline?
 	4. What are the key performance metrics, for example, throughput and latency, that the pipeline needs to achieve?
 
-After configuring the pipeline, you can deploy the application, upload the video to be summarized, set parameters like chunk duration and frame count, and then submit the request. The application updates the user on progress and provides the final summary. The API specification outlines how to access the application’s features.
+After configuring the pipeline, you can deploy the application, upload the video to be summarized, set parameters like chunk duration and frame count, and then submit the request. The application updates you on the progress and provides the final summary. The API specification outlines how to access the application’s features.
 
 Detailed hardware and software requirements are available [here](./system-requirements.md).
 
