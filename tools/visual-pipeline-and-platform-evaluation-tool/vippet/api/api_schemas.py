@@ -44,6 +44,31 @@ class Source(BaseModel):
     uri: Optional[str]
 
 
+class PipelineDescription(BaseModel):
+    pipeline_description: str
+
+
+class Node(BaseModel):
+    id: str
+    type: str
+    data: Dict[str, str]
+
+
+class Edge(BaseModel):
+    id: str
+    source: str
+    target: str
+
+
+class PipelineGraph(BaseModel):
+    nodes: list[Node]
+    edges: list[Edge]
+
+
+class MessageResponse(BaseModel):
+    message: str
+
+
 class PipelineParameters(BaseModel):
     default: Optional[Dict[str, Any]]
 
@@ -51,13 +76,13 @@ class PipelineParameters(BaseModel):
 class PipelineParametersRun(BaseModel):
     inferencing_channels: int = 1
     recording_channels: int = 0
-    launch_config: str
+    pipeline_graph: PipelineGraph
 
 
 class PipelineParametersBenchmark(BaseModel):
     fps_floor: int = 30
     ai_stream_rate: int = 100
-    launch_config: str
+    pipeline_graph: PipelineGraph
 
 
 class Pipeline(BaseModel):
@@ -65,7 +90,7 @@ class Pipeline(BaseModel):
     version: str
     description: str
     type: PipelineType
-    launch_config: Dict[str, Any]
+    pipeline_graph: PipelineGraph
     parameters: Optional[PipelineParameters]
 
 
@@ -74,13 +99,13 @@ class PipelineDefinition(BaseModel):
     version: str
     description: str
     type: PipelineType
-    launch_string: str
+    pipeline_description: str
     parameters: Optional[PipelineParameters]
 
 
 class PipelineValidation(BaseModel):
     type: PipelineType
-    launch_string: str
+    pipeline_description: str
     parameters: Optional[PipelineParameters]
 
 
@@ -103,6 +128,10 @@ class PipelineRequestOptimize(BaseModel):
     source: Source
     parameters: Optional[Dict[str, Any]]
     tags: Optional[Dict[str, str]]
+
+
+class PipelineInstanceResponse(BaseModel):
+    instance_id: str
 
 
 class PipelineInstanceStatus(BaseModel):
