@@ -745,6 +745,128 @@
           }
         }
       }
+    },
+    "/convert/to-graph": {
+      "post": {
+        "tags": [
+          "convert"
+        ],
+        "summary": "Convert pipeline description to pipeline graph",
+        "operationId": "to_graph",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineDescription"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Conversion successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineGraph"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid pipeline description",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/convert/to-description": {
+      "post": {
+        "tags": [
+          "convert"
+        ],
+        "summary": "Convert pipeline graph to pipeline description",
+        "operationId": "to_description",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineGraph"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Conversion successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineDescription"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid graph",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -803,6 +925,29 @@
           "INTEGRATED"
         ],
         "title": "DeviceType"
+      },
+      "Edge": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "target"
+        ],
+        "title": "Edge"
       },
       "HTTPValidationError": {
         "properties": {
@@ -879,6 +1024,32 @@
         ],
         "title": "ModelCategory"
       },
+      "Node": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "data": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "data"
+        ],
+        "title": "Node"
+      },
       "Pipeline": {
         "properties": {
           "name": {
@@ -897,9 +1068,7 @@
             "$ref": "#/components/schemas/PipelineType"
           },
           "pipeline_graph": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Pipeline Graph"
+            "$ref": "#/components/schemas/PipelineGraph"
           },
           "parameters": {
             "anyOf": [
@@ -965,6 +1134,43 @@
           "parameters"
         ],
         "title": "PipelineDefinition"
+      },
+      "PipelineDescription": {
+        "properties": {
+          "pipeline_description": {
+            "type": "string",
+            "title": "Pipeline Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pipeline_description"
+        ],
+        "title": "PipelineDescription"
+      },
+      "PipelineGraph": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/Node"
+            },
+            "type": "array",
+            "title": "Nodes"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/Edge"
+            },
+            "type": "array",
+            "title": "Edges"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodes",
+          "edges"
+        ],
+        "title": "PipelineGraph"
       },
       "PipelineInstanceResponse": {
         "properties": {
@@ -1127,7 +1333,7 @@
         ],
         "title": "PipelineParameters"
       },
-      "PipelineParametersBenchmark": {
+      "PipelineParametersBenchmark-Input": {
         "properties": {
           "fps_floor": {
             "type": "integer",
@@ -1140,8 +1346,7 @@
             "default": 100
           },
           "pipeline_graph": {
-            "type": "string",
-            "title": "Pipeline Graph"
+            "$ref": "#/components/schemas/PipelineGraph"
           }
         },
         "type": "object",
@@ -1150,7 +1355,29 @@
         ],
         "title": "PipelineParametersBenchmark"
       },
-      "PipelineParametersRun": {
+      "PipelineParametersBenchmark-Output": {
+        "properties": {
+          "fps_floor": {
+            "type": "integer",
+            "title": "Fps Floor",
+            "default": 30
+          },
+          "ai_stream_rate": {
+            "type": "integer",
+            "title": "Ai Stream Rate",
+            "default": 100
+          },
+          "pipeline_graph": {
+            "$ref": "#/components/schemas/PipelineGraph"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pipeline_graph"
+        ],
+        "title": "PipelineParametersBenchmark"
+      },
+      "PipelineParametersRun-Input": {
         "properties": {
           "inferencing_channels": {
             "type": "integer",
@@ -1163,8 +1390,29 @@
             "default": 0
           },
           "pipeline_graph": {
-            "type": "string",
-            "title": "Pipeline Graph"
+            "$ref": "#/components/schemas/PipelineGraph"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pipeline_graph"
+        ],
+        "title": "PipelineParametersRun"
+      },
+      "PipelineParametersRun-Output": {
+        "properties": {
+          "inferencing_channels": {
+            "type": "integer",
+            "title": "Inferencing Channels",
+            "default": 1
+          },
+          "recording_channels": {
+            "type": "integer",
+            "title": "Recording Channels",
+            "default": 0
+          },
+          "pipeline_graph": {
+            "$ref": "#/components/schemas/PipelineGraph"
           }
         },
         "type": "object",
@@ -1191,7 +1439,7 @@
             "$ref": "#/components/schemas/Source"
           },
           "parameters": {
-            "$ref": "#/components/schemas/PipelineParametersBenchmark"
+            "$ref": "#/components/schemas/PipelineParametersBenchmark-Input"
           },
           "tags": {
             "anyOf": [
@@ -1234,7 +1482,7 @@
             "$ref": "#/components/schemas/Source"
           },
           "parameters": {
-            "$ref": "#/components/schemas/PipelineParametersBenchmark"
+            "$ref": "#/components/schemas/PipelineParametersBenchmark-Output"
           },
           "tags": {
             "anyOf": [
@@ -1329,7 +1577,7 @@
             "$ref": "#/components/schemas/Source"
           },
           "parameters": {
-            "$ref": "#/components/schemas/PipelineParametersRun"
+            "$ref": "#/components/schemas/PipelineParametersRun-Input"
           },
           "tags": {
             "anyOf": [
@@ -1372,7 +1620,7 @@
             "$ref": "#/components/schemas/Source"
           },
           "parameters": {
-            "$ref": "#/components/schemas/PipelineParametersRun"
+            "$ref": "#/components/schemas/PipelineParametersRun-Output"
           },
           "tags": {
             "anyOf": [

@@ -18,6 +18,7 @@ from gstpipeline import PipelineLoader
 from pipeline_runner import PipelineRunner
 from benchmark import Benchmark
 from utils import download_file, replace_file_path
+from graph import Graph
 
 
 @dataclass
@@ -225,9 +226,9 @@ class InstanceManager:
                 file_name,
             )
 
-            pipeline_description = (
-                pipeline_request.parameters.pipeline_graph
-            )  # TODO: Convert pipeline_graph in JSON format to pipeline_description
+            pipeline_description = Graph.from_dict(
+                pipeline_request.parameters.pipeline_graph.model_dump()
+            ).to_pipeline_description()
 
             # Replace file path in launch string if needed
             pipeline_description = replace_file_path(pipeline_description, file_path)
@@ -308,9 +309,9 @@ class InstanceManager:
                 file_name,
             )
 
-            pipeline_description = (
-                pipeline_request.parameters.pipeline_graph
-            )  # TODO: Convert pipeline_graph in JSON format to pipeline_description
+            pipeline_description = Graph.from_dict(
+                pipeline_request.parameters.pipeline_graph.model_dump()
+            ).to_pipeline_description()
 
             # Replace file path in launch string if needed
             pipeline_description = replace_file_path(pipeline_description, file_path)
