@@ -41,6 +41,7 @@ LABEL vendor="Intel Corporation"
 
 ARG GST_VERSION=1.26.6
 ARG OPENVINO_VERSION=2025.3.0
+ARG REALSENSE_VERSION=v2.57.4
 
 ARG DLSTREAMER_VERSION=2025.1.2
 ARG DLSTREAMER_BUILD_NUMBER
@@ -332,6 +333,7 @@ RUN mkdir build
 WORKDIR /home/dlstreamer/librealsense/build
 
 RUN \
+    git switch -c "$REALSENSE_VERSION" "tags/$REALSENSE_VERSION" && \
     cmake ../ -DCMAKE_BUILD_TYPE="${BUILD_ARG}" -DBUILD_EXAMPLES=false -DBUILD_GRAPHICAL_EXAMPLES=false && \
     make -j "$(nproc)" && \
     make install
