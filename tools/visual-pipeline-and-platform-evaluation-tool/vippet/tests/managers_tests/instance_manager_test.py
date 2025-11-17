@@ -248,7 +248,7 @@ class TestInstanceManager(unittest.TestCase):
         instance = PipelineInstance(
             id=instance_id,
             name="user-defined-pipelines",
-            version="test-tpipeline",
+            version="test-pipeline",
             request=pipeline_request,
             start_time=int(time.time()),
             state=PipelineInstanceState.RUNNING,
@@ -274,7 +274,7 @@ class TestInstanceManager(unittest.TestCase):
             pipeline_run_specs=[
                 PipelineRunSpec(
                     name="user-defined-pipelines",
-                    version="test-tpipeline",
+                    version="test-pipeline",
                     streams=1,
                 )
             ]
@@ -284,7 +284,7 @@ class TestInstanceManager(unittest.TestCase):
         instance = PipelineInstance(
             id=instance_id,
             name="user-defined-pipelines",
-            version="test-tpipeline",
+            version="test-pipeline",
             request=pipeline_request,
             start_time=int(time.time()),
             state=PipelineInstanceState.RUNNING,
@@ -306,7 +306,7 @@ class TestInstanceManager(unittest.TestCase):
             pipeline_run_specs=[
                 PipelineRunSpec(
                     name="user-defined-pipelines",
-                    version="test-tpipeline",
+                    version="test-pipeline",
                     streams=1,
                 )
             ]
@@ -316,7 +316,7 @@ class TestInstanceManager(unittest.TestCase):
         instance = PipelineInstance(
             id=instance_id,
             name="user-defined-pipelines",
-            version="test-tpipeline",
+            version="test-pipeline",
             request=pipeline_request,
             start_time=int(time.time()),
             state=PipelineInstanceState.COMPLETED,
@@ -335,7 +335,7 @@ class TestInstanceManager(unittest.TestCase):
             pipeline_run_specs=[
                 PipelineRunSpec(
                     name="user-defined-pipelines",
-                    version="test-tpipeline",
+                    version="test-pipeline",
                     streams=1,
                 )
             ]
@@ -345,7 +345,7 @@ class TestInstanceManager(unittest.TestCase):
         instance = PipelineInstance(
             id=instance_id,
             name="user-defined-pipelines",
-            version="test-tpipeline",
+            version="test-pipeline",
             request=pipeline_request,
             start_time=int(time.time()),
             state=PipelineInstanceState.RUNNING,
@@ -362,7 +362,7 @@ class TestInstanceManager(unittest.TestCase):
             manager._execute_pipeline(
                 instance_id,
                 "user-defined-pipelines",
-                "test-tpipeline",
+                "test-pipeline",
                 pipeline_request,
             )
             self.assertIn(instance_id, manager.instances)
@@ -384,7 +384,7 @@ class TestInstanceManager(unittest.TestCase):
         instance = PipelineInstance(
             id=instance_id,
             name="user-defined-pipelines",
-            version="test-tpipeline",
+            version="test-pipeline",
             request=pipeline_request,
             start_time=int(time.time()),
             state=PipelineInstanceState.RUNNING,
@@ -408,7 +408,7 @@ class TestInstanceManager(unittest.TestCase):
             manager._execute_pipeline(
                 instance_id,
                 "user-defined-pipelines",
-                "test-tpipeline",
+                "test-pipeline",
                 pipeline_request,
             )
 
@@ -435,7 +435,7 @@ class TestInstanceManager(unittest.TestCase):
         instance = PipelineInstance(
             id=instance_id,
             name="user-defined-pipelines",
-            version="test-tpipeline",
+            version="test-pipeline",
             request=pipeline_request,
             start_time=int(time.time()),
             state=PipelineInstanceState.RUNNING,
@@ -459,7 +459,7 @@ class TestInstanceManager(unittest.TestCase):
             manager._execute_pipeline(
                 instance_id,
                 "user-defined-pipelines",
-                "test-tpipeline",
+                "test-pipeline",
                 pipeline_request,
             )
 
@@ -480,7 +480,7 @@ class TestInstanceManager(unittest.TestCase):
         instance = PipelineInstance(
             id=instance_id,
             name="user-defined-pipelines",
-            version="test-tpipeline",
+            version="test-pipeline",
             request=pipeline_request,
             start_time=int(time.time()),
             state=PipelineInstanceState.RUNNING,
@@ -494,7 +494,7 @@ class TestInstanceManager(unittest.TestCase):
             manager._execute_pipeline(
                 instance_id,
                 "user-defined-pipelines",
-                "test-tpipeline",
+                "test-pipeline",
                 pipeline_request,
             )
 
