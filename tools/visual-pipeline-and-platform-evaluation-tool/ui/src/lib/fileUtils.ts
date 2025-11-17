@@ -1,3 +1,12 @@
+export const MimeType = {
+  TEXT: "text/plain",
+  JSON: "application/json",
+  HTML: "text/html",
+  CSV: "text/csv",
+  XML: "application/xml",
+  PDF: "application/pdf",
+} as const;
+
 /**
  * Downloads a file to the user's system
  * @param content - The content to download
@@ -7,7 +16,7 @@
 export const downloadFile = (
   content: string,
   filename: string,
-  mimeType: string = "text/plain",
+  mimeType: string = MimeType.TEXT,
 ) => {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);

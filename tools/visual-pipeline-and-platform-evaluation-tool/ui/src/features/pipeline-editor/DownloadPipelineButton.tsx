@@ -5,7 +5,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover.tsx";
 import { isApiError } from "@/lib/apiUtils";
-import { downloadFile } from "@/lib/fileUtils";
+import { downloadFile, MimeType } from "@/lib/fileUtils";
 import type { Edge, Node, Viewport } from "@xyflow/react";
 import { Download, FileJson, Terminal } from "lucide-react";
 import { useState } from "react";
@@ -35,7 +35,7 @@ const DownloadPipelineButton = ({
     };
     const jsonString = JSON.stringify(stateData, null, 2);
     const filename = `${pipelineName}.json`;
-    downloadFile(jsonString, filename);
+    downloadFile(jsonString, filename, MimeType.JSON);
     toast.success("Pipeline state downloaded");
     setOpen(false);
   };
