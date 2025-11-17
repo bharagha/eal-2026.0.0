@@ -36,6 +36,7 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
 
     size_t GetBatchSize() const override;
     size_t GetNireq() const override;
+    void UseNonContiguousTensors() override;
 
     void GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,
                                 int &memory_type) const override;

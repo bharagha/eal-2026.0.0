@@ -123,6 +123,10 @@ ImageInferenceAsync::ImageInferenceAsync(const InferenceBackend::InferenceConfig
     _va_image_pool =
         create_va_api_image_pool(inference_image_info, image_pool_size, _va_context.get(), vdbox_sfc_pipe_part);
 
+    if (!_va_image_pool->IsContiguous()) {
+        _inference->UseNonContiguousTensors();
+    }
+
     GVA_INFO("Vpp image pool size: %lu", image_pool_size);
 }
 
@@ -177,6 +181,10 @@ size_t ImageInferenceAsync::GetBatchSize() const {
 
 size_t ImageInferenceAsync::GetNireq() const {
     return _inference->GetNireq();
+}
+
+void ImageInferenceAsync::UseNonContiguousTensors() {
+    return _inference->UseNonContiguousTensors();
 }
 
 void ImageInferenceAsync::GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,

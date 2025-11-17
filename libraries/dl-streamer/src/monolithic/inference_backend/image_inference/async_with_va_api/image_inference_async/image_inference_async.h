@@ -53,6 +53,8 @@ class ImageInferenceAsync : public ImageInference {
 
     void Close() override;
 
+    void UseNonContiguousTensors() override;
+
   private:
     // vaapi image processing
     std::unique_ptr<VaApiContext> _va_context;

@@ -1813,6 +1813,16 @@ size_t OpenVINOImageInference::GetNireq() const {
     return safe_convert<size_t>(nireq);
 }
 
+void OpenVINOImageInference::UseNonContiguousTensors() {
+    if ((_impl->_device.find("NPU") != std::string::npos) &&
+        (_impl->_memory_type == MemoryType::SYSTEM) &&
+        (pre_processor == nullptr))
+    {
+        GVA_WARNING("Force OPENCV preprocessor to convert non-contiguous tensors into contigous memory location");
+        pre_processor.reset(InferenceBackend::ImagePreprocessor::Create(InferenceBackend::ImagePreprocessorType::OPENCV, ""));
+    }
+}
+
 void OpenVINOImageInference::GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,
                                                     int &memory_type_) const {
     _impl->get_model_image_input_info(width, height, batch_size, format, memory_type_);

@@ -34,6 +34,7 @@ struct VaApiImage {
 
     Image Map();
     void Unmap();
+    bool IsContiguous();
 
     VaApiImage(const VaApiImage &) = delete;
     VaApiImage &operator=(const VaApiImage &) = delete;
@@ -47,6 +48,7 @@ class VaApiImagePool {
   public:
     VaApiImage *AcquireBuffer();
     void ReleaseBuffer(VaApiImage *image);
+    bool IsContiguous();
     struct ImageInfo {
         uint32_t width;
         uint32_t height;

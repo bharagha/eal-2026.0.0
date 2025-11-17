@@ -87,6 +87,27 @@ Image VaApiImage::Map() {
     return image_map->Map(image);
 }
 
+bool VaApiImage::IsContiguous() {
+    bool contiguous = false;
+    auto dpy = VaDpyWrapper::fromHandle(image.va_display);
+    VAImage va_image;
+    
+    VA_CALL(dpy.drvVtable().vaDeriveImage(dpy.drvCtx(), image.va_surface_id, &va_image));
+    for (uint32_t plane = 0; plane < va_image.num_planes; plane++) {
+        if (va_image.pitches[plane] != image.width) {
+            contiguous = false;
+            break;
+        }
+        if (va_image.offsets[plane] != plane * image.width * image.height) {
+            contiguous = false;
+            break;
+        }
+    }
+    VA_CALL(dpy.drvVtable().vaDestroyImage(dpy.drvCtx(), va_image.image_id));
+
+    return contiguous;
+}
+
 VaApiImagePool::VaApiImagePool(VaApiContext *context, SizeParams size_params, ImageInfo info) {
     if (!context)
         throw std::invalid_argument("VaApiContext is nullptr");
@@ -151,6 +172,15 @@ void VaApiImagePool::ReleaseBuffer(VaApiImage *image) {
 
     image->completed = true;
     _free_image_condition_variable.notify_one();
+}
+
+bool VaApiImagePool::IsContiguous() {
+    for (auto &image : _images) {
+        if (!image->IsContiguous()) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void VaApiImagePool::Flush() {
