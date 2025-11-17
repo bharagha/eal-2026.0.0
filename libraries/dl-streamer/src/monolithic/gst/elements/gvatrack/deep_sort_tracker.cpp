@@ -426,7 +426,24 @@ DeepSortTracker::DeepSortTracker(const std::string &feature_model_path, const st
       max_cosine_distance_(max_cosine_distance), nn_budget_(nn_budget), buffer_mapper_(std::move(mapper)) {
 
 #if !DISABLE_DBG_LOGS
-    g_print("DeepSortTracker initialized with OpenCV KALMAN FILTER: max_iou_distance=%.3f, max_age=%.3f, n_init=%d, "
+    g_print("DeepSortTracker initialized with OpenCV KALMAN FILTER and FeatureExtractor: max_iou_distance=%.3f, "
+            "max_age=%.3f, n_init=%d, "
+            "max_cosine_distance=%.3f\n",
+            max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
+#endif
+}
+
+/**
+ * @brief Initialize Deep SORT tracker with tracking parameters (features from gvainference)
+ */
+DeepSortTracker::DeepSortTracker(float max_iou_distance, float max_age, int n_init, float max_cosine_distance,
+                                 int nn_budget, dlstreamer::MemoryMapperPtr mapper)
+    : feature_extractor_(nullptr), next_id_(1), max_iou_distance_(max_iou_distance), max_age_(max_age), n_init_(n_init),
+      max_cosine_distance_(max_cosine_distance), nn_budget_(nn_budget), buffer_mapper_(std::move(mapper)) {
+
+#if !DISABLE_DBG_LOGS
+    g_print("DeepSortTracker initialized with OpenCV KALMAN FILTER (features from gvainference): "
+            "max_iou_distance=%.3f, max_age=%.3f, n_init=%d, "
             "max_cosine_distance=%.3f\n",
             max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
 #endif
@@ -451,7 +468,7 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
 
     auto regions = frame_meta.regions();
 
-    // Convert GVA regions to detections with feature extraction
+    // Convert GVA regions to detections (using FeatureExtractor or pre-extracted features)
     std::vector<Detection> detections = convert_detections(image, regions);
 
     // Predict existing tracks
@@ -540,35 +557,92 @@ void DeepSortTracker::do_color_space_conversion(cv::Mat &image, cv::Mat &raw_ima
 }
 
 /**
- * @brief Convert GVA region detections to Deep SORT Detection objects with features
+ * @brief Convert GVA region detections to Deep SORT Detection objects
  */
 std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
                                                            const std::vector<GVA::RegionOfInterest> &regions) {
     std::vector<Detection> detections;
-    std::vector<cv::Rect> bboxes;
+    detections.reserve(regions.size());
 
-    for (const auto &region : regions) {
-        cv::Rect bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
-        bboxes.push_back(bbox);
-    }
+    if (feature_extractor_) {
+        // Mode 1: Use internal FeatureExtractor for feature extraction
+        std::vector<cv::Rect> bboxes;
+        for (const auto &region : regions) {
+            cv::Rect bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
+            bboxes.push_back(bbox);
+        }
 
-    // Extract features for all detections
-    // Normal feature extraction
-    if (!feature_extractor_) {
-        throw std::runtime_error("Feature extractor not initialized but features are enabled");
-    }
-    auto features = feature_extractor_->extract_batch(image, bboxes);
+        auto features = feature_extractor_->extract_batch(image, bboxes);
 
-    for (size_t i = 0; i < regions.size(); ++i) {
-        const auto &region = regions[i];
-        cv::Rect_<float> bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
-        float confidence = region.confidence();
+        for (size_t i = 0; i < regions.size(); ++i) {
+            const auto &region = regions[i];
+            cv::Rect_<float> bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
+            float confidence = region.confidence();
 
 #if !DISABLE_DBG_LOGS
-        g_print("{%s} Detection %zu: bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu\n", __FUNCTION__, i,
-                (int)bbox.x, (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence, features[i].size());
+            g_print("{%s} Detection %zu (FeatureExtractor): bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu\n",
+                    __FUNCTION__, i, (int)bbox.x, (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence,
+                    features[i].size());
 #endif
-        detections.emplace_back(bbox, confidence, features[i], -1);
+            detections.emplace_back(bbox, confidence, features[i], -1);
+        }
+    } else {
+        // Mode 2: Extract features from pre-attached tensor data (from gvainference)
+
+        for (size_t i = 0; i < regions.size(); ++i) {
+            const auto &region = regions[i];
+            cv::Rect_<float> bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
+            float confidence = region.confidence();
+
+            // Extract feature vector from tensor data attached to the region (from gvainference)
+            std::vector<float> feature_vector;
+            bool found_feature = false;
+
+            // Look for feature tensor in region's tensors (added by gvainference element)
+            auto tensors = region.tensors();
+            for (const auto &tensor : tensors) {
+                // Look for feature/embedding tensor from gvainference
+                std::string tensor_name = tensor.name();
+                std::string model_name = tensor.model_name();
+                std::string layer_name = tensor.layer_name();
+
+                // Check if this is a feature tensor (common layer names for feature extraction)
+                if (layer_name.find("feature") != std::string::npos ||
+                    layer_name.find("embedding") != std::string::npos || layer_name.find("fc") != std::string::npos ||
+                    tensor_name.find("feature") != std::string::npos || model_name.find("mars") != std::string::npos ||
+                    model_name.find("reid") != std::string::npos) {
+
+                    // Extract feature data from tensor
+                    feature_vector = tensor.data<float>();
+
+                    if (!feature_vector.empty()) {
+                        // L2 normalize the feature vector (standard for Deep SORT)
+                        float norm = std::sqrt(std::inner_product(feature_vector.begin(), feature_vector.end(),
+                                                                  feature_vector.begin(), 0.0f));
+                        if (norm > 0.0f) {
+                            for (float &f : feature_vector) {
+                                f /= norm;
+                            }
+                        }
+                        found_feature = true;
+                        break;
+                    }
+                }
+            }
+
+            // If no feature found, use zero vector (will disable appearance-based matching)
+            if (!found_feature) {
+                GST_WARNING("No feature tensor found for region %zu, using zero feature (motion-only tracking)", i);
+                feature_vector = std::vector<float>(128, 0.0f); // Default 128-dimensional zero vector
+            }
+
+#if !DISABLE_DBG_LOGS
+            g_print("{%s} Detection %zu (gvainference): bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu\n",
+                    __FUNCTION__, i, (int)bbox.x, (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence,
+                    feature_vector.size());
+#endif
+            detections.emplace_back(bbox, confidence, feature_vector, -1);
+        }
     }
 
     return detections;
