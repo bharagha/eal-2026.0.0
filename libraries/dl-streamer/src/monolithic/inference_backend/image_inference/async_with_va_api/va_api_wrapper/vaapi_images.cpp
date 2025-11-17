@@ -88,7 +88,7 @@ Image VaApiImage::Map() {
 }
 
 bool VaApiImage::IsContiguous() {
-    bool contiguous = false;
+    bool contiguous = true;
     auto dpy = VaDpyWrapper::fromHandle(image.va_display);
     VAImage va_image;
     
