@@ -319,7 +319,7 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 # Build librealsense
 WORKDIR /home/dlstreamer
 
-RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev libusb-1.0-0-dev libudev-dev pkg-config libgtk-3-dev && \
+RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev=\* libusb-1.0-0-dev=\* libudev-dev=\* pkg-config=\* libgtk-3-dev=\* && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -401,6 +401,7 @@ ENV GI_TYPELIB_PATH=${GSTREAMER_DIR}/lib/girepository-1.0
 ENV PYTHONPATH=${GSTREAMER_DIR}/lib/python3/dist-packages:${DLSTREAMER_DIR}/python:${PYTHONPATH}
 
 # Build DLStreamer
+# hadolint ignore=SC1091
 RUN \
     source /opt/intel/openvino_genai/setupvars.sh && \
     cmake \
@@ -436,7 +437,7 @@ RUN \
     mkdir -p /deb-pkg/opt/intel/ && \
     mkdir -p /deb-pkg/opt/opencv/include && \
     mkdir -p /deb-pkg/opt/rdkafka && \
-    mkdir -p /deb-pkg/opt/realsense && \
+    mkdir -p /deb-pkg/opt/librealsense && \
     find /opt/intel/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -exec cp -a {} /deb-pkg/usr/lib/ \; && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
@@ -449,7 +450,7 @@ RUN \
     cp -r /usr/local/include/opencv4/* /deb-pkg/opt/opencv/include && \
     cp /usr/local/lib/librdkafka++.so /deb-pkg/opt/rdkafka/librdkafka++.so.1 && \
     cp /usr/local/lib/librdkafka.so /deb-pkg/opt/rdkafka/librdkafka.so.1 && \
-    cp -a /usr/local/lib/librealsense* /deb-pkg/opt/realsense/ && \
+    cp -a /usr/local/lib/librealsense* /deb-pkg/opt/librealsense/ && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/archived && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docker && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docs && \

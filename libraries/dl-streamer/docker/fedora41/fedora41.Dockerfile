@@ -442,7 +442,7 @@ RUN \
     mkdir -p /${RPM_PKG_NAME}/opt/rdkafka && \
     mkdir -p /${RPM_PKG_NAME}/opt/ffmpeg && \
     mkdir -p /${RPM_PKG_NAME}/opt/dlstreamer && \
-    mkdir -p /${RPM_PKG_NAME}/opt/realsense && \
+    mkdir -p /${RPM_PKG_NAME}/opt/librealsense && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /${RPM_PKG_NAME}/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /${RPM_PKG_NAME}/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/python/" /${RPM_PKG_NAME}/opt/intel/dlstreamer/ && \
@@ -452,7 +452,7 @@ RUN \
     cp -rT "${GSTREAMER_DIR}" /${RPM_PKG_NAME}/opt/intel/dlstreamer/gstreamer && \
     cp -a /usr/local/lib64/libopencv* /${RPM_PKG_NAME}/opt/opencv/ && \
     cp -a /usr/local/lib/librdkafka* /${RPM_PKG_NAME}/opt/rdkafka/ && \
-    cp -a /usr/local/lib64/librealsense* /${RPM_PKG_NAME}/opt/realsense/ && \
+    cp -a /usr/local/lib64/librealsense* /${RPM_PKG_NAME}/opt/librealsense/ && \
     find /usr/local/lib -regextype grep -regex ".*libav.*so\.[0-9]*$" -exec cp {} /${RPM_PKG_NAME}/opt/ffmpeg \; && \
     find /usr/local/lib -regextype grep -regex ".*libswscale.*so\.[0-9]*$" -exec cp {} /${RPM_PKG_NAME}/opt/ffmpeg \; && \
     find /usr/local/lib -regextype grep -regex ".*libswresample.*so\.[0-9]*$" -exec cp {} /${RPM_PKG_NAME}/opt/ffmpeg \; && \
@@ -507,7 +507,7 @@ RUN \
 
 ENV LIBVA_DRIVER_NAME=iHD
 ENV GST_PLUGIN_PATH=/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/
-ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/lib:/opt/opencv:/opt/rdkafka:/opt/ffmpeg:/usr/local/lib
+ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/lib:/opt/opencv:/opt/rdkafka:/opt/ffmpeg:/opt/librealsense:/usr/local/lib
 ENV LIBVA_DRIVERS_PATH=/usr/lib64/dri-nonfree
 ENV GST_VA_ALL_DRIVERS=1
 ENV MODEL_PROC_PATH=/opt/intel/dlstreamer/samples/gstreamer/model_proc

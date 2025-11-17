@@ -63,13 +63,13 @@ RUN \
 # Intel GPU client drivers and prerequisites installation
 RUN \
     apt-get update && \
-    apt-get install -y --no-install-recommends software-properties-common && \
+    apt-get install -y --no-install-recommends software-properties-common=\* && \
     add-apt-repository -y ppa:kobuk-team/intel-graphics && \
     apt-get update && \
     echo "Snapshot: 20250911T030400Z" >> /etc/apt/sources.list.d/kobuk-team-ubuntu-intel-graphics-noble.sources && \
-    apt update && \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
-    intel-metrics-discovery intel-gsc libvpl2 \
+    intel-metrics-discovery=\* intel-gsc=\* libvpl2=\* \
     libze-intel-gpu1=25.31.34666.3-1~24.04~ppa2 libze1=1.23.1-1~24.04~ppa1 intel-opencl-icd=25.31.34666.3-1~24.04~ppa2 clinfo=3.0.23.01.25-1build1 \
     intel-media-va-driver-non-free=25.3.2-0ubuntu1~24.04~ppa1 libmfx-gen1=25.3.1-0ubuntu1~24.04~ppa1 libvpl-tools=1.4.0-0ubuntu1~24.04~ppa1 libva-glx2=2.22.0-1ubuntu1~24.04~ppa1 va-driver-all=2.22.0-1ubuntu1~24.04~ppa1 vainfo=2.22.0-0ubuntu1~24.04~ppa1 && \
     rm -rf /var/lib/apt/lists/*
@@ -308,7 +308,7 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 # Build librealsense
 WORKDIR /home/dlstreamer
 
-RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev libusb-1.0-0-dev libudev-dev pkg-config libgtk-3-dev && \
+RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev=\* libusb-1.0-0-dev=\* libudev-dev=\* pkg-config=\* libgtk-3-dev=\* && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -390,6 +390,7 @@ ENV GI_TYPELIB_PATH=${GSTREAMER_DIR}/lib/girepository-1.0
 ENV PYTHONPATH=${GSTREAMER_DIR}/lib/python3/dist-packages:${DLSTREAMER_DIR}/python:${PYTHONPATH}
 
 # Build DLStreamer
+# hadolint ignore=SC1091
 RUN \
     source /opt/intel/openvino_genai/setupvars.sh && \
     cmake \
@@ -428,7 +429,7 @@ RUN \
     mkdir -p /deb-pkg/usr/lib/ && \
     mkdir -p /deb-pkg/opt/intel/ && \
     mkdir -p /deb-pkg/opt/opencv/include && \
-    mkdir -p /deb-pkg/opt/realsense/ && \
+    mkdir -p /deb-pkg/opt/librealsense/ && \
     find /opt/intel/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -exec cp -a {} /deb-pkg/usr/lib/ \; && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
@@ -439,7 +440,7 @@ RUN \
     cp -rT "${GSTREAMER_DIR}" /deb-pkg/opt/intel/dlstreamer/gstreamer && \
     cp -a /usr/local/lib/libopencv*.so* /deb-pkg/opt/opencv/ && \
     cp -r /usr/local/include/opencv4/* /deb-pkg/opt/opencv/include && \
-    cp -a /usr/local/lib/librealsense* /deb-pkg/opt/realsense/ && \
+    cp -a /usr/local/lib/librealsense* /deb-pkg/opt/librealsense/ && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/archived && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docker && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docs && \
@@ -484,13 +485,13 @@ RUN \
 # Intel GPU client drivers and prerequisites installation
 RUN \
     apt-get update && \
-    apt-get install -y --no-install-recommends software-properties-common && \
+    apt-get install -y --no-install-recommends software-properties-common=\* && \
     add-apt-repository -y ppa:kobuk-team/intel-graphics && \
     apt-get update && \
     echo "Snapshot: 20250911T030400Z" >> /etc/apt/sources.list.d/kobuk-team-ubuntu-intel-graphics-noble.sources && \
-    apt update && \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
-    intel-metrics-discovery intel-gsc libvpl2 \
+    intel-metrics-discovery=\* intel-gsc=\* libvpl2=\* \
     libze-intel-gpu1=25.31.34666.3-1~24.04~ppa2 libze1=1.23.1-1~24.04~ppa1 intel-opencl-icd=25.31.34666.3-1~24.04~ppa2 clinfo=3.0.23.01.25-1build1 \
     intel-media-va-driver-non-free=25.3.2-0ubuntu1~24.04~ppa1 libmfx-gen1=25.3.1-0ubuntu1~24.04~ppa1 libvpl-tools=1.4.0-0ubuntu1~24.04~ppa1 libva-glx2=2.22.0-1ubuntu1~24.04~ppa1 va-driver-all=2.22.0-1ubuntu1~24.04~ppa1 vainfo=2.22.0-0ubuntu1~24.04~ppa1 && \
     rm -rf /var/lib/apt/lists/*
