@@ -10,24 +10,24 @@
 #                     |
 #                     |
 #                     V
-#                  builder ---------------------------------------------------
-#                     |                             |                        |
-#                     |                             |                        |
-#                     V                             |                        |
-#                ffmpeg-builder                     V                        |
-#                /           \                 kafka-builder           realsense-builder
-#               V             V                     |                        |
-#      gstreamer-builder  opencv-builder            |                        |
-#                \            /                     |                        |
-#      (copy libs)\          /(copy libs)           |                        |
-#                  V        V        (copy libs)    |                        |
-#                dlstreamer-dev <-------------------|------------------------|
+#                  builder -----------------------------------------------
+#                     |                             |                    |
+#                     |                             |                    |
+#                     V                             |                    |
+#                ffmpeg-builder                     V                    V
+#                /           \                 kafka-builder     realsense-builder
+#               V             V                     |                    |
+#      gstreamer-builder  opencv-builder            |                    |
+#                \            /                     |                    |
+#      (copy libs)\          /(copy libs)           |                    |
+#                  V        V        (copy libs)    |                    |
+#                dlstreamer-dev <-------------------|--------------------|
 #                      |
 #                      |
 #                      V
 #                  deb-builder
 #                      |
-#                      | (copy debs)
+#                      | (copy rpms)
 #                      V
 #                  dlstreamer
 # ==============================================================================

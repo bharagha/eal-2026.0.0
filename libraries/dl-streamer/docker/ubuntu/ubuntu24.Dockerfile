@@ -10,17 +10,17 @@
 #                     |
 #                     |
 #                     V
-#                  builder
-#                 /       \
-#                /         \
-#               V           |
-#      gstreamer-builder  opencv-builder
-#               |           |
-#               |           |
-#    (copy libs) \          | (copy libs)
-#                 \         |
-#                  V        V
-#                dlstreamer-dev
+#                  builder --------------------------
+#                 /       \                         |
+#                /         \                        |
+#               V           |                       V
+#      gstreamer-builder  opencv-builder      realsense-builder
+#               |           |                       |
+#               |           |                       |
+#    (copy libs) \          | (copy libs)           |
+#                 \         |                       |
+#                  V        V        (copy libs)    |
+#                dlstreamer-dev <-------------------|
 #                      |
 #                      |
 #                      V
