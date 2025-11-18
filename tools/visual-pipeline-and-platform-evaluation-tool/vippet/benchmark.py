@@ -92,8 +92,6 @@ class Benchmark:
         Returns:
             BenchmarkResult with optimal stream configuration.
         """
-        # Validate ratios sum to 100%
-        self._calculate_streams_per_pipeline(pipeline_specs, 1)
 
         n_streams = 1
         per_stream_fps = 0.0

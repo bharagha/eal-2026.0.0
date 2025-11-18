@@ -335,6 +335,7 @@ class InstanceManager:
                         instance.total_fps = None
                         instance.per_stream_fps = results.per_stream_fps
                         instance.streams_per_pipeline = results.streams_per_pipeline
+                        instance.total_streams = results.n_streams
 
                         self.logger.info(
                             f"Benchmark completed for instance {instance_id}: streams={results.n_streams}, streams_per_pipeline={results.streams_per_pipeline}, fps={results.per_stream_fps}"
