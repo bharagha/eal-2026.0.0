@@ -4,14 +4,14 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 import api.api_schemas as schemas
-from managers.pipeline_manager import PipelineManager
+from managers.pipeline_manager import get_pipeline_manager
 from managers.instance_manager import InstanceManager
 from managers.optimization_manager import get_optimization_manager
 
 TEMP_DIR = tempfile.gettempdir()
 
 router = APIRouter()
-pipeline_manager = PipelineManager()
+pipeline_manager = get_pipeline_manager()
 instance_manager = InstanceManager()
 optimization_manager = get_optimization_manager()
 
