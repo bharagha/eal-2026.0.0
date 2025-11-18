@@ -6,7 +6,8 @@ The application is built on a modular microservices approach using the [LangChai
 
 The following figure shows the system architecture:
 
-![System architecture](./images/TEAI_VideoSearch.png)
+![System architecture](./images/TEAI_VideoSearch.drawio.svg)
+
 *Figure 1: Video Search mode system architecture
 
 The following are the Video Search pipeline's components:
@@ -41,9 +42,11 @@ The Video Search pipeline combines core LangChain application logic and a set of
 
 ### Video Ingestion Technical Architecture
 ![Video ingestion technical architecture](./images/TEAI_VideoSearch_Arch-ingest.drawio.svg)
+
 *Video ingestion technical architecture
 
 ![Video query technical architecture](./images/TEAI_VideoSearch_Arch-query.drawio.svg)
+
 *Video query technical architecture
 
 The Video Search UI communicates with the Video Search backend microservice. The Embedding microservice is provided as part of Intel's Edge AI inference microservices catalog, supporting open-source models that can be downloaded from model hubs, for example [Hugging Face Hub models that integrate with OpenVINO™ toolkit](https://huggingface.co/OpenVINO).
@@ -77,6 +80,7 @@ The Visual Data Prep. microservice ingests common video formats, converts them i
 
 The following figure shows the application flow, including the APIs and data sharing protocols:
 ![Data flow figure](./images/VideoSearch-request.png)
+
 *Data flow for Video Search mode
 
 ## Key Components and Their Roles
