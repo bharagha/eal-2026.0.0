@@ -246,13 +246,21 @@ def optimize_pipeline(name: str, version: str, body: schemas.PipelineRequestOpti
     operation_id="delete_pipeline",
     responses={
         200: {"description": "Pipeline deleted", "model": schemas.MessageResponse},
-        400: {
-            "description": "Cannot delete pipeline",
+        404: {
+            "description": "Pipeline not found",
             "model": schemas.MessageResponse,
         },
     },
 )
 def delete_pipeline(name: str, version: str):
+    """Delete pipeline by name and version."""
+    try:
+        pipeline_manager.delete_pipeline(name, version)
+    except ValueError as e:
+        return JSONResponse(
+            content=schemas.MessageResponse(message=str(e)).model_dump(),
+            status_code=404,
+        )
     return schemas.MessageResponse(message="Pipeline deleted")
 
 

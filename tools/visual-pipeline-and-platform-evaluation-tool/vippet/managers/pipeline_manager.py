@@ -81,6 +81,16 @@ class PipelineManager:
                 return pipeline
         return None
 
+    def delete_pipeline(self, name: str, version: str):
+        pipeline = self._find_pipeline(name, version)
+        if pipeline is not None:
+            self.pipelines.remove(pipeline)
+            self.logger.debug(f"Pipeline deleted: {pipeline}")
+        else:
+            raise ValueError(
+                f"Pipeline with name '{name}' and version '{version}' not found."
+            )
+
     def load_predefined_pipelines(self):
         predefined_pipelines = []
         for pipeline_name in PipelineLoader.list():
@@ -93,8 +103,8 @@ class PipelineManager:
 
             predefined_pipelines.append(
                 Pipeline(
-                    name="predefined_pipelines",
-                    version=config.get("name", "UnnamedPipeline"),
+                    name=config.get("name", "unnamed-pipeline"),
+                    version=str(config.get("version", "1.0")),
                     description=config.get("display_name", "Unnamed Pipeline"),
                     type=PipelineType.GSTREAMER,
                     pipeline_graph=PipelineGraph.model_validate(pipeline_graph),

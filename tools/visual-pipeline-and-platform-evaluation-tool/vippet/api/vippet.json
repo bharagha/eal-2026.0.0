@@ -798,6 +798,7 @@
           "pipelines"
         ],
         "summary": "Delete Pipeline",
+        "description": "Delete pipeline by name and version.",
         "operationId": "delete_pipeline",
         "parameters": [
           {
@@ -830,8 +831,8 @@
               }
             }
           },
-          "400": {
-            "description": "Cannot delete pipeline",
+          "404": {
+            "description": "Pipeline not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1784,38 +1785,6 @@
           "parameters"
         ],
         "title": "PipelineValidation"
-      },
-      "Source": {
-        "properties": {
-          "type": {
-            "$ref": "#/components/schemas/SourceType"
-          },
-          "uri": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Uri"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "uri"
-        ],
-        "title": "Source"
-      },
-      "SourceType": {
-        "type": "string",
-        "enum": [
-          "uri",
-          "gst"
-        ],
-        "title": "SourceType"
       },
       "ValidationError": {
         "properties": {

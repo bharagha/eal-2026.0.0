@@ -1,4 +1,5 @@
 name: smartnvr-mediaonly
+version: 1.0
 display_name: Smart Network Video Recorder (NVR) Proxy Pipeline - Media Only Branch
 definition: >
   Part of the Smart Network Video Recorder (NVR) Proxy Pipeline. This branch processes video streams
