@@ -111,7 +111,7 @@ class Benchmark:
                 pipeline_specs, n_streams
             )
 
-            # Build run specs with calculated channel counts
+            # Build run specs with calculated stream counts
             run_specs = [
                 PipelineRunSpec(name=spec.name, version=spec.version, streams=streams)
                 for spec, streams in zip(pipeline_specs, streams_per_pipeline)

@@ -13,7 +13,7 @@ from api.api_schemas import (
     PipelineGraph,
 )
 
-logger = logging.getLogger("pipeline_manager")
+logger = logging.getLogger(__name__)
 
 # Singleton instance for PipelineManager
 _pipeline_manager_instance: Optional["PipelineManager"] = None
