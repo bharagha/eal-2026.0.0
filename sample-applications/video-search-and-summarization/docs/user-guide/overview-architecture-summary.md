@@ -124,7 +124,7 @@ The key components of the Video Summarization mode are as follows:
 5. **Dependent microservices**:
    The pipeline uses dependent microservices to realize the Video Summarization features. The dependent microservices are divided into inference microservices and data-handling microservices:
 
-**Inference microservices**:
+   **Inference microservices**:
 
    - [Multimodal Embedding](../../../../microservices/multimodal-embedding-serving/)
 
@@ -132,7 +132,7 @@ The key components of the Video Summarization mode are as follows:
 
    - [VLM microservice](../../../../microservices/vlm-openvino-serving/) 
 
- **Data-handling microservices**
+    **Data-handling microservices**
 
    - [VDMS-based data preparation](../../../../microservices/visual-data-preparation-for-retrieval/vdms/)
    
