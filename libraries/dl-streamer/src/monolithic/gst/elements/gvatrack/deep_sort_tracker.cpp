@@ -11,7 +11,6 @@
 #include <numeric>
 
 #define DISABLE_DBG_LOGS 1
-#define INFERENCE_BATCHING_DISABLED 1
 
 namespace DeepSortWrapper {
 
@@ -57,7 +56,7 @@ void Track::initiate(const cv::Rect_<float> &bbox) {
  * @brief Predict next state using Kalman filter motion model (constant velocity)
  */
 void Track::predict() {
-    // Original OpenCV-based implementation
+    // OpenCV-based implementation
     // State transition matrix
     cv::Mat F = cv::Mat::eye(8, 8, CV_32F);
     F.at<float>(0, 4) = 1.0f; // x += vx
@@ -93,7 +92,7 @@ void Track::predict() {
 void Track::update(const Detection &detection) {
     predict();
 
-    // Original OpenCV-based implementation
+    // OpenCV-based implementation
     // Measurement model (we observe x, y, aspect_ratio, height)
     cv::Mat H = cv::Mat::zeros(4, 8, CV_32F);
     H.at<float>(0, 0) = 1.0f; // observe x
@@ -186,12 +185,13 @@ FeatureExtractor::FeatureExtractor(const std::string &model_path, const std::str
     auto model = core_.read_model(model_path);
     compiled_model_ = core_.compile_model(model, device);
     infer_request_ = compiled_model_.create_infer_request();
+    GST_INFO("Model %s loaded and compiled successfully for device %s", model_path.c_str(), device.c_str());
 
     // Get input dimensions - handle different model types
     auto input_port = compiled_model_.input();
 
     if (model_path.find("mars") != std::string::npos) {
-        // MARS model: expects [N, 3, 128, 64] - NCHW format (N can be dynamic)
+        // MARS model: expects [1, 3, 128, 64] - NCHW format
         const auto &partial_shape = input_port.get_partial_shape();
         const auto &input_shape =
             partial_shape.is_dynamic() ? partial_shape.get_min_shape() : partial_shape.get_shape();
@@ -206,33 +206,13 @@ FeatureExtractor::FeatureExtractor(const std::string &model_path, const std::str
         GST_INFO("MARS model detected: input shape [%lu, %lu, %lu, %lu], using H=%d, W=%d", input_shape[0],
                  input_shape[1], input_shape[2], input_shape[3], input_height_, input_width_);
 
-    } else if (model_path.find("resnet18") != std::string::npos) {
-        // ResNet18: standard NCHW format
-        auto input_shape = input_port.get_shape();
-
-        if (input_shape.size() < 4) {
-            throw std::runtime_error("ResNet18 model input must have at least 4 dimensions (NCHW)");
-        }
-
-        input_height_ = input_shape[2];
-        input_width_ = input_shape[3];
-
-        GST_INFO("ResNet18 model detected: input shape [%lu, %lu, %lu, %lu], using H=%d, W=%d", input_shape[0],
-                 input_shape[1], input_shape[2], input_shape[3], input_height_, input_width_);
-
     } else {
-        // Generic model: assume NCHW format
-        auto input_shape = input_port.get_shape();
-
-        if (input_shape.size() < 4) {
-            throw std::runtime_error("Model input must have at least 4 dimensions (NCHW or NHWC)");
-        }
-
-        input_height_ = input_shape[2];
-        input_width_ = input_shape[3];
-
-        GST_WARNING("Unknown model type, assuming NCHW format: H=%d, W=%d", input_height_, input_width_);
+        GST_ERROR("Unsupported model provided for Deep SORT feature extractor: %s. Expecting MARS model with input "
+                  "shape [1, 3, 128, 64]",
+                  model_path.c_str());
+        throw std::runtime_error("Unsupported model provided for Deep SORT feature extractor: " + model_path);
     }
+
     // Validate extracted dimensions
     if (input_height_ <= 0 || input_width_ <= 0) {
         throw std::runtime_error("Invalid input dimensions detected from model: " + std::to_string(input_width_) + "x" +
@@ -250,26 +230,26 @@ std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rec
     // Check if bbox is valid and completely within image
     if (bbox.area() == 0) {
         GST_WARNING("Invalid bbox (zero area), returning zero feature");
-        return std::vector<float>(128, 0.0f);
+        return std::vector<float>(DEFAULT_FEATURES_VECTOR_SIZE_128, 0.0f);
     }
 
     if (bbox.x < 0 || bbox.y < 0 || bbox.x + bbox.width > image.cols || bbox.y + bbox.height > image.rows) {
         GST_WARNING("Bbox extends beyond image bounds (%dx%d at (%d,%d) in %dx%d image), returning zero feature",
                     bbox.width, bbox.height, bbox.x, bbox.y, image.cols, image.rows);
-        return std::vector<float>(128, 0.0f);
+        return std::vector<float>(DEFAULT_FEATURES_VECTOR_SIZE_128, 0.0f);
     }
 
     try {
         cv::Mat roi = image(bbox);
         if (roi.empty()) {
             GST_WARNING("Empty ROI, returning zero feature");
-            return std::vector<float>(128, 0.0f);
+            return std::vector<float>(DEFAULT_FEATURES_VECTOR_SIZE_128, 0.0f);
         }
 
         cv::Mat preprocessed = preprocess(roi);
         if (preprocessed.empty()) {
             GST_ERROR("Preprocessing failed, returning zero feature");
-            return std::vector<float>(128, 0.0f);
+            return std::vector<float>(DEFAULT_FEATURES_VECTOR_SIZE_128, 0.0f);
         }
 
         // Set input tensor
@@ -281,7 +261,7 @@ std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rec
 
         if (expected_size != tensor_size) {
             GST_ERROR("Size mismatch: preprocessed=%lu, tensor=%lu", expected_size, tensor_size);
-            return std::vector<float>(128, 0.0f);
+            return std::vector<float>(DEFAULT_FEATURES_VECTOR_SIZE_128, 0.0f);
         }
 
         if (input_tensor.get_element_type() == ov::element::f32) {
@@ -292,10 +272,9 @@ std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rec
         } else {
             GST_ERROR("Unsupported tensor data type: %s. Supporting only FP32 for now.",
                       input_tensor.get_element_type().get_type_name().c_str());
-            return std::vector<float>(128, 0.0f);
+            return std::vector<float>(DEFAULT_FEATURES_VECTOR_SIZE_128, 0.0f);
         }
 
-        infer_request_.set_input_tensor(input_tensor);
         // Run inference
         infer_request_.infer();
 
@@ -308,159 +287,23 @@ std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rec
 
     } catch (const std::exception &e) {
         GST_ERROR("Exception in feature extraction: %s", e.what());
-        return std::vector<float>(128, 0.0f);
+        return std::vector<float>(DEFAULT_FEATURES_VECTOR_SIZE_128, 0.0f);
     }
 }
 
 /**
- * @brief Extract features from multiple bounding boxes using batch inference
+ * @brief Extract features from multiple bounding boxes in batch processing
  */
 std::vector<std::vector<float>> FeatureExtractor::extract_batch(const cv::Mat &image,
                                                                 const std::vector<cv::Rect> &bboxes) {
     std::vector<std::vector<float>> features;
-    if (bboxes.empty()) {
-        return features;
-    }
-    size_t batch_size = bboxes.size();
     features.reserve(bboxes.size());
-#if INFERENCE_BATCHING_DISABLED
+
     for (const auto &bbox : bboxes) {
         features.push_back(extract(image, bbox));
     }
-#else
-    try {
-        // Prepare tensors for batch processing
-        size_t single_image_size = 3 * input_height_ * input_width_;
-        ov::Shape original_shape = {1, 3, static_cast<size_t>(input_height_), static_cast<size_t>(input_width_)};
 
-        std::vector<ov::Tensor> input_tensors;
-        std::vector<cv::Mat> preprocessed_data; // Keep preprocessed data alive
-
-        // Preprocess all ROIs and prepare tensors
-        for (size_t i = 0; i < batch_size; ++i) {
-            const auto &bbox = bboxes[i];
-
-            // Validate bbox bounds
-            if (bbox.area() == 0 || bbox.x < 0 || bbox.y < 0 || bbox.x + bbox.width > image.cols ||
-                bbox.y + bbox.height > image.rows) {
-                GST_ERROR("Invalid bbox [%d,%d,%dx%d] for batch item %zu, using zero feature", bbox.x, bbox.y,
-                          bbox.width, bbox.height, i);
-                // Add zero feature for invalid bbox
-                features.emplace_back(128, 0.0f);
-                continue;
-            }
-
-            cv::Mat roi = image(bbox);
-            cv::Mat preprocessed = preprocess_to_chw(roi);
-
-            if (preprocessed.empty() || preprocessed.total() != single_image_size) {
-                GST_ERROR("Preprocessing failed for batch item %zu, using zero feature", i);
-                features.emplace_back(128, 0.0f);
-                continue;
-            }
-
-            // Store preprocessed data and create tensor
-            preprocessed_data.push_back(preprocessed.clone()); // Clone to ensure data persistence
-            ov::Tensor roi_tensor(ov::element::f32, original_shape, preprocessed_data.back().data);
-            input_tensors.push_back(roi_tensor);
-        }
-
-        // Set all input tensors at once if we have any valid ones
-        if (!input_tensors.empty()) {
-            infer_request_.set_input_tensors(input_tensors);
-
-            // Run single inference for all tensors
-            infer_request_.infer();
-
-            // Extract features from output tensors
-            for (size_t j = 0; j < input_tensors.size(); ++j) {
-                // Get output tensor for this input
-                auto output_tensor = infer_request_.get_output_tensor(j);
-                const float *output_data = output_tensor.data<const float>();
-
-                // Determine feature size from output shape
-                size_t feature_size = output_tensor.get_size();
-
-                // Extract feature vector
-                std::vector<float> feature(output_data, output_data + feature_size);
-
-                // L2 normalize the feature
-                float norm = std::sqrt(std::inner_product(feature.begin(), feature.end(), feature.begin(), 0.0f));
-                if (norm > 0.0f) {
-                    for (float &f : feature) {
-                        f /= norm;
-                    }
-                }
-
-                features.push_back(std::move(feature));
-            }
-        }
-#if !DISABLE_DBG_LOGS
-        GST_INFO("Batch inference completed: %zu ROIs processed with %zu valid tensors in single inference call",
-                 batch_size, input_tensors.size());
-#endif
-    } catch (const std::exception &e) {
-        GST_ERROR("Exception in batch feature extraction: %s", e.what());
-        // Return zero features for all items on error
-        return std::vector<std::vector<float>>(batch_size, std::vector<float>(128, 0.0f));
-    }
-#endif
     return features;
-}
-
-/**
- * @brief Preprocess image ROI to CHW format for batch inference
- */
-cv::Mat FeatureExtractor::preprocess_to_chw(const cv::Mat &image) {
-    if (image.empty()) {
-        GST_ERROR("Input image is empty");
-        return cv::Mat();
-    }
-
-    if (image.channels() != 3) {
-        GST_ERROR("Deep SORT feature extractor expects 3-channel RGB input, got %d channels", image.channels());
-        return cv::Mat();
-    }
-
-    try {
-        cv::Mat resized, normalized;
-        cv::resize(image, resized, cv::Size(input_width_, input_height_));
-
-        if (resized.empty()) {
-            GST_ERROR("Resize operation failed");
-            return cv::Mat();
-        }
-
-        resized.convertTo(normalized, CV_32F, 1.0f / 255.0f);
-        if (normalized.empty()) {
-            GST_ERROR("Normalization failed");
-            return cv::Mat();
-        }
-
-        // Create output in CHW format: [3, H, W]
-        cv::Mat result(3 * input_height_ * input_width_, 1, CV_32F);
-        float *result_data = result.ptr<float>();
-
-        if (!result_data || !normalized.isContinuous()) {
-            GST_ERROR("Failed to get result data pointer or image not continuous");
-            return cv::Mat();
-        }
-
-        // Convert HWC to CHW format
-        float *src_data = normalized.ptr<float>();
-        size_t pixel_count = input_height_ * input_width_;
-
-        for (int c = 0; c < 3; ++c) {
-            for (size_t i = 0; i < pixel_count; ++i) {
-                result_data[c * pixel_count + i] = src_data[i * 3 + c];
-            }
-        }
-
-        return result;
-    } catch (const std::exception &e) {
-        GST_ERROR("Exception in preprocess_to_chw: %s", e.what());
-        return cv::Mat();
-    }
 }
 
 /**
@@ -557,14 +400,31 @@ std::vector<float> FeatureExtractor::postprocess(const ov::Tensor &output) {
  * @brief Initialize Deep SORT tracker with feature extractor and tracking parameters
  */
 DeepSortTracker::DeepSortTracker(const std::string &feature_model_path, const std::string &device,
-                                 float max_iou_distance, float max_age, int n_init, float max_cosine_distance,
+                                 float max_iou_distance, int max_age, int n_init, float max_cosine_distance,
                                  int nn_budget, dlstreamer::MemoryMapperPtr mapper)
     : feature_extractor_(std::make_unique<FeatureExtractor>(feature_model_path, device)), next_id_(1),
       max_iou_distance_(max_iou_distance), max_age_(max_age), n_init_(n_init),
       max_cosine_distance_(max_cosine_distance), nn_budget_(nn_budget), buffer_mapper_(std::move(mapper)) {
 
 #if !DISABLE_DBG_LOGS
-    g_print("DeepSortTracker initialized with OpenCV KALMAN FILTER: max_iou_distance=%.3f, max_age=%.3f, n_init=%d, "
+    g_print("DeepSortTracker initialized with OpenCV KALMAN FILTER and FeatureExtractor: max_iou_distance=%.3f, "
+            "max_age=%d, n_init=%d, "
+            "max_cosine_distance=%.3f\n",
+            max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
+#endif
+}
+
+/**
+ * @brief Initialize Deep SORT tracker with tracking parameters (features from gvainference)
+ */
+DeepSortTracker::DeepSortTracker(float max_iou_distance, int max_age, int n_init, float max_cosine_distance,
+                                 int nn_budget, dlstreamer::MemoryMapperPtr mapper)
+    : feature_extractor_(nullptr), next_id_(1), max_iou_distance_(max_iou_distance), max_age_(max_age), n_init_(n_init),
+      max_cosine_distance_(max_cosine_distance), nn_budget_(nn_budget), buffer_mapper_(std::move(mapper)) {
+
+#if !DISABLE_DBG_LOGS
+    g_print("DeepSortTracker initialized with OpenCV KALMAN FILTER (features from gvainference): "
+            "max_iou_distance=%.3f, max_age=%d, n_init=%d, "
             "max_cosine_distance=%.3f\n",
             max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
 #endif
@@ -678,34 +538,92 @@ void DeepSortTracker::do_color_space_conversion(cv::Mat &image, cv::Mat &raw_ima
 }
 
 /**
- * @brief Convert GVA region detections to Deep SORT Detection objects with features
+ * @brief Convert GVA region detections to Deep SORT Detection objects
  */
 std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
                                                            const std::vector<GVA::RegionOfInterest> &regions) {
     std::vector<Detection> detections;
-    std::vector<cv::Rect> bboxes;
+    detections.reserve(regions.size());
 
-    for (const auto &region : regions) {
-        cv::Rect bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
-        bboxes.push_back(bbox);
-    }
+    if (feature_extractor_) {
+        //  Mode 1: Use internal FeatureExtractor for feature extraction
+        std::vector<cv::Rect> bboxes;
+        for (const auto &region : regions) {
+            cv::Rect bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
+            bboxes.push_back(bbox);
+        }
 
-    // Extract features for all detections
-    if (!feature_extractor_) {
-        throw std::runtime_error("Feature extractor not initialized but features are enabled");
-    }
-    auto features = feature_extractor_->extract_batch(image, bboxes);
+        auto features = feature_extractor_->extract_batch(image, bboxes);
 
-    for (size_t i = 0; i < regions.size(); ++i) {
-        const auto &region = regions[i];
-        cv::Rect_<float> bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
-        float confidence = region.confidence();
+        for (size_t i = 0; i < regions.size(); ++i) {
+            const auto &region = regions[i];
+            cv::Rect_<float> bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
+            float confidence = region.confidence();
 
 #if !DISABLE_DBG_LOGS
-        g_print("{%s} Detection %zu: bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu\n", __FUNCTION__, i,
-                (int)bbox.x, (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence, features[i].size());
+            g_print("{%s} Detection %zu (FeatureExtractor): bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu\n",
+                    __FUNCTION__, i, (int)bbox.x, (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence,
+                    features[i].size());
 #endif
-        detections.emplace_back(bbox, confidence, features[i], -1);
+            detections.emplace_back(bbox, confidence, features[i], -1);
+        }
+    } else {
+        // Mode 2: Extract features from pre-attached tensor data (from gvainference)
+        for (size_t i = 0; i < regions.size(); ++i) {
+            const auto &region = regions[i];
+            cv::Rect_<float> bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
+            float confidence = region.confidence();
+#if !DISABLE_DBG_LOGS
+            g_print("Processing region %zu: bbox[x=%d,y=%d,w=%d,h=%d], confidence=%.3f\n", i, (int)bbox.x, (int)bbox.y,
+                    (int)bbox.width, (int)bbox.height, confidence);
+#endif
+            // Extract feature vector from tensor data attached to the region (from gvainference)
+            std::vector<float> feature_vector;
+            bool found_feature = false;
+
+            // Look for feature tensor in region's tensors (added by gvainference element)
+            auto tensors = region.tensors();
+            for (const auto &tensor : tensors) {
+                // Look for feature/embedding tensor from gvainference
+                std::string tensor_name = tensor.name();
+                std::string layer_name = tensor.layer_name();
+
+                // Check if this is a feature tensor (common layer names for feature extraction)
+                if (layer_name.find("output") != std::string::npos &&
+                    tensor_name.find("inference_layer_name:output") != std::string::npos) {
+
+                    // Extract feature data from tensor
+                    feature_vector = tensor.data<float>();
+
+                    if (!feature_vector.empty() && feature_vector.size() == DEFAULT_FEATURES_VECTOR_SIZE_128) {
+                        // L2 normalize the feature vector (standard for Deep SORT)
+                        float norm = std::sqrt(std::inner_product(feature_vector.begin(), feature_vector.end(),
+                                                                  feature_vector.begin(), 0.0f));
+                        if (norm > 0.0f) {
+                            for (float &f : feature_vector) {
+                                f /= norm;
+                            }
+                        }
+                        found_feature = true;
+                        break;
+                    }
+                }
+            }
+
+            // If no feature found, use zero vector (will disable appearance-based matching)
+            if (!found_feature) {
+                GST_WARNING("No feature tensor found for region %zu, using zero feature (motion-only tracking)", i);
+                feature_vector =
+                    std::vector<float>(DEFAULT_FEATURES_VECTOR_SIZE_128, 0.0f); // Default 128-dimensional zero vector
+            }
+
+#if !DISABLE_DBG_LOGS
+            g_print("{%s} Detection %zu (gvainference): bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu\n",
+                    __FUNCTION__, i, (int)bbox.x, (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence,
+                    feature_vector.size());
+#endif
+            detections.emplace_back(bbox, confidence, feature_vector, -1);
+        }
     }
 
     return detections;
@@ -734,9 +652,6 @@ void DeepSortTracker::associate_detections_to_tracks(const std::vector<Detection
 
     for (size_t det_idx = 0; det_idx < detections.size(); ++det_idx) {
         for (size_t trk_idx = 0; trk_idx < tracks_.size(); ++trk_idx) {
-            if (!tracks_[trk_idx]->is_confirmed()) {
-                // continue;
-            }
 
             cv::Rect_<float> track_bbox = tracks_[trk_idx]->to_bbox();
             float iou = calculate_iou(detections[det_idx].bbox, track_bbox);

@@ -22,11 +22,12 @@
 namespace DeepSortWrapper {
 
 // Deep SORT specific parameters
-constexpr float DEFAULT_MAX_IOU_DISTANCE = 0.7f;
-constexpr float DEFAULT_MAX_AGE = 30.0f; // Max number of missed misses before track deletion
-constexpr int DEFAULT_N_INIT = 3;
-constexpr float DEFAULT_MAX_COSINE_DISTANCE = 0.2f;
+constexpr float DEFAULT_MAX_IOU_DISTANCE = 0.7f;    // Maximum IoU distance threshold for matching
+constexpr int DEFAULT_MAX_AGE = 30;                 // Maximum number of missed frames before track is deleted
+constexpr int DEFAULT_N_INIT = 3;                   // Number of consecutive hits required to confirm a track
+constexpr float DEFAULT_MAX_COSINE_DISTANCE = 0.2f; // Maximum cosine distance for appearance matching
 constexpr int DEFAULT_NN_BUDGET = 100;
+constexpr int DEFAULT_FEATURES_VECTOR_SIZE_128 = 128;
 
 // Track states
 enum class TrackState { Tentative = 1, Confirmed = 2, Deleted = 3 };
@@ -113,7 +114,7 @@ class Track {
 // Deep SORT feature extractor using OpenVINO
 class FeatureExtractor {
   public:
-    FeatureExtractor(const std::string &model_path, const std::string &device = "GPU");
+    FeatureExtractor(const std::string &model_path, const std::string &device = "CPU");
     ~FeatureExtractor() = default;
 
     std::vector<float> extract(const cv::Mat &image, const cv::Rect &bbox);
@@ -128,15 +129,20 @@ class FeatureExtractor {
     int input_width_;
 
     cv::Mat preprocess(const cv::Mat &image);
-    cv::Mat preprocess_to_chw(const cv::Mat &image); // New method for batch preprocessing
     std::vector<float> postprocess(const ov::Tensor &output);
 };
 
 // Deep SORT tracker implementation
 class DeepSortTracker : public ITracker {
   public:
+    // Constructor for feature extraction using provided model
     DeepSortTracker(const std::string &feature_model_path, const std::string &device = "CPU",
-                    float max_iou_distance = DEFAULT_MAX_IOU_DISTANCE, float max_age = DEFAULT_MAX_AGE,
+                    float max_iou_distance = DEFAULT_MAX_IOU_DISTANCE, int max_age = DEFAULT_MAX_AGE,
+                    int n_init = DEFAULT_N_INIT, float max_cosine_distance = DEFAULT_MAX_COSINE_DISTANCE,
+                    int nn_budget = DEFAULT_NN_BUDGET, dlstreamer::MemoryMapperPtr mapper = nullptr);
+
+    // Constructor for using pre-extracted features from gvainference
+    DeepSortTracker(float max_iou_distance = DEFAULT_MAX_IOU_DISTANCE, int max_age = DEFAULT_MAX_AGE,
                     int n_init = DEFAULT_N_INIT, float max_cosine_distance = DEFAULT_MAX_COSINE_DISTANCE,
                     int nn_budget = DEFAULT_NN_BUDGET, dlstreamer::MemoryMapperPtr mapper = nullptr);
 
@@ -148,7 +154,7 @@ class DeepSortTracker : public ITracker {
 
   private:
     // Deep SORT algorithm components
-    std::unique_ptr<FeatureExtractor> feature_extractor_;
+    std::unique_ptr<FeatureExtractor> feature_extractor_; // nullptr when using pre-extracted features
     std::vector<std::unique_ptr<Track>> tracks_;
     int next_id_;
 
