@@ -173,7 +173,14 @@ const Pipelines = () => {
           shouldFitView={shouldFitView}
         />
 
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-4 right-4 flex flex-row gap-2">
+          <button
+            className="bg-gray-600 text-white p-2 rounded-lg shadow-lg transition-colors disabled:opacity-50"
+            title="Optimize Pipeline"
+            disabled={true}
+          >
+            Optimize
+          </button>
           <FpsDisplay />
         </div>
 
