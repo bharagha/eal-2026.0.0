@@ -66,7 +66,7 @@ const OpenPipelineButton = ({ onImport }: OpenPipelineButtonProps) => {
       <button
         onClick={handleClick}
         className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg shadow-lg transition-colors disabled:opacity-50"
-        title="Import Pipeline"
+        title="Open Pipeline"
       >
         <FolderOpen className="w-5 h-5" />
       </button>

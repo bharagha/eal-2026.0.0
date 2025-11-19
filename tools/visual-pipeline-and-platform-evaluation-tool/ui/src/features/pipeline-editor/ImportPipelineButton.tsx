@@ -89,7 +89,7 @@ const ImportPipelineButton = ({ onImport }: ImportPipelineButtonProps) => {
       <DialogTrigger asChild>
         <button
           className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg shadow-lg transition-colors"
-          title="Open Pipeline"
+          title="Import Pipeline"
         >
           <Upload className="w-5 h-5" />
         </button>
