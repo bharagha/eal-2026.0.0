@@ -58,6 +58,8 @@ spec:
       labels:
         app: {{ .Values.ovmServer.name }}
     spec:
+      securityContext:
+        fsGroup: 0
       initContainers:
         - name: init-script
           image: "python:3.10.12"
@@ -106,7 +108,6 @@ spec:
             privileged: true
             runAsUser: 0
             runAsGroup: 0
-            fsGroup: 0
           volumeMounts:
             - name: scripts-volume
               mountPath: /config
