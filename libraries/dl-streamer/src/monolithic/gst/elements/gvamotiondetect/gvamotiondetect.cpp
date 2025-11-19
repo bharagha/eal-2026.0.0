@@ -12,12 +12,13 @@
 
 // Platform‑specific includes: VA path only for non-MSVC builds
 #ifndef _MSC_VER
-#include <gmodule.h>
 #include <gst/va/gstvadisplay.h>
 #include <gst/va/gstvautils.h>
 #include <opencv2/core/va_intel.hpp>
 #include <va/va.h>
 #include <va/va.h>
+#include <va/va_vpp.h>
+#include <dlfcn.h>
 #endif
 
 #include <gst/video/video.h>
@@ -31,10 +32,6 @@
 #include <string>
 #include <dlstreamer/gst/videoanalytics/video_frame.h> // analytics meta types (GstAnalyticsRelationMeta, GstAnalyticsODMtd)
 
-// Removed legacy meta_attacher include: not needed for manual motion metadata attachment.
-
-// (No dummy converter needed; motion ROIs attached directly as analytics relation + ROI metas.)
-
 // Removed G_BEGIN_DECLS / G_END_DECLS to avoid forcing C linkage on C++ helper functions
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_motion_detect_debug);
@@ -46,6 +43,12 @@ struct MotionRect {
     gint w;
     gint h;
 };
+
+// Compact coordinate rounding helper: limit normalized values to 3 decimal places
+// to reduce JSON payload size without materially impacting downstream logic.
+static inline double md_round_coord(double v) {
+    return std::floor(v * 1000.0 + 0.5) / 1000.0; // round half up to 0.001 precision
+}
 
 /* Property identifiers */
 enum {
@@ -73,6 +76,10 @@ struct _GstGvaMotionDetect {
     bool overlay_ready;
     std::string last_text;
     VASurfaceID prev_sid; // simple 1‑frame history
+    // Scaled working surface (hardware downscale target). Created on-demand.
+    VASurfaceID scaled_sid;
+    int scaled_w;
+    int scaled_h;
 #else
     // Windows (MSVC) build: no VAAPI. Provide stubs to satisfy logic.
     void *va_dpy;
@@ -138,10 +145,17 @@ struct _GstGvaMotionDetectClass {
 G_DEFINE_TYPE(GstGvaMotionDetect, gst_gva_motion_detect, GST_TYPE_BASE_TRANSFORM)
 
 #ifndef _MSC_VER
-static GstStaticPadTemplate sink_templ =
-    GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw(memory:VAMemory)"));
-static GstStaticPadTemplate src_templ =
-    GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw(memory:VAMemory)"));
+// Support both VA GPU memory and system memory; runtime property enforces restriction.
+static GstStaticPadTemplate sink_templ = GST_STATIC_PAD_TEMPLATE(
+    "sink", GST_PAD_SINK, GST_PAD_ALWAYS,
+    GST_STATIC_CAPS(
+        "video/x-raw(memory:VAMemory), format=NV12; "
+        "video/x-raw, format=NV12"));
+static GstStaticPadTemplate src_templ = GST_STATIC_PAD_TEMPLATE(
+    "src", GST_PAD_SRC, GST_PAD_ALWAYS,
+    GST_STATIC_CAPS(
+        "video/x-raw(memory:VAMemory), format=NV12; "
+        "video/x-raw, format=NV12"));
 #else
 // Windows build: system memory only
 static GstStaticPadTemplate sink_templ =
@@ -241,6 +255,117 @@ static bool gva_motion_detect_write_to_surface(GstGvaMotionDetect *self, const c
         return false;
     }
 }
+
+// Map only the luma (Y) plane of an NV12/YUV420 VA surface into a cv::UMat (single-channel) to avoid full color
+// conversion. Returns true on success.
+static bool gva_motion_detect_map_luma(GstGvaMotionDetect *self, VASurfaceID sid, int width, int height,
+                                       cv::UMat &out_luma) {
+    if (sid == VA_INVALID_SURFACE || !self->va_dpy || width <= 0 || height <= 0)
+        return false;
+    VAImage image; memset(&image, 0, sizeof(image));
+    VAStatus st = vaDeriveImage(self->va_dpy, sid, &image);
+    if (st != VA_STATUS_SUCCESS) {
+        GST_DEBUG_OBJECT(self, "vaDeriveImage failed status=%d (%s)", (int)st, vaErrorStr(st));
+        return false; // keep it simple; fallback path will handle full conversion
+    }
+    void *data = nullptr;
+    if (vaMapBuffer(self->va_dpy, image.buf, &data) != VA_STATUS_SUCCESS) {
+        vaDestroyImage(self->va_dpy, image.image_id);
+        return false;
+    }
+    // Supported formats where plane 0 is luma
+    if (image.format.fourcc != VA_FOURCC_NV12 && image.format.fourcc != VA_FOURCC_I420 && image.format.fourcc != VA_FOURCC_YV12) {
+        vaUnmapBuffer(self->va_dpy, image.buf);
+        vaDestroyImage(self->va_dpy, image.image_id);
+        GST_DEBUG_OBJECT(self, "Unsupported fourcc %4.4s for luma mapping", (char *)&image.format.fourcc);
+        return false;
+    }
+    uint8_t *base = static_cast<uint8_t *>(data);
+    uint8_t *y_ptr = base + image.offsets[0];
+    int y_pitch = image.pitches[0];
+    cv::Mat y_mat(height, width, CV_8UC1, y_ptr, y_pitch);
+    try {
+        y_mat.copyTo(out_luma); // upload to UMat
+    } catch (const cv::Exception &e) {
+        vaUnmapBuffer(self->va_dpy, image.buf);
+        vaDestroyImage(self->va_dpy, image.image_id);
+        GST_WARNING_OBJECT(self, "Luma copyTo(UMat) failed: %s", e.what());
+        return false;
+    }
+    vaUnmapBuffer(self->va_dpy, image.buf);
+    vaDestroyImage(self->va_dpy, image.image_id);
+    return true;
+}
+
+// Ensure (create or reuse) a scaled VA surface of requested size; returns valid sid or VA_INVALID_SURFACE.
+static VASurfaceID gva_motion_detect_ensure_scaled_surface(GstGvaMotionDetect *self, int w, int h) {
+    if (!self->va_dpy || w <= 0 || h <= 0)
+        return VA_INVALID_SURFACE;
+    if (self->scaled_sid != VA_INVALID_SURFACE && self->scaled_w == w && self->scaled_h == h)
+        return self->scaled_sid;
+    // Recreate if size changed
+    if (self->scaled_sid != VA_INVALID_SURFACE) {
+        vaDestroySurfaces(self->va_dpy, &self->scaled_sid, 1);
+        self->scaled_sid = VA_INVALID_SURFACE;
+    }
+    // Assumption: source is NV12/YUV420; create a generic YUV420 surface.
+    VASurfaceID newsid = VA_INVALID_SURFACE;
+    VAStatus st = vaCreateSurfaces(self->va_dpy, VA_RT_FORMAT_YUV420, w, h, &newsid, 1, nullptr, 0);
+    if (st != VA_STATUS_SUCCESS) {
+        GST_WARNING_OBJECT(self, "vaCreateSurfaces (scaled) failed %d (%s)", (int)st, vaErrorStr(st));
+        return VA_INVALID_SURFACE;
+    }
+    self->scaled_sid = newsid;
+    self->scaled_w = w;
+    self->scaled_h = h;
+    GST_LOG_OBJECT(self, "Allocated scaled VA surface sid=%u size=%dx%d", newsid, w, h);
+    return newsid;
+}
+
+// Hardware downscale via vaBlitSurface into cached scaled surface. Returns true on success and outputs sid.
+static bool gst_gva_motion_detect_va_downscale(GstGvaMotionDetect *self, VASurfaceID src_sid, int src_w, int src_h,
+                                              int dst_w, int dst_h, VASurfaceID &out_sid) {
+    out_sid = VA_INVALID_SURFACE;
+    if (!self->va_dpy || src_sid == VA_INVALID_SURFACE)
+        return false;
+    if (dst_w <= 0 || dst_h <= 0 || src_w <= 0 || src_h <= 0)
+        return false;
+    VASurfaceID dst_sid = gva_motion_detect_ensure_scaled_surface(self, dst_w, dst_h);
+    if (dst_sid == VA_INVALID_SURFACE)
+        return false;
+
+    // Try to locate vaBlitSurface dynamically (may be absent in older libva versions).
+    typedef VAStatus (*PFN_vaBlitSurface)(VADisplay, VASurfaceID, VASurfaceID, const VARectangle *, const VARectangle *, const VARectangle *, uint32_t);
+    static PFN_vaBlitSurface p_vaBlitSurface = nullptr;
+    if (!p_vaBlitSurface) {
+        void *sym = dlsym(RTLD_DEFAULT, "vaBlitSurface");
+        p_vaBlitSurface = reinterpret_cast<PFN_vaBlitSurface>(sym);
+        if (!p_vaBlitSurface) {
+            GST_LOG_OBJECT(self, "vaBlitSurface symbol not found; falling back to software resize");
+            return false;
+        }
+    }
+    if (!p_vaBlitSurface) {
+        // No hardware blit available; caller will fallback to software resize.
+        return false;
+    }
+
+    // Prepare rectangles safely (avoid narrowing warnings by explicit assignment & clamping)
+    VARectangle src_rect; src_rect.x = 0; src_rect.y = 0; src_rect.width = (uint16_t)std::min(src_w, 0xFFFF); src_rect.height = (uint16_t)std::min(src_h, 0xFFFF);
+    VARectangle dst_rect; dst_rect.x = 0; dst_rect.y = 0; dst_rect.width = (uint16_t)std::min(dst_w, 0xFFFF); dst_rect.height = (uint16_t)std::min(dst_h, 0xFFFF);
+    VAStatus st = p_vaBlitSurface(self->va_dpy, dst_sid, src_sid, &src_rect, &dst_rect, nullptr, 0);
+    if (st != VA_STATUS_SUCCESS) {
+        GST_DEBUG_OBJECT(self, "vaBlitSurface unavailable/failed -> software resize path (status=%d %s)", (int)st, vaErrorStr(st));
+        return false;
+    }
+    st = vaSyncSurface(self->va_dpy, dst_sid);
+    if (st != VA_STATUS_SUCCESS) {
+        GST_WARNING_OBJECT(self, "vaSyncSurface (scaled) failed %d (%s)", (int)st, vaErrorStr(st));
+        return false;
+    }
+    out_sid = dst_sid;
+    return true;
+}
 #else
 // Stubs for MSVC build (no VA available)
 static inline int gva_motion_detect_get_surface(GstGvaMotionDetect *, GstBuffer *) {
@@ -273,7 +398,10 @@ static gboolean gst_gva_motion_detect_set_caps(GstBaseTransform *trans, GstCaps 
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(trans);
     if (!gst_video_info_from_caps(&self->vinfo, incaps))
         return FALSE;
-    // Stats probing removed: retain simple success path.
+    gchar *caps_str = gst_caps_to_string(incaps);
+    gboolean is_va = (caps_str && strstr(caps_str, "memory:VAMemory"));
+    g_free(caps_str);
+    self->caps_is_va = is_va ? TRUE : FALSE; // record negotiated memory type
     return TRUE;
 }
 
@@ -319,9 +447,14 @@ static void gst_gva_motion_detect_attach_rois(GstGvaMotionDetect *self, GstBuffe
         double _y = y * height + 0.5;
         double _w = w * width + 0.5;
         double _h = h * height + 0.5;
-        GstStructure *detection = gst_structure_new("detection", "x_min", G_TYPE_DOUBLE, x, "x_max", G_TYPE_DOUBLE,
-                                                  x + w, "y_min", G_TYPE_DOUBLE, y, "y_max", G_TYPE_DOUBLE, y + h,
-                                                  "confidence", G_TYPE_DOUBLE, 1.0, NULL);
+    // Apply precision reduction to normalized coordinates
+    double x_min_r = md_round_coord(x);
+    double x_max_r = md_round_coord(x + w);
+    double y_min_r = md_round_coord(y);
+    double y_max_r = md_round_coord(y + h);
+    GstStructure *detection = gst_structure_new("detection", "x_min", G_TYPE_DOUBLE, x_min_r, "x_max", G_TYPE_DOUBLE,
+                          x_max_r, "y_min", G_TYPE_DOUBLE, y_min_r, "y_max", G_TYPE_DOUBLE, y_max_r,
+                          "confidence", G_TYPE_DOUBLE, 1.0, NULL);
         GstAnalyticsODMtd od_mtd;
         if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, g_quark_from_string("motion"),
                                                     (int)std::lround(_x), (int)std::lround(_y), (int)std::lround(_w),
@@ -452,6 +585,89 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
 #endif
 
 #ifndef _MSC_VER
+    // CPU path when system memory negotiated
+    if (!self->caps_is_va) {
+        ++self->frame_index;
+        int width = GST_VIDEO_INFO_WIDTH(&self->vinfo);
+        int height = GST_VIDEO_INFO_HEIGHT(&self->vinfo);
+        if (!width || !height)
+            return GST_FLOW_OK;
+        // Map Y plane (system memory) or fallback to VA luma if buffer is VAMemory
+        GstVideoFrame vframe;
+        cv::UMat curr_luma;
+        gboolean mapped = gst_video_frame_map(&vframe, &self->vinfo, buf, GST_MAP_READ);
+        if (mapped) {
+            guint8 *y_data = (guint8 *)GST_VIDEO_FRAME_PLANE_DATA(&vframe, 0);
+            int y_stride = GST_VIDEO_FRAME_PLANE_STRIDE(&vframe, 0);
+            cv::Mat y_mat(height, width, CV_8UC1, y_data, y_stride);
+            try { y_mat.copyTo(curr_luma); } catch (...) { gst_video_frame_unmap(&vframe); return GST_FLOW_OK; }
+            gst_video_frame_unmap(&vframe);
+        } else {
+            VASurfaceID sid_cpu = gva_motion_detect_get_surface(self, buf);
+            if (sid_cpu == VA_INVALID_SURFACE || !gva_motion_detect_map_luma(self, sid_cpu, width, height, curr_luma)) {
+                GST_DEBUG_OBJECT(self, "CPU mode: unable to map frame (system or VA); skipping frame");
+                return GST_FLOW_OK;
+            }
+        }
+        // Downscale (software) to working size ~320 wide
+        int target_w = std::min(320, width);
+        double scale = (double)target_w / (double)width;
+        int small_w = target_w;
+        int small_h = std::max(1, (int)std::lround(height * scale));
+        cv::UMat curr_small; cv::resize(curr_luma, curr_small, cv::Size(small_w, small_h), 0, 0, cv::INTER_LINEAR);
+        if (self->prev_small_gray.empty()) {
+            curr_small.copyTo(self->prev_small_gray);
+            curr_luma.copyTo(self->prev_luma);
+            return GST_FLOW_OK;
+        }
+        const int PIXEL_DIFF_THR = 15;
+        cv::UMat diff_small; cv::absdiff(curr_small, self->prev_small_gray, diff_small);
+        cv::UMat blurred_small; cv::GaussianBlur(diff_small, blurred_small, cv::Size(3,3), 0);
+        cv::UMat thresh_small; cv::threshold(blurred_small, thresh_small, PIXEL_DIFF_THR, 255, cv::THRESH_BINARY);
+        cv::UMat morph_small; {
+            cv::UMat tmp; cv::Mat ksmall = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3,3));
+            cv::morphologyEx(thresh_small, tmp, cv::MORPH_OPEN, ksmall);
+            cv::dilate(tmp, morph_small, ksmall, cv::Point(-1,-1), 1);
+        }
+        std::vector<MotionRect> rois;
+        const double MIN_REL_AREA = 0.0005;
+        double full_area = (double)width * (double)height;
+        double scale_x = (double)width / (double)small_w;
+        double scale_y = (double)height / (double)small_h;
+        int block_full = std::max(16, self->block_size);
+        int block_small_w = std::max(4, (int)std::round(block_full / scale_x));
+        int block_small_h = std::max(4, (int)std::round(block_full / scale_y));
+        double CHANGE_RATIO_THR = std::max(0.0, std::min(1.0, self->motion_threshold));
+        cv::Mat morph_cpu = morph_small.getMat(cv::ACCESS_READ);
+        for (int by = 0; by < small_h; by += block_small_h) {
+            int h_small = std::min(block_small_h, small_h - by); if (h_small < 4) break;
+            for (int bx = 0; bx < small_w; bx += block_small_w) {
+                int w_small = std::min(block_small_w, small_w - bx); if (w_small < 4) break;
+                cv::Rect r_small(bx, by, w_small, h_small);
+                cv::Mat sub = morph_cpu(r_small);
+                int changed = cv::countNonZero(sub);
+                double ratio = (double)changed / (double)(r_small.width * r_small.height);
+                if (ratio < CHANGE_RATIO_THR) continue;
+                int fx = (int)std::round(r_small.x * scale_x);
+                int fy = (int)std::round(r_small.y * scale_y);
+                int fw = (int)std::round(r_small.width * scale_x);
+                int fh = (int)std::round(r_small.height * scale_y);
+                double area_full = (double)fw * (double)fh;
+                if (area_full / full_area < MIN_REL_AREA) continue;
+                const int PAD = 4; fx = std::max(0, fx - PAD); fy = std::max(0, fy - PAD);
+                fw = std::min(width - fx, fw + 2*PAD); fh = std::min(height - fy, fh + 2*PAD);
+                if (fx + fw > width) fw = width - fx; if (fy + fh > height) fh = height - fy;
+                rois.push_back(MotionRect{fx, fy, fw, fh});
+            }
+        }
+        if (!rois.empty()) {
+            gst_gva_motion_detect_merge_rois(rois);
+            gst_gva_motion_detect_attach_rois(self, buf, rois, width, height);
+        }
+        curr_small.copyTo(self->prev_small_gray);
+        curr_luma.copyTo(self->prev_luma);
+        return GST_FLOW_OK;
+    }
     // Acquire VA display via peer query if not yet set.
     if (!self->va_dpy) {
         if (!self->tried_va_query) {
@@ -500,23 +716,25 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
         return GST_FLOW_OK;
     }
 
-    // Convert VA surface to UMat
-    cv::UMat frame_gpu;
-    if (!gva_motion_detect_convert_from_surface(self, sid, width, height, frame_gpu)) {
-        ++self->frame_index;
-        self->prev_sid = sid;
-        return GST_FLOW_OK;
-    }
-
-    // Extract grayscale (assume BGR)
-    cv::UMat curr_gray;
-    try {
-        cv::cvtColor(frame_gpu, curr_gray, cv::COLOR_BGR2GRAY);
-    } catch (const cv::Exception &e) {
-        GST_WARNING_OBJECT(self, "cvtColor failed: %s", e.what());
-        ++self->frame_index;
-        self->prev_sid = sid;
-        return GST_FLOW_OK;
+    // Map only luma plane; fallback to full conversion if it fails
+    cv::UMat curr_luma;
+    bool have_luma = gva_motion_detect_map_luma(self, sid, width, height, curr_luma);
+    if (!have_luma) {
+        GST_DEBUG_OBJECT(self, "Luma mapping failed; fallback to convertFromVASurface + cvtColor");
+        cv::UMat frame_gpu;
+        if (!gva_motion_detect_convert_from_surface(self, sid, width, height, frame_gpu)) {
+            ++self->frame_index;
+            self->prev_sid = sid;
+            return GST_FLOW_OK;
+        }
+        try {
+            cv::cvtColor(frame_gpu, curr_luma, cv::COLOR_BGR2GRAY);
+        } catch (const cv::Exception &e) {
+            GST_WARNING_OBJECT(self, "cvtColor (fallback) failed: %s", e.what());
+            ++self->frame_index;
+            self->prev_sid = sid;
+            return GST_FLOW_OK;
+        }
     }
 
     // Downscale to small working resolution (keep aspect ratio). Target width ~320.
@@ -525,12 +743,26 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
     int small_w = target_w;
     int small_h = std::max(1, (int)std::lround(height * scale));
     cv::UMat curr_small;
-    cv::resize(curr_gray, curr_small, cv::Size(small_w, small_h), 0, 0, cv::INTER_LINEAR);
+    bool va_scaled = false;
+    {
+        VASurfaceID scaled_sid = VA_INVALID_SURFACE;
+        if (gst_gva_motion_detect_va_downscale(self, sid, width, height, small_w, small_h, scaled_sid)) {
+            cv::UMat scaled_luma;
+            if (gva_motion_detect_map_luma(self, scaled_sid, small_w, small_h, scaled_luma)) {
+                scaled_luma.copyTo(curr_small);
+                va_scaled = true;
+            }
+        }
+    }
+    if (!va_scaled) {
+        // Software resize of luma
+        cv::resize(curr_luma, curr_small, cv::Size(small_w, small_h), 0, 0, cv::INTER_LINEAR);
+    }
 
     // If first frame, store and exit
     if (self->prev_small_gray.empty()) {
         curr_small.copyTo(self->prev_small_gray);
-        curr_gray.copyTo(self->prev_luma);
+        curr_luma.copyTo(self->prev_luma);
         self->prev_sid = sid;
         ++self->frame_index;
         return GST_FLOW_OK;
@@ -613,7 +845,7 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
     // Update previous frames
     // Update previous frames
     curr_small.copyTo(self->prev_small_gray);
-    curr_gray.copyTo(self->prev_luma);
+    curr_luma.copyTo(self->prev_luma);
     self->prev_sid = sid;
     ++self->frame_index;
     return GST_FLOW_OK;
@@ -622,6 +854,12 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
 
 static void gst_gva_motion_detect_finalize(GObject *obj) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(obj);
+#ifndef _MSC_VER
+    if (self->scaled_sid != VA_INVALID_SURFACE) {
+        vaDestroySurfaces(self->va_dpy, &self->scaled_sid, 1);
+        self->scaled_sid = VA_INVALID_SURFACE;
+    }
+#endif
     g_mutex_clear(&self->meta_mutex);
     G_OBJECT_CLASS(gst_gva_motion_detect_parent_class)->finalize(obj);
 }
@@ -635,8 +873,8 @@ static void gst_gva_motion_detect_class_init(GstGvaMotionDetectClass *klass) {
 
     gst_element_class_set_static_metadata(
 #ifndef _MSC_VER
-        eclass, "VA GPU filter (VAMemory-only)", "Filter/Video",
-        "Accepts/produces video/x-raw(memory:VAMemory) and reuses VA display via GstContext", "dlstreamer"
+    eclass, "Motion detect (auto GPU/CPU)", "Filter/Video",
+    "Automatically uses VA surface path when VAMemory caps negotiated; otherwise system memory path", "dlstreamer"
 #else
         eclass, "Motion detect (software)", "Filter/Video",
         "Software motion detection (system memory frames) - VA skipped under MSVC", "dlstreamer"
@@ -671,6 +909,7 @@ static void gst_gva_motion_detect_class_init(GstGvaMotionDetectClass *klass) {
                                                         0.0, 1.0, 0.05,
                                                         (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+
     /* OpenCL kernel property removed. */
 }
 
@@ -686,10 +925,9 @@ static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
     self->va_dpy = nullptr;
     self->va_display = nullptr;
     self->prev_sid = VA_INVALID_SURFACE;
-#else
-    self->va_dpy = nullptr;
-    self->va_display = nullptr;
-    self->prev_sid = -1;
+    self->scaled_sid = VA_INVALID_SURFACE;
+    self->scaled_w = 0;
+    self->scaled_h = 0;
 #endif
     // Debug environment parsing (simple, no logging here to avoid early flood)
     const gchar *env_dbg = g_getenv("GVA_MD_PRINT");
