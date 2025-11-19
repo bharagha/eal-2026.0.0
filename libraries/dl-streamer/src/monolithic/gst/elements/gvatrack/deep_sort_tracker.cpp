@@ -10,8 +10,6 @@
 #include <cmath>
 #include <numeric>
 
-#define DISABLE_DBG_LOGS 1
-
 namespace DeepSortWrapper {
 
 // Track implementation
@@ -406,12 +404,10 @@ DeepSortTracker::DeepSortTracker(const std::string &feature_model_path, const st
       max_iou_distance_(max_iou_distance), max_age_(max_age), n_init_(n_init),
       max_cosine_distance_(max_cosine_distance), nn_budget_(nn_budget), buffer_mapper_(std::move(mapper)) {
 
-#if !DISABLE_DBG_LOGS
-    g_print("DeepSortTracker initialized with OpenCV KALMAN FILTER and FeatureExtractor: max_iou_distance=%.3f, "
-            "max_age=%d, n_init=%d, "
-            "max_cosine_distance=%.3f\n",
-            max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
-#endif
+    GST_INFO("DeepSortTracker initialized with OpenCV KALMAN FILTER and FeatureExtractor: max_iou_distance=%.3f, "
+             "max_age=%d, n_init=%d, "
+             "max_cosine_distance=%.3f",
+             max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
 }
 
 /**
@@ -422,12 +418,10 @@ DeepSortTracker::DeepSortTracker(float max_iou_distance, int max_age, int n_init
     : feature_extractor_(nullptr), next_id_(1), max_iou_distance_(max_iou_distance), max_age_(max_age), n_init_(n_init),
       max_cosine_distance_(max_cosine_distance), nn_budget_(nn_budget), buffer_mapper_(std::move(mapper)) {
 
-#if !DISABLE_DBG_LOGS
-    g_print("DeepSortTracker initialized with OpenCV KALMAN FILTER (features from gvainference): "
-            "max_iou_distance=%.3f, max_age=%d, n_init=%d, "
-            "max_cosine_distance=%.3f\n",
-            max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
-#endif
+    GST_INFO("DeepSortTracker initialized with OpenCV KALMAN FILTER (features from gvainference): "
+             "max_iou_distance=%.3f, max_age=%d, n_init=%d, "
+             "max_cosine_distance=%.3f",
+             max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
 }
 
 /**
@@ -466,16 +460,15 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
     for (const auto &match : matches) {
         tracks_[match.second]->update(detections[match.first]);
 
-#if !DISABLE_DBG_LOGS
         auto &detection = detections[match.first];
         auto &track = tracks_[match.second];
         cv::Rect_<float> track_bbox = track->to_bbox();
-        g_print("{%s} Updating matched tracks: det-bbox[%d][%.1f,%.1f,%.1fx%.1f], trk-bbox[%d][%.1f,%.1f,%.1fx%.1f], "
-                "track_id=%d, track_state=%s\n",
-                __FUNCTION__, match.first, detection.bbox.x, detection.bbox.y, detection.bbox.width,
-                detection.bbox.height, match.second, track_bbox.x, track_bbox.y, track_bbox.width, track_bbox.height,
-                track->track_id(), track->state_str().c_str());
-#endif
+        GST_DEBUG("{%s} Updating matched tracks: det-bbox[%d][%.1f,%.1f,%.1fx%.1f], trk-bbox[%d][%.1f,%.1f,%.1fx%.1f], "
+                  "track_id=%d, track_state=%s",
+                  __FUNCTION__, match.first, detection.bbox.x, detection.bbox.y, detection.bbox.width,
+                  detection.bbox.height, match.second, track_bbox.x, track_bbox.y, track_bbox.width, track_bbox.height,
+                  track->track_id(), track->state_str().c_str());
+
         // Assign tracking ID to the existing region only if track is confirmed
         // This follows Deep SORT convention where only confirmed tracks get persistent IDs
         if (match.first < static_cast<int>(regions.size()) && tracks_[match.second]->is_confirmed()) {
@@ -487,14 +480,12 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
     for (int det_idx : unmatched_dets) {
         auto new_track = std::make_unique<Track>(detections[det_idx].bbox, next_id_++, n_init_, max_age_,
                                                  detections[det_idx].feature);
-        tracks_.push_back(std::move(new_track));
-#if !DISABLE_DBG_LOGS
         int new_track_id = new_track->track_id();
         std::string track_state = new_track->state_str();
-        g_print("{%s} New track created: ID=%d, bbox[%.1f, %.1f, %.1f x %.1f], state=%s\n", __FUNCTION__, new_track_id,
-                detections[det_idx].bbox.x, detections[det_idx].bbox.y, detections[det_idx].bbox.width,
-                detections[det_idx].bbox.height, track_state.c_str());
-#endif
+        GST_DEBUG("{%s} New track created: ID=%d, bbox[%.1f, %.1f, %.1f x %.1f], state=%s", __FUNCTION__, new_track_id,
+                  detections[det_idx].bbox.x, detections[det_idx].bbox.y, detections[det_idx].bbox.width,
+                  detections[det_idx].bbox.height, track_state.c_str());
+        tracks_.push_back(std::move(new_track));
     }
 
     // Remove deleted tracks
@@ -560,11 +551,10 @@ std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
             cv::Rect_<float> bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
             float confidence = region.confidence();
 
-#if !DISABLE_DBG_LOGS
-            g_print("{%s} Detection %zu (FeatureExtractor): bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu\n",
-                    __FUNCTION__, i, (int)bbox.x, (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence,
-                    features[i].size());
-#endif
+            GST_DEBUG("{%s} Detection %zu (FeatureExtractor): bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu",
+                      __FUNCTION__, i, (int)bbox.x, (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence,
+                      features[i].size());
+
             detections.emplace_back(bbox, confidence, features[i], -1);
         }
     } else {
@@ -573,10 +563,10 @@ std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
             const auto &region = regions[i];
             cv::Rect_<float> bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
             float confidence = region.confidence();
-#if !DISABLE_DBG_LOGS
-            g_print("Processing region %zu: bbox[x=%d,y=%d,w=%d,h=%d], confidence=%.3f\n", i, (int)bbox.x, (int)bbox.y,
-                    (int)bbox.width, (int)bbox.height, confidence);
-#endif
+
+            GST_DEBUG("Processing region %zu: bbox[x=%d,y=%d,w=%d,h=%d], confidence=%.3f", i, (int)bbox.x, (int)bbox.y,
+                      (int)bbox.width, (int)bbox.height, confidence);
+
             // Extract feature vector from tensor data attached to the region (from gvainference)
             std::vector<float> feature_vector;
             bool found_feature = false;
@@ -617,11 +607,10 @@ std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
                     std::vector<float>(DEFAULT_FEATURES_VECTOR_SIZE_128, 0.0f); // Default 128-dimensional zero vector
             }
 
-#if !DISABLE_DBG_LOGS
-            g_print("{%s} Detection %zu (gvainference): bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu\n",
-                    __FUNCTION__, i, (int)bbox.x, (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence,
-                    feature_vector.size());
-#endif
+            GST_DEBUG("{%s} Detection %zu (gvainference): bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu",
+                      __FUNCTION__, i, (int)bbox.x, (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence,
+                      feature_vector.size());
+
             detections.emplace_back(bbox, confidence, feature_vector, -1);
         }
     }
@@ -656,14 +645,13 @@ void DeepSortTracker::associate_detections_to_tracks(const std::vector<Detection
             cv::Rect_<float> track_bbox = tracks_[trk_idx]->to_bbox();
             float iou = calculate_iou(detections[det_idx].bbox, track_bbox);
 
-#if !DISABLE_DBG_LOGS
-            g_print("{%s} Detection vs Track : det_bbox[%zu][%.1f, %.1f, %.1f, %.1f] vs track_bbox[%zu][%.1f, "
-                    "%.1f, %.1f, "
-                    "%.1f] ; iou=%.3f\n",
-                    __FUNCTION__, det_idx, detections[det_idx].bbox.x, detections[det_idx].bbox.y,
-                    detections[det_idx].bbox.width, detections[det_idx].bbox.height, trk_idx, track_bbox.x,
-                    track_bbox.y, track_bbox.width, track_bbox.height, iou);
-#endif
+            GST_DEBUG("{%s} Detection vs Track : det_bbox[%zu][%.1f, %.1f, %.1f, %.1f] vs track_bbox[%zu][%.1f, "
+                      "%.1f, %.1f, "
+                      "%.1f] ; iou=%.3f",
+                      __FUNCTION__, det_idx, detections[det_idx].bbox.x, detections[det_idx].bbox.y,
+                      detections[det_idx].bbox.width, detections[det_idx].bbox.height, trk_idx, track_bbox.x,
+                      track_bbox.y, track_bbox.width, track_bbox.height, iou);
+
             // Reject matches with IoU below threshold (poor overlap)
             if (iou < max_iou_distance_) {
                 cost_matrix[det_idx][trk_idx] = 1.0f; // No match
@@ -745,14 +733,13 @@ float DeepSortTracker::calculate_iou(const cv::Rect_<float> &bbox1, const cv::Re
 
     float iou = union_area > 0.0f ? intersection_area / union_area : 0.0f;
 
-#if !DISABLE_DBG_LOGS
     // Debug: Print detailed IoU calculation
-    g_print("{%s} IoU calculation: bbox1[%.1f,%.1f,%.1fx%.1f] area=%.1f, bbox2[%.1f,%.1f,%.1fx%.1f] area=%.1f, "
-            "intersection[%.1f,%.1f,%.1fx%.1f] area=%.1f, union=%.1f, iou=%.3f\n",
+    GST_LOG("{%s} IoU calculation: bbox1[%.1f,%.1f,%.1fx%.1f] area=%.1f, bbox2[%.1f,%.1f,%.1fx%.1f] area=%.1f, "
+            "intersection[%.1f,%.1f,%.1fx%.1f] area=%.1f, union=%.1f, iou=%.3f",
             __FUNCTION__, bbox1.x, bbox1.y, bbox1.width, bbox1.height, bbox1.area(), bbox2.x, bbox2.y, bbox2.width,
             bbox2.height, bbox2.area(), intersection_rect.x, intersection_rect.y, intersection_rect.width,
             intersection_rect.height, intersection_area, union_area, iou);
-#endif
+
     return iou;
 }
 

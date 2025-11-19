@@ -160,7 +160,7 @@ class DeepSortTracker : public ITracker {
 
     // Parameters
     float max_iou_distance_;
-    float max_age_;
+    int max_age_;
     int n_init_;
     float max_cosine_distance_;
     int nn_budget_;
