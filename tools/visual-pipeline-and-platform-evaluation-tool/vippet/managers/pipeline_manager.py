@@ -9,7 +9,7 @@ from api.api_schemas import (
     PipelineType,
     Pipeline,
     PipelineDefinition,
-    PipelineRunSpec,
+    PipelinePerformanceSpec,
     PipelineGraph,
 )
 
@@ -114,12 +114,14 @@ class PipelineManager:
         self.logger.debug("Loaded predefined pipelines: %s", predefined_pipelines)
         return predefined_pipelines
 
-    def build_pipeline_command(self, pipeline_run_specs: list[PipelineRunSpec]) -> str:
+    def build_pipeline_command(
+        self, pipeline_performance_specs: list[PipelinePerformanceSpec]
+    ) -> str:
         """
         Build a complete GStreamer pipeline command from run specifications.
 
         Args:
-            pipeline_run_specs: List of PipelineRunSpec defining pipelines and streams.
+            pipeline_performance_specs: List of PipelinePerformanceSpec defining pipelines and streams.
 
         Returns:
             str: Complete GStreamer pipeline command string.
@@ -129,7 +131,7 @@ class PipelineManager:
         """
         pipeline_parts = []
 
-        for pipeline_index, run_spec in enumerate(pipeline_run_specs):
+        for pipeline_index, run_spec in enumerate(pipeline_performance_specs):
             # Retrieve the pipeline definition
             pipeline = self.get_pipeline_by_name_and_version(
                 run_spec.name, run_spec.version

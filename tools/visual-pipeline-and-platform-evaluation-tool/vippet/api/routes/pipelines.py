@@ -5,20 +5,13 @@ from fastapi.responses import JSONResponse
 
 import api.api_schemas as schemas
 from managers.pipeline_manager import get_pipeline_manager
-from managers.instance_manager import InstanceManager
 from managers.optimization_manager import get_optimization_manager
 
 TEMP_DIR = tempfile.gettempdir()
 
 router = APIRouter()
 pipeline_manager = get_pipeline_manager()
-instance_manager = InstanceManager()
 optimization_manager = get_optimization_manager()
-
-
-@router.get("", operation_id="get_pipelines", response_model=List[schemas.Pipeline])
-def get_pipelines():
-    return pipeline_manager.get_pipelines()
 
 
 @router.post(
@@ -82,62 +75,9 @@ def validate_pipeline(body: schemas.PipelineValidation):
     return schemas.MessageResponse(message="Pipeline is valid")
 
 
-@router.get(
-    "/status",
-    operation_id="get_pipeline_statuses",
-    response_model=List[schemas.PipelineInstanceStatus],
-)
-def get_pipeline_statuses():
-    """Get status of all pipeline instances."""
-    return instance_manager.get_all_instance_statuses()
-
-
-@router.get(
-    "/{instance_id}",
-    operation_id="get_pipeline_instance_summary",
-    responses={
-        200: {
-            "description": "Successful Response",
-            "model": schemas.PipelineInstanceSummary,
-        },
-        404: {"description": "Instance not found", "model": schemas.MessageResponse},
-    },
-)
-def get_instance_summary(instance_id: str):
-    """Get summary of a specific pipeline instance."""
-    summary = instance_manager.get_instance_summary(instance_id)
-    if summary is None:
-        return JSONResponse(
-            content=schemas.MessageResponse(
-                message=f"Instance {instance_id} not found"
-            ).model_dump(),
-            status_code=404,
-        )
-    return summary
-
-
-@router.get(
-    "/{instance_id}/status",
-    operation_id="get_pipeline_instance_status",
-    responses={
-        200: {
-            "description": "Successful Response",
-            "model": schemas.PipelineInstanceStatus,
-        },
-        404: {"description": "Instance not found", "model": schemas.MessageResponse},
-    },
-)
-def get_pipeline_instance_status(instance_id: str):
-    """Get status of a specific pipeline instance."""
-    status = instance_manager.get_instance_status(instance_id)
-    if status is None:
-        return JSONResponse(
-            content=schemas.MessageResponse(
-                message=f"Instance {instance_id} not found"
-            ).model_dump(),
-            status_code=404,
-        )
-    return status
+@router.get("", operation_id="get_pipelines", response_model=List[schemas.Pipeline])
+def get_pipelines():
+    return pipeline_manager.get_pipelines()
 
 
 @router.get(
@@ -164,30 +104,6 @@ def get_pipeline(name: str, version: str):
             ).model_dump(),
             status_code=500,
         )
-
-
-@router.post(
-    "/{name}/{version}",
-    operation_id="run_pipeline",
-    status_code=202,
-    response_model=schemas.PipelineInstanceResponse,
-)
-def run_pipeline(name: str, version: str, body: schemas.PipelineRequestRun):
-    """Run a pipeline."""
-    instance_id = instance_manager.run_pipeline(name, version, body)
-    return schemas.PipelineInstanceResponse(instance_id=instance_id)
-
-
-@router.post(
-    "/{name}/{version}/benchmark",
-    operation_id="benchmark_pipeline",
-    status_code=202,
-    response_model=schemas.PipelineInstanceResponse,
-)
-def benchmark_pipeline(name: str, version: str, body: schemas.PipelineRequestBenchmark):
-    """Benchmark a pipeline."""
-    instance_id = instance_manager.benchmark_pipeline(name, version, body)
-    return schemas.PipelineInstanceResponse(instance_id=instance_id)
 
 
 @router.post(
@@ -262,47 +178,3 @@ def delete_pipeline(name: str, version: str):
             status_code=404,
         )
     return schemas.MessageResponse(message="Pipeline deleted")
-
-
-@router.delete(
-    "/{instance_id}",
-    operation_id="stop_pipeline_instance",
-    responses={
-        200: {
-            "description": "Successful Response",
-            "model": schemas.MessageResponse,
-        },
-        404: {
-            "description": "Pipeline instance not found",
-            "model": schemas.MessageResponse,
-        },
-        409: {
-            "description": "Pipeline instance not running",
-            "model": schemas.MessageResponse,
-        },
-        500: {
-            "description": "Unexpected error",
-            "model": schemas.MessageResponse,
-        },
-    },
-)
-def stop_pipeline_instance(instance_id: str):
-    """Stop a running pipeline instance."""
-    success, message = instance_manager.stop_instance(instance_id)
-    response = schemas.MessageResponse(message=message)
-    if success:
-        return response
-    if "not found" in message.lower() or "no active runner found" in message.lower():
-        return JSONResponse(
-            content=response.model_dump(),
-            status_code=404,
-        )
-    if "not running" in message.lower():
-        return JSONResponse(
-            content=response.model_dump(),
-            status_code=409,
-        )
-    return JSONResponse(
-        content=response.model_dump(),
-        status_code=500,
-    )
