@@ -7,6 +7,7 @@
 #include "gvamotiondetect.h"
 #include <algorithm>
 #include <cmath>
+#include <dlstreamer/gst/videoanalytics/video_frame.h>
 #include <glib.h>
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
@@ -31,9 +32,9 @@ enum {
     PROP_IOU_THRESHOLD,
     PROP_SMOOTH_ALPHA,
     PROP_CONFIRM_FRAMES,
-    PROP_PIXEL_DIFF_THRESHOLD
+    PROP_PIXEL_DIFF_THRESHOLD,
+    PROP_MIN_REL_AREA
 };
-
 struct _GstGvaMotionDetect {
     GstBaseTransform parent;
     GstVideoInfo vinfo;
@@ -46,6 +47,7 @@ struct _GstGvaMotionDetect {
     double smooth_alpha;
     int confirm_frames;       // consecutive frames required (1=immediate)
     int pixel_diff_threshold; // per-pixel luma diff threshold (1..255)
+    double min_rel_area;      // minimum relative area (0..0.25) for a motion rectangle
     cv::UMat prev_small_gray;
     cv::UMat prev_luma;
     cv::Mat block_state; // CV_8U agreement counters
@@ -57,6 +59,7 @@ struct _GstGvaMotionDetect {
     };
     std::vector<Track> tracks;
     uint64_t frame_index;
+    GMutex meta_mutex; // protect metadata writes
 };
 
 struct _GstGvaMotionDetectClass {
@@ -94,6 +97,15 @@ static void gst_gva_motion_detect_set_property(GObject *obj, guint id, const GVa
     case PROP_PIXEL_DIFF_THRESHOLD:
         self->pixel_diff_threshold = std::max(1, std::min(255, g_value_get_int(val)));
         break;
+    case PROP_MIN_REL_AREA: {
+        double mra = g_value_get_double(val);
+        if (mra < 0.0)
+            mra = 0.0;
+        if (mra > 0.25)
+            mra = 0.25;
+        self->min_rel_area = mra;
+        break;
+    }
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(obj, id, pspec);
     }
@@ -125,6 +137,9 @@ static void gst_gva_motion_detect_get_property(GObject *obj, guint id, GValue *v
     case PROP_PIXEL_DIFF_THRESHOLD:
         g_value_set_int(val, self->pixel_diff_threshold);
         break;
+    case PROP_MIN_REL_AREA:
+        g_value_set_double(val, self->min_rel_area);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(obj, id, pspec);
     }
@@ -153,6 +168,67 @@ static gboolean gst_gva_motion_detect_start(GstBaseTransform *t) {
 static gboolean gst_gva_motion_detect_set_caps(GstBaseTransform *t, GstCaps *in, GstCaps *out) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(t);
     return gst_video_info_from_caps(&self->vinfo, in);
+}
+
+// Attach motion metadata (relation meta + ROI metas) using current tracks
+static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstBuffer *buf, int width, int height) {
+    std::vector<_GstGvaMotionDetect::Track> publish;
+    publish.reserve(self->tracks.size());
+    for (auto &tr : self->tracks) {
+        if (tr.age >= self->min_persistence && tr.miss <= self->max_miss)
+            publish.push_back(tr);
+    }
+    if (publish.empty())
+        return;
+    if (!gst_buffer_is_writable(buf)) {
+        GstBuffer *w = gst_buffer_make_writable(buf);
+        if (w != buf)
+            buf = w;
+    }
+    if (!gst_buffer_is_writable(buf))
+        return;
+    g_mutex_lock(&self->meta_mutex);
+    GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buf);
+    if (!relation_meta)
+        relation_meta = gst_buffer_add_analytics_relation_meta(buf);
+    if (!relation_meta) {
+        g_mutex_unlock(&self->meta_mutex);
+        return;
+    }
+    for (auto &tr : publish) {
+        double nx = std::clamp(tr.sx / (double)width, 0.0, 1.0);
+        double ny = std::clamp(tr.sy / (double)height, 0.0, 1.0);
+        double nw = std::clamp(tr.sw / (double)width, 0.0, 1.0);
+        double nh = std::clamp(tr.sh / (double)height, 0.0, 1.0);
+        double x_min_r = nx;
+        double y_min_r = ny;
+        double x_max_r = std::min(1.0, nx + nw);
+        double y_max_r = std::min(1.0, ny + nh);
+        double _x = nx * width + 0.5;
+        double _y = ny * height + 0.5;
+        double _w = nw * width + 0.5;
+        double _h = nh * height + 0.5;
+        GstStructure *detection = gst_structure_new("detection", "x_min", G_TYPE_DOUBLE, x_min_r, "x_max",
+                                                    G_TYPE_DOUBLE, x_max_r, "y_min", G_TYPE_DOUBLE, y_min_r, "y_max",
+                                                    G_TYPE_DOUBLE, y_max_r, "confidence", G_TYPE_DOUBLE, 1.0, NULL);
+        GstAnalyticsODMtd od_mtd;
+        if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, g_quark_from_string("motion"), (int)std::lround(_x),
+                                                    (int)std::lround(_y), (int)std::lround(_w), (int)std::lround(_h),
+                                                    1.0, &od_mtd)) {
+            gst_structure_free(detection);
+            continue;
+        }
+        GstVideoRegionOfInterestMeta *roi_meta =
+            gst_buffer_add_video_region_of_interest_meta(buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y),
+                                                         (guint)std::lround(_w), (guint)std::lround(_h));
+        if (!roi_meta) {
+            gst_structure_free(detection);
+            continue;
+        }
+        roi_meta->id = od_mtd.id;
+        gst_video_region_of_interest_meta_add_param(roi_meta, detection);
+    }
+    g_mutex_unlock(&self->meta_mutex);
 }
 
 static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *t, GstBuffer *buf) {
@@ -200,7 +276,8 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *t, Gst
     double scale_x = (double)width / (double)small_w;
     double scale_y = (double)height / (double)small_h;
     double full_area = (double)width * height;
-    const double MIN_REL = 0.0005;
+    // Use configurable minimum relative area threshold to filter out tiny noise boxes
+    double min_rel = std::clamp(self->min_rel_area, 0.0, 0.25);
     int block_full = std::max(16, self->block_size);
     int bs_w = std::max(4, (int)std::round(block_full / scale_x));
     int bs_h = std::max(4, (int)std::round(block_full / scale_y));
@@ -239,7 +316,7 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *t, Gst
                 int fw = (int)std::round(r.width * scale_x);
                 int fh = (int)std::round(r.height * scale_y);
                 double area_full = (double)fw * fh;
-                if (area_full / full_area < MIN_REL)
+                if (area_full / full_area < min_rel)
                     continue;
                 const int PAD = 4;
                 fx = std::max(0, fx - PAD);
@@ -273,7 +350,7 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *t, Gst
                 int fw = (int)std::round(r.width * scale_x);
                 int fh = (int)std::round(r.height * scale_y);
                 double area_full = (double)fw * fh;
-                if (area_full / full_area < MIN_REL)
+                if (area_full / full_area < min_rel)
                     continue;
                 const int PAD = 4;
                 fx = std::max(0, fx - PAD);
@@ -354,13 +431,16 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *t, Gst
             auto &r = raw[i];
             self->tracks.push_back({r.x, r.y, r.w, r.h, (double)r.x, (double)r.y, (double)r.w, (double)r.h, 1, 0});
         }
-    // (Windows build: metadata attachment omitted intentionally)
+    // Attach metadata now that tracks updated
+    gst_gva_motion_detect_attach_metadata(self, buf, width, height);
     curr_small.copyTo(self->prev_small_gray);
     curr_luma.copyTo(self->prev_luma);
     return GST_FLOW_OK;
 }
 
 static void gst_gva_motion_detect_finalize(GObject *obj) {
+    GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(obj);
+    g_mutex_clear(&self->meta_mutex);
     G_OBJECT_CLASS(gst_gva_motion_detect_parent_class)->finalize(obj);
 }
 
@@ -411,6 +491,11 @@ static void gst_gva_motion_detect_class_init(GstGvaMotionDetectClass *klass) {
                                     g_param_spec_int("confirm-frames", "Confirm Frames",
                                                      "Consecutive frames to confirm motion", 1, 10, 2,
                                                      G_PARAM_READWRITE));
+    g_object_class_install_property(oclass, PROP_MIN_REL_AREA,
+                                    g_param_spec_double("min-rel-area", "Min Relative Area",
+                                                        "Minimum relative frame area (0..0.25) required for a motion "
+                                                        "rectangle before merging/tracking (filters tiny noise boxes)",
+                                                        0.0, 0.25, 0.0005, G_PARAM_READWRITE));
 }
 
 static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
@@ -422,7 +507,9 @@ static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
     self->smooth_alpha = 0.5;
     self->pixel_diff_threshold = 15;
     self->confirm_frames = 2;
+    self->min_rel_area = 0.0005; // default minimum relative area (0.05% of frame)
     self->frame_index = 0;
+    g_mutex_init(&self->meta_mutex);
 }
 
 static gboolean plugin_init(GstPlugin *plugin) {

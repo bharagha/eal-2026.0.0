@@ -57,7 +57,8 @@ enum {
     PROP_IOU_THRESHOLD,
     PROP_SMOOTH_ALPHA,
     PROP_CONFIRM_FRAMES,
-    PROP_PIXEL_DIFF_THRESHOLD
+    PROP_PIXEL_DIFF_THRESHOLD,
+    PROP_MIN_REL_AREA
 };
 
 struct _GstGvaMotionDetect {
@@ -98,6 +99,7 @@ struct _GstGvaMotionDetect {
     double smooth_alpha;      // EMA smoothing factor for coordinates
     int confirm_frames;       // consecutive frames required to confirm motion (1=single-frame)
     int pixel_diff_threshold; // per-pixel absolute luma difference threshold (1..255)
+    double min_rel_area;      // minimum relative area (0..1) for a motion rectangle to be considered
 
     // Block agreement state (grid of counters 0..2 for consecutive active frames)
     cv::Mat block_state; // CV_8U
@@ -157,6 +159,9 @@ static void gst_gva_motion_detect_get_property(GObject *object, guint prop_id, G
     case PROP_PIXEL_DIFF_THRESHOLD:
         g_value_set_int(value, self->pixel_diff_threshold);
         break;
+    case PROP_MIN_REL_AREA:
+        g_value_set_double(value, self->min_rel_area);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
     }
@@ -198,6 +203,15 @@ static void gst_gva_motion_detect_set_property(GObject *object, guint prop_id, c
     case PROP_PIXEL_DIFF_THRESHOLD: {
         int thr = g_value_get_int(value);
         self->pixel_diff_threshold = std::max(1, std::min(thr, 255));
+        break;
+    }
+    case PROP_MIN_REL_AREA: {
+        double mra = g_value_get_double(value);
+        if (mra < 0.0)
+            mra = 0.0;
+        if (mra > 0.25)
+            mra = 0.25; // cap to 25% of frame
+        self->min_rel_area = mra;
         break;
     }
     default:
@@ -259,7 +273,7 @@ static GstCaps *gst_gva_motion_detect_transform_caps(GstBaseTransform *, GstPadD
 }
 
 // -----------------------------------------------------------------------------
-// VA API helper functions (extracted from transform_ip for clarity)
+// VA API helper functions
 // Map GST buffer to VA surface (using mapper + fallback) and return VASurfaceID
 static VASurfaceID gva_motion_detect_get_surface(GstGvaMotionDetect *self, GstBuffer *buf) {
     if (!buf)
@@ -398,10 +412,6 @@ static bool gst_gva_motion_detect_va_downscale(GstGvaMotionDetect *self, VASurfa
             GST_LOG_OBJECT(self, "vaBlitSurface symbol not found; falling back to software resize");
             return false;
         }
-    }
-    if (!p_vaBlitSurface) {
-        // No hardware blit available; caller will fallback to software resize.
-        return false;
     }
 
     // Prepare rectangles safely (avoid narrowing warnings by explicit assignment & clamping)
@@ -580,7 +590,7 @@ static void gst_gva_motion_detect_merge_rois(std::vector<MotionRect> &rois) {
     }
 }
 
-// ------------------- Motion Mask & Block Scan Helpers (Refactored) -------------------
+// ------------------- Motion Mask & Block Scan Helpers -------------------
 // Build motion mask (absdiff -> blur -> threshold -> morphology) from current small frame and previous small frame.
 static void md_build_motion_mask(const cv::UMat &curr_small, const cv::UMat &prev_small_gray, cv::UMat &morph_small,
                                  int pixel_diff_threshold) {
@@ -601,7 +611,11 @@ static void md_build_motion_mask(const cv::UMat &curr_small, const cv::UMat &pre
 // Unified block scan honoring confirm_frames property.
 static void md_scan_blocks(GstGvaMotionDetect *self, const cv::UMat &morph_small, int width, int height, int small_w,
                            int small_h, std::vector<MotionRect> &rois) {
-    const double MIN_REL_AREA = 0.0005;
+    double min_rel_area = self->min_rel_area;
+    if (min_rel_area < 0.0)
+        min_rel_area = 0.0;
+    if (min_rel_area > 0.25)
+        min_rel_area = 0.25;
     double full_area = (double)width * (double)height;
     double scale_x = (double)width / (double)small_w;
     double scale_y = (double)height / (double)small_h;
@@ -643,7 +657,7 @@ static void md_scan_blocks(GstGvaMotionDetect *self, const cv::UMat &morph_small
                 int fw = (int)std::round(r_small.width * scale_x);
                 int fh = (int)std::round(r_small.height * scale_y);
                 double area_full = (double)fw * (double)fh;
-                if (area_full / full_area < MIN_REL_AREA)
+                if (area_full / full_area < min_rel_area)
                     continue;
                 const int PAD = 4;
                 fx = std::max(0, fx - PAD);
@@ -677,7 +691,7 @@ static void md_scan_blocks(GstGvaMotionDetect *self, const cv::UMat &morph_small
                 int fw = (int)std::round(r_small.width * scale_x);
                 int fh = (int)std::round(r_small.height * scale_y);
                 double area_full = (double)fw * (double)fh;
-                if (area_full / full_area < MIN_REL_AREA)
+                if (area_full / full_area < min_rel_area)
                     continue;
                 const int PAD = 4;
                 fx = std::max(0, fx - PAD);
@@ -946,7 +960,12 @@ static void gst_gva_motion_detect_class_init(GstGvaMotionDetectClass *klass) {
             "Per-pixel absolute luma difference used before blur+threshold (1..255). Lower = more sensitive", 1, 255,
             15, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
-    /* OpenCL kernel property removed. */
+    g_object_class_install_property(oclass, PROP_MIN_REL_AREA,
+                                    g_param_spec_double("min-rel-area", "Min Relative Area",
+                                                        "Minimum relative frame area (0..0.25) required for a motion "
+                                                        "rectangle before merging/tracking (filters tiny noise boxes)",
+                                                        0.0, 0.25, 0.0005,
+                                                        (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 }
 
 static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
@@ -965,6 +984,7 @@ static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
     // Users can raise to >1 to require temporal confirmation.
     self->confirm_frames = 1;
     self->pixel_diff_threshold = 15; // default per-pixel difference threshold
+    self->min_rel_area = 0.0005;     // default minimum relative area (0.05% of frame)
     self->block_state_w = 0;
     self->block_state_h = 0;
     self->va_dpy = nullptr;
