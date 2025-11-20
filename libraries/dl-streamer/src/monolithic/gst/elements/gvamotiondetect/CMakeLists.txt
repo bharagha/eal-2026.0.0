@@ -77,8 +77,14 @@ else()
   )
 endif()
 
+if(MSVC OR WIN32)
+  set(GVAMD_MAIN_SOURCE gvamotiondetect_win.cpp)
+else()
+  set(GVAMD_MAIN_SOURCE gvamotiondetect.cpp)
+endif()
+
 add_library(gstgvamotiondetect MODULE
-  gvamotiondetect.cpp
+  ${GVAMD_MAIN_SOURCE}
   ${GVAMD_EXTRA_SOURCES}
 )
 
