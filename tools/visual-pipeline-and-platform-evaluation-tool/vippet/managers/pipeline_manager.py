@@ -9,7 +9,7 @@ from api.api_schemas import (
     PipelineType,
     Pipeline,
     PipelineDefinition,
-    PipelineRunSpec,
+    PipelinePerformanceSpec,
     PipelineGraph,
 )
 
@@ -81,6 +81,16 @@ class PipelineManager:
                 return pipeline
         return None
 
+    def delete_pipeline(self, name: str, version: str):
+        pipeline = self._find_pipeline(name, version)
+        if pipeline is not None:
+            self.pipelines.remove(pipeline)
+            self.logger.debug(f"Pipeline deleted: {pipeline}")
+        else:
+            raise ValueError(
+                f"Pipeline with name '{name}' and version '{version}' not found."
+            )
+
     def load_predefined_pipelines(self):
         predefined_pipelines = []
         for pipeline_name in PipelineLoader.list():
@@ -93,8 +103,8 @@ class PipelineManager:
 
             predefined_pipelines.append(
                 Pipeline(
-                    name="predefined_pipelines",
-                    version=config.get("name", "UnnamedPipeline"),
+                    name=config.get("name", "unnamed-pipeline"),
+                    version=str(config.get("version", "1.0")),
                     description=config.get("display_name", "Unnamed Pipeline"),
                     type=PipelineType.GSTREAMER,
                     pipeline_graph=PipelineGraph.model_validate(pipeline_graph),
@@ -104,12 +114,14 @@ class PipelineManager:
         self.logger.debug("Loaded predefined pipelines: %s", predefined_pipelines)
         return predefined_pipelines
 
-    def build_pipeline_command(self, pipeline_run_specs: list[PipelineRunSpec]) -> str:
+    def build_pipeline_command(
+        self, pipeline_performance_specs: list[PipelinePerformanceSpec]
+    ) -> str:
         """
         Build a complete GStreamer pipeline command from run specifications.
 
         Args:
-            pipeline_run_specs: List of PipelineRunSpec defining pipelines and streams.
+            pipeline_performance_specs: List of PipelinePerformanceSpec defining pipelines and streams.
 
         Returns:
             str: Complete GStreamer pipeline command string.
@@ -119,7 +131,7 @@ class PipelineManager:
         """
         pipeline_parts = []
 
-        for pipeline_index, run_spec in enumerate(pipeline_run_specs):
+        for pipeline_index, run_spec in enumerate(pipeline_performance_specs):
             # Retrieve the pipeline definition
             pipeline = self.get_pipeline_by_name_and_version(
                 run_spec.name, run_spec.version

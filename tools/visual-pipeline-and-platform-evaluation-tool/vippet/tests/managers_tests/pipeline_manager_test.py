@@ -1,7 +1,7 @@
 import unittest
 
 from managers.pipeline_manager import PipelineManager
-from api.api_schemas import PipelineType, PipelineDefinition, PipelineRunSpec
+from api.api_schemas import PipelineType, PipelineDefinition, PipelinePerformanceSpec
 
 
 class TestPipelineManager(unittest.TestCase):
@@ -76,18 +76,18 @@ class TestPipelineManager(unittest.TestCase):
         # Define expected pipelines (name, version, description)
         expected = [
             (
-                "predefined_pipelines",
                 "simplevs",
+                "1.0",
                 "Simple Video Structurization (D-T-C)",
             ),
             (
-                "predefined_pipelines",
                 "smartnvr-analytics",
+                "1.0",
                 "Smart Network Video Recorder (NVR) Proxy Pipeline - Analytics Branch",
             ),
             (
-                "predefined_pipelines",
                 "smartnvr-mediaonly",
+                "1.0",
                 "Smart Network Video Recorder (NVR) Proxy Pipeline - Media Only Branch",
             ),
         ]
@@ -119,11 +119,13 @@ class TestPipelineManager(unittest.TestCase):
         manager.add_pipeline(test_pipeline)
 
         # Build command with one pipeline and one stream
-        pipeline_run_specs = [
-            PipelineRunSpec(name="test-pipelines", version="test-single", streams=1)
+        pipeline_performance_specs = [
+            PipelinePerformanceSpec(
+                name="test-pipelines", version="test-single", streams=1
+            )
         ]
 
-        command = manager.build_pipeline_command(pipeline_run_specs)
+        command = manager.build_pipeline_command(pipeline_performance_specs)
 
         # Verify command is not empty and contains pipeline elements
         self.assertIsInstance(command, str)
@@ -146,11 +148,13 @@ class TestPipelineManager(unittest.TestCase):
         manager.add_pipeline(test_pipeline)
 
         # Build command with one pipeline and 3 streams
-        pipeline_run_specs = [
-            PipelineRunSpec(name="test-pipelines", version="test-multi", streams=3)
+        pipeline_performance_specs = [
+            PipelinePerformanceSpec(
+                name="test-pipelines", version="test-multi", streams=3
+            )
         ]
 
-        command = manager.build_pipeline_command(pipeline_run_specs)
+        command = manager.build_pipeline_command(pipeline_performance_specs)
 
         # Verify command contains multiple instances
         self.assertIsInstance(command, str)
@@ -182,12 +186,16 @@ class TestPipelineManager(unittest.TestCase):
         manager.add_pipeline(pipeline2)
 
         # Build command with two pipelines with different stream counts
-        pipeline_run_specs = [
-            PipelineRunSpec(name="test-pipelines", version="pipeline1", streams=2),
-            PipelineRunSpec(name="test-pipelines", version="pipeline2", streams=3),
+        pipeline_performance_specs = [
+            PipelinePerformanceSpec(
+                name="test-pipelines", version="pipeline1", streams=2
+            ),
+            PipelinePerformanceSpec(
+                name="test-pipelines", version="pipeline2", streams=3
+            ),
         ]
 
-        command = manager.build_pipeline_command(pipeline_run_specs)
+        command = manager.build_pipeline_command(pipeline_performance_specs)
 
         # Verify both pipeline types are present
         self.assertIsInstance(command, str)
@@ -200,12 +208,12 @@ class TestPipelineManager(unittest.TestCase):
         manager = PipelineManager()
 
         # Try to build command with pipeline that doesn't exist
-        pipeline_run_specs = [
-            PipelineRunSpec(name="nonexistent", version="missing", streams=1)
+        pipeline_performance_specs = [
+            PipelinePerformanceSpec(name="nonexistent", version="missing", streams=1)
         ]
 
         with self.assertRaises(ValueError) as context:
-            manager.build_pipeline_command(pipeline_run_specs)
+            manager.build_pipeline_command(pipeline_performance_specs)
 
         self.assertIn(
             "Pipeline with name 'nonexistent' and version 'missing' not found",

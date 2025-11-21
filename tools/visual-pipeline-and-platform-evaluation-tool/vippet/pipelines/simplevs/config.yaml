@@ -1,4 +1,5 @@
 name: simplevs
+version: 1.0
 display_name: Simple Video Structurization (D-T-C)
 definition: >
   The Simple Video Structurization (D-T-C) pipeline is a versatile, use case-agnostic solution that supports

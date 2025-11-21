@@ -158,6 +158,412 @@
         }
       }
     },
+    "/jobs/tests/performance/status": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Performance Statuses",
+        "description": "Return the status of all known performance test jobs.\n\nThis endpoint provides a list of :class:`PerformanceJobStatus` objects,\neach describing the current state and metrics of a performance test job\nthat has been started via the API. The response includes:\n\n* job identifier,\n* current state (RUNNING, COMPLETED, ERROR, ABORTED),\n* timing information (start time, elapsed time),\n* performance metrics (total FPS, per-stream FPS, total streams),\n* pipeline configuration details (streams per pipeline),\n* error messages (if any).\n\nThe implementation delegates to the global :data:`tests_manager` instance,\nwhich aggregates and logs all known performance jobs. The returned list\nis automatically serialized to JSON by FastAPI using the Pydantic model\ndefinitions.\n\nReturns\n-------\nList[PerformanceJobStatus]\n    A list of :class:`PerformanceJobStatus` objects, one for each\n    performance test job currently tracked by the system.",
+        "operationId": "get_performance_statuses",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PerformanceJobStatus"
+                  },
+                  "type": "array",
+                  "title": "Response Get Performance Statuses"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/tests/performance/{job_id}/status": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Performance Job Status",
+        "description": "Return the detailed status of a specific performance test job.\n\nThis endpoint focuses on a single performance test job and provides the\ncomplete :class:`PerformanceJobStatus` object for it.\n\nParameters\n----------\njob_id : str\n    Identifier of the performance test job whose status should be\n    retrieved.\n\nReturns\n-------\nPerformanceJobStatus | JSONResponse\n    * On success (job exists): the full :class:`PerformanceJobStatus`\n      instance describing the current state and metrics.\n    * On failure (job unknown): a ``404`` :class:`JSONResponse` containing\n      a :class:`MessageResponse` with a human\u2011readable explanation.",
+        "operationId": "get_performance_job_status",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceJobStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/tests/performance/{job_id}": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Performance Job Summary",
+        "description": "Return a short summary of a specific performance test job.\n\nParameters\n----------\njob_id : str\n    The identifier of the performance test job whose summary should\n    be retrieved. This id is the value previously returned by the\n    job creation endpoint.\n\nReturns\n-------\nPerformanceJobSummary | JSONResponse\n    * On success (job exists): a :class:`PerformanceJobSummary` instance\n      capturing the job id and original request parameters.\n    * On failure (unknown id): a ``404`` :class:`JSONResponse` whose body\n      is a :class:`MessageResponse` explaining that the job was not found.",
+        "operationId": "get_performance_job_summary",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceJobSummary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Stop Performance Test Job",
+        "description": "Stop a running performance test job.\n\nThis endpoint attempts to terminate the active runner associated with\nthe specified performance test job. The outcome of the stop request is mapped to\nexplicit HTTP status codes for straightforward client handling:\n\n* ``200`` \u2013 Job successfully stopped.\n* ``404`` \u2013 Unknown job id or no active runner (never started / purged).\n  Indicates the resource was not found.\n* ``409`` \u2013 Job exists but is not in a RUNNING state (COMPLETED, ABORTED,\n  ERROR). Represents a conflicting state transition.\n* ``500`` \u2013 Unexpected internal failure while attempting to stop\n  (e.g. thread interruption issue). Provides a diagnostic message.\n\n\nParameters\n----------\njob_id : str\n        Identifier of the performance test job whose execution should be\n        stopped.\n\nReturns\n-------\nMessageResponse | JSONResponse\n        A :class:`MessageResponse` instance (directly for success; wrapped\n        in :class:`JSONResponse` for non\u2011200 cases) describing the result\n        of the stop attempt.",
+        "operationId": "stop_performance_test_job",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Performance test job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Performance test job not running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/tests/density/status": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Density Statuses",
+        "description": "Return the status of all known density test jobs.\n\nThis endpoint provides a list of :class:`DensityJobStatus` objects,\neach describing the current state and metrics of a density test job\nthat has been started via the API. The response includes:\n\n* job identifier,\n* current state (RUNNING, COMPLETED, ERROR, ABORTED),\n* timing information (start time, elapsed time),\n* performance metrics (total FPS, per-stream FPS, total streams),\n* pipeline configuration details (streams per pipeline),\n* error messages (if any).\n\nThe implementation delegates to the global :data:`tests_manager` instance,\nwhich aggregates and logs all known density jobs. The returned list\nis automatically serialized to JSON by FastAPI using the Pydantic model\ndefinitions.\n\nReturns\n-------\nList[DensityJobStatus]\n    A list of :class:`DensityJobStatus` objects, one for each\n    density test job currently tracked by the system.",
+        "operationId": "get_density_statuses",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DensityJobStatus"
+                  },
+                  "type": "array",
+                  "title": "Response Get Density Statuses"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/tests/density/{job_id}/status": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Density Job Status",
+        "description": "Return the detailed status of a specific density test job.\n\nThis endpoint focuses on a single density test job and provides the\ncomplete :class:`DensityJobStatus` object for it.\n\nParameters\n----------\njob_id : str\n    Identifier of the density test job whose status should be\n    retrieved.\n\nReturns\n-------\nDensityJobStatus | JSONResponse\n    * On success (job exists): the full :class:`DensityJobStatus`\n      instance describing the current state and metrics.\n    * On failure (job unknown): a ``404`` :class:`JSONResponse` containing\n      a :class:`MessageResponse` with a human\u2011readable explanation.",
+        "operationId": "get_density_job_status",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DensityJobStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/tests/density/{job_id}": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Density Job Summary",
+        "description": "Return a short summary of a specific density test job.\n\nParameters\n----------\njob_id : str\n    The identifier of the density test job whose summary should\n    be retrieved. This id is the value previously returned by the\n    job creation endpoint.\n\nReturns\n-------\nDensityJobSummary | JSONResponse\n    * On success (job exists): a :class:`DensityJobSummary` instance\n      capturing the job id and original request parameters.\n    * On failure (unknown id): a ``404`` :class:`JSONResponse` whose body\n      is a :class:`MessageResponse` explaining that the job was not found.",
+        "operationId": "get_density_job_summary",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DensityJobSummary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Stop Density Test Job",
+        "description": "Stop a running density test job.\n\nThis endpoint attempts to terminate the active runner associated with\nthe specified density test job. The outcome of the stop request is mapped to\nexplicit HTTP status codes for straightforward client handling:\n\n* ``200`` \u2013 Job successfully stopped.\n* ``404`` \u2013 Unknown job id or no active runner (never started / purged).\n  Indicates the resource was not found.\n* ``409`` \u2013 Job exists but is not in a RUNNING state (COMPLETED, ABORTED,\n  ERROR). Represents a conflicting state transition.\n* ``500`` \u2013 Unexpected internal failure while attempting to stop\n  (e.g. thread interruption issue). Provides a diagnostic message.\n\n\nParameters\n----------\njob_id : str\n        Identifier of the density test job whose execution should be\n        stopped.\n\nReturns\n-------\nMessageResponse | JSONResponse\n        A :class:`MessageResponse` instance (directly for success; wrapped\n        in :class:`JSONResponse` for non\u2011200 cases) describing the result\n        of the stop attempt.",
+        "operationId": "stop_density_test_job",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Density test job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Density test job not running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/jobs/optimization/status": {
       "get": {
         "tags": [
@@ -460,209 +866,6 @@
         }
       }
     },
-    "/pipelines/status": {
-      "get": {
-        "tags": [
-          "pipelines"
-        ],
-        "summary": "Get Pipeline Statuses",
-        "description": "Get status of all pipeline instances.",
-        "operationId": "get_pipeline_statuses",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PipelineInstanceStatus"
-                  },
-                  "type": "array",
-                  "title": "Response Get Pipeline Statuses"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/pipelines/{instance_id}": {
-      "get": {
-        "tags": [
-          "pipelines"
-        ],
-        "summary": "Get Instance Summary",
-        "description": "Get summary of a specific pipeline instance.",
-        "operationId": "get_pipeline_instance_summary",
-        "parameters": [
-          {
-            "name": "instance_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Instance Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PipelineInstanceSummary"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Instance not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MessageResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "pipelines"
-        ],
-        "summary": "Stop Pipeline Instance",
-        "description": "Stop a running pipeline instance.",
-        "operationId": "stop_pipeline_instance",
-        "parameters": [
-          {
-            "name": "instance_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Instance Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MessageResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Pipeline instance not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MessageResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Pipeline instance not running",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MessageResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Unexpected error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MessageResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/pipelines/{instance_id}/status": {
-      "get": {
-        "tags": [
-          "pipelines"
-        ],
-        "summary": "Get Pipeline Instance Status",
-        "description": "Get status of a specific pipeline instance.",
-        "operationId": "get_pipeline_instance_status",
-        "parameters": [
-          {
-            "name": "instance_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Instance Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PipelineInstanceStatus"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Instance not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MessageResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/pipelines/{name}/{version}": {
       "get": {
         "tags": [
@@ -733,71 +936,12 @@
           }
         }
       },
-      "post": {
-        "tags": [
-          "pipelines"
-        ],
-        "summary": "Run Pipeline",
-        "description": "Run a pipeline.",
-        "operationId": "run_pipeline",
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Name"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Version"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PipelineRequestRun"
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PipelineInstanceResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
       "delete": {
         "tags": [
           "pipelines"
         ],
         "summary": "Delete Pipeline",
+        "description": "Delete pipeline by name and version.",
         "operationId": "delete_pipeline",
         "parameters": [
           {
@@ -830,74 +974,12 @@
               }
             }
           },
-          "400": {
-            "description": "Cannot delete pipeline",
+          "404": {
+            "description": "Pipeline not found",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MessageResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/pipelines/{name}/{version}/benchmark": {
-      "post": {
-        "tags": [
-          "pipelines"
-        ],
-        "summary": "Benchmark Pipeline",
-        "description": "Benchmark a pipeline.",
-        "operationId": "benchmark_pipeline",
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Name"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Version"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PipelineRequestBenchmark"
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PipelineInstanceResponse"
                 }
               }
             }
@@ -1005,6 +1087,90 @@
         }
       }
     },
+    "/tests/performance": {
+      "post": {
+        "tags": [
+          "tests"
+        ],
+        "summary": "Run Performance Test",
+        "description": "Run a performance test.",
+        "operationId": "run_performance_test",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformanceTestSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestJobResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tests/density": {
+      "post": {
+        "tags": [
+          "tests"
+        ],
+        "summary": "Run Density Test",
+        "description": "Run a density test.",
+        "operationId": "run_density_test",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DensityTestSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestJobResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/videos": {
       "get": {
         "tags": [
@@ -1034,6 +1200,135 @@
   },
   "components": {
     "schemas": {
+      "DensityJobStatus": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "start_time": {
+            "type": "integer",
+            "title": "Start Time"
+          },
+          "elapsed_time": {
+            "type": "integer",
+            "title": "Elapsed Time"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TestJobState"
+          },
+          "total_fps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Fps"
+          },
+          "per_stream_fps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Stream Fps"
+          },
+          "total_streams": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Streams"
+          },
+          "streams_per_pipeline": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PipelinePerformanceSpec"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Streams Per Pipeline"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "start_time",
+          "elapsed_time",
+          "state",
+          "total_fps",
+          "per_stream_fps",
+          "total_streams",
+          "streams_per_pipeline",
+          "error_message"
+        ],
+        "title": "DensityJobStatus"
+      },
+      "DensityJobSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "request": {
+            "$ref": "#/components/schemas/DensityTestSpec"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "request"
+        ],
+        "title": "DensityJobSummary"
+      },
+      "DensityTestSpec": {
+        "properties": {
+          "fps_floor": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Fps Floor"
+          },
+          "pipeline_density_specs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineDensitySpec"
+            },
+            "type": "array",
+            "title": "Pipeline Density Specs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fps_floor",
+          "pipeline_density_specs"
+        ],
+        "title": "DensityTestSpec"
+      },
       "Device": {
         "properties": {
           "device_name": {
@@ -1355,6 +1650,129 @@
         ],
         "title": "OptimizationType"
       },
+      "PerformanceJobStatus": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "start_time": {
+            "type": "integer",
+            "title": "Start Time"
+          },
+          "elapsed_time": {
+            "type": "integer",
+            "title": "Elapsed Time"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TestJobState"
+          },
+          "total_fps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Fps"
+          },
+          "per_stream_fps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Stream Fps"
+          },
+          "total_streams": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Streams"
+          },
+          "streams_per_pipeline": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PipelinePerformanceSpec"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Streams Per Pipeline"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "start_time",
+          "elapsed_time",
+          "state",
+          "total_fps",
+          "per_stream_fps",
+          "total_streams",
+          "streams_per_pipeline",
+          "error_message"
+        ],
+        "title": "PerformanceJobStatus"
+      },
+      "PerformanceJobSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "request": {
+            "$ref": "#/components/schemas/PerformanceTestSpec"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "request"
+        ],
+        "title": "PerformanceJobSummary"
+      },
+      "PerformanceTestSpec": {
+        "properties": {
+          "pipeline_performance_specs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelinePerformanceSpec"
+            },
+            "type": "array",
+            "title": "Pipeline Performance Specs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pipeline_performance_specs"
+        ],
+        "title": "PerformanceTestSpec"
+      },
       "Pipeline": {
         "properties": {
           "name": {
@@ -1396,29 +1814,6 @@
           "parameters"
         ],
         "title": "Pipeline"
-      },
-      "PipelineBenchmarkSpec": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "version": {
-            "type": "string",
-            "title": "Version"
-          },
-          "stream_rate": {
-            "type": "integer",
-            "title": "Stream Rate",
-            "default": 100
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "version"
-        ],
-        "title": "PipelineBenchmarkSpec"
       },
       "PipelineDefinition": {
         "properties": {
@@ -1463,6 +1858,30 @@
         ],
         "title": "PipelineDefinition"
       },
+      "PipelineDensitySpec": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "stream_rate": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Stream Rate",
+            "default": 100
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "version"
+        ],
+        "title": "PipelineDensitySpec"
+      },
       "PipelineDescription": {
         "properties": {
           "pipeline_description": {
@@ -1500,149 +1919,6 @@
         ],
         "title": "PipelineGraph"
       },
-      "PipelineInstanceResponse": {
-        "properties": {
-          "instance_id": {
-            "type": "string",
-            "title": "Instance Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "instance_id"
-        ],
-        "title": "PipelineInstanceResponse"
-      },
-      "PipelineInstanceState": {
-        "type": "string",
-        "enum": [
-          "RUNNING",
-          "COMPLETED",
-          "ERROR",
-          "ABORTED"
-        ],
-        "title": "PipelineInstanceState"
-      },
-      "PipelineInstanceStatus": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "start_time": {
-            "type": "integer",
-            "title": "Start Time"
-          },
-          "elapsed_time": {
-            "type": "integer",
-            "title": "Elapsed Time"
-          },
-          "state": {
-            "$ref": "#/components/schemas/PipelineInstanceState"
-          },
-          "total_fps": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Total Fps"
-          },
-          "per_stream_fps": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Per Stream Fps"
-          },
-          "total_streams": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Total Streams"
-          },
-          "streams_per_pipeline": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/PipelineRunSpec"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Streams Per Pipeline"
-          },
-          "error_message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error Message"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "start_time",
-          "elapsed_time",
-          "state",
-          "total_fps",
-          "per_stream_fps",
-          "total_streams",
-          "streams_per_pipeline",
-          "error_message"
-        ],
-        "title": "PipelineInstanceStatus"
-      },
-      "PipelineInstanceSummary": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "request": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PipelineRequestRun"
-              },
-              {
-                "$ref": "#/components/schemas/PipelineRequestBenchmark"
-              }
-            ],
-            "title": "Request"
-          },
-          "type": {
-            "type": "string",
-            "title": "Type"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "request",
-          "type"
-        ],
-        "title": "PipelineInstanceSummary"
-      },
       "PipelineParameters": {
         "properties": {
           "default": {
@@ -1664,26 +1940,29 @@
         ],
         "title": "PipelineParameters"
       },
-      "PipelineRequestBenchmark": {
+      "PipelinePerformanceSpec": {
         "properties": {
-          "fps_floor": {
-            "type": "integer",
-            "title": "Fps Floor",
-            "default": 30
+          "name": {
+            "type": "string",
+            "title": "Name"
           },
-          "pipeline_benchmark_specs": {
-            "items": {
-              "$ref": "#/components/schemas/PipelineBenchmarkSpec"
-            },
-            "type": "array",
-            "title": "Pipeline Benchmark Specs"
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "streams": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Streams",
+            "default": 1
           }
         },
         "type": "object",
         "required": [
-          "pipeline_benchmark_specs"
+          "name",
+          "version"
         ],
-        "title": "PipelineRequestBenchmark"
+        "title": "PipelinePerformanceSpec"
       },
       "PipelineRequestOptimize": {
         "properties": {
@@ -1709,45 +1988,6 @@
           "parameters"
         ],
         "title": "PipelineRequestOptimize"
-      },
-      "PipelineRequestRun": {
-        "properties": {
-          "pipeline_run_specs": {
-            "items": {
-              "$ref": "#/components/schemas/PipelineRunSpec"
-            },
-            "type": "array",
-            "title": "Pipeline Run Specs"
-          }
-        },
-        "type": "object",
-        "required": [
-          "pipeline_run_specs"
-        ],
-        "title": "PipelineRequestRun"
-      },
-      "PipelineRunSpec": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "version": {
-            "type": "string",
-            "title": "Version"
-          },
-          "streams": {
-            "type": "integer",
-            "title": "Streams",
-            "default": 1
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "version"
-        ],
-        "title": "PipelineRunSpec"
       },
       "PipelineType": {
         "type": "string",
@@ -1785,37 +2025,28 @@
         ],
         "title": "PipelineValidation"
       },
-      "Source": {
+      "TestJobResponse": {
         "properties": {
-          "type": {
-            "$ref": "#/components/schemas/SourceType"
-          },
-          "uri": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Uri"
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
           }
         },
         "type": "object",
         "required": [
-          "type",
-          "uri"
+          "job_id"
         ],
-        "title": "Source"
+        "title": "TestJobResponse"
       },
-      "SourceType": {
+      "TestJobState": {
         "type": "string",
         "enum": [
-          "uri",
-          "gst"
+          "RUNNING",
+          "COMPLETED",
+          "ERROR",
+          "ABORTED"
         ],
-        "title": "SourceType"
+        "title": "TestJobState"
       },
       "ValidationError": {
         "properties": {

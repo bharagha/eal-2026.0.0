@@ -10,7 +10,7 @@ import math
 from typing import List
 
 from pipeline_runner import PipelineRunner, PipelineRunResult
-from api.api_schemas import PipelineBenchmarkSpec, PipelineRunSpec
+from api.api_schemas import PipelineDensitySpec, PipelinePerformanceSpec
 from managers.pipeline_manager import get_pipeline_manager
 
 pipeline_manager = get_pipeline_manager()
@@ -19,7 +19,7 @@ pipeline_manager = get_pipeline_manager()
 @dataclass
 class BenchmarkResult:
     n_streams: int
-    streams_per_pipeline: List[PipelineRunSpec]
+    streams_per_pipeline: List[PipelinePerformanceSpec]
     per_stream_fps: float
 
     def __repr__(self):
@@ -42,13 +42,13 @@ class Benchmark:
 
     @staticmethod
     def _calculate_streams_per_pipeline(
-        pipeline_benchmark_specs: list[PipelineBenchmarkSpec], total_streams: int
+        pipeline_benchmark_specs: list[PipelineDensitySpec], total_streams: int
     ) -> list[int]:
         """
         Calculate the number of streams for each pipeline based on their stream_rate ratios.
 
         Args:
-            pipeline_benchmark_specs: List of PipelineBenchmarkSpec with stream_rate ratios.
+            pipeline_benchmark_specs: List of PipelineDensitySpec with stream_rate ratios.
             total_streams: Total number of streams to distribute.
 
         Returns:
@@ -81,13 +81,13 @@ class Benchmark:
         return streams_per_pipeline_counts
 
     def run(
-        self, pipeline_benchmark_specs: list[PipelineBenchmarkSpec], fps_floor: float
+        self, pipeline_benchmark_specs: list[PipelineDensitySpec], fps_floor: float
     ) -> BenchmarkResult:
         """
         Run the benchmark and return the best configuration.
 
         Args:
-            pipeline_benchmark_specs: List of PipelineBenchmarkSpec with stream_rate ratios.
+            pipeline_benchmark_specs: List of PipelineDensitySpec with stream_rate ratios.
             fps_floor: Minimum FPS threshold per stream.
 
         Returns:
@@ -100,7 +100,7 @@ class Benchmark:
         lower_bound = 1
         # We'll set this once we fall below the fps_floor
         higher_bound = -1
-        best_config: tuple[int, list[PipelineRunSpec], float] = (
+        best_config: tuple[int, list[PipelinePerformanceSpec], float] = (
             0,
             [],
             0.0,
@@ -114,7 +114,9 @@ class Benchmark:
 
             # Build run specs with calculated stream counts
             run_specs = [
-                PipelineRunSpec(name=spec.name, version=spec.version, streams=streams)
+                PipelinePerformanceSpec(
+                    name=spec.name, version=spec.version, streams=streams
+                )
                 for spec, streams in zip(
                     pipeline_benchmark_specs, streams_per_pipeline_counts
                 )
@@ -199,7 +201,7 @@ class Benchmark:
 
             # Build streams_per_pipeline dict from best_run_specs
             streams_per_pipeline = [
-                PipelineRunSpec(
+                PipelinePerformanceSpec(
                     name=spec.name, version=spec.version, streams=spec.streams
                 )
                 for spec in best_run_specs
@@ -213,7 +215,7 @@ class Benchmark:
         else:
             # Fallback to last attempt - build streams_per_pipeline from last run_specs
             streams_per_pipeline = [
-                PipelineRunSpec(
+                PipelinePerformanceSpec(
                     name=spec.name, version=spec.version, streams=spec.streams
                 )
                 for spec in run_specs

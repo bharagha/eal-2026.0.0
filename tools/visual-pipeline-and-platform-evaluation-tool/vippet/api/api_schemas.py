@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from enum import Enum
 
 
@@ -9,7 +9,7 @@ class PipelineType(str, Enum):
     FFMPEG = "FFmpeg"
 
 
-class PipelineInstanceState(str, Enum):
+class TestJobState(str, Enum):
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
     ERROR = "ERROR"
@@ -55,10 +55,6 @@ class Source(BaseModel):
     uri: Optional[str]
 
 
-class PipelineDescription(BaseModel):
-    pipeline_description: str
-
-
 class Node(BaseModel):
     id: str
     type: str
@@ -71,29 +67,33 @@ class Edge(BaseModel):
     target: str
 
 
+class MessageResponse(BaseModel):
+    message: str
+
+
+class PipelineDescription(BaseModel):
+    pipeline_description: str
+
+
 class PipelineGraph(BaseModel):
     nodes: list[Node]
     edges: list[Edge]
-
-
-class MessageResponse(BaseModel):
-    message: str
 
 
 class PipelineParameters(BaseModel):
     default: Optional[Dict[str, Any]]
 
 
-class PipelineRunSpec(BaseModel):
+class PipelinePerformanceSpec(BaseModel):
     name: str
     version: str
-    streams: int = 1
+    streams: int = Field(default=1, ge=0)
 
 
-class PipelineBenchmarkSpec(BaseModel):
+class PipelineDensitySpec(BaseModel):
     name: str
     version: str
-    stream_rate: int = 100
+    stream_rate: int = Field(default=100, ge=0)
 
 
 class Pipeline(BaseModel):
@@ -120,40 +120,52 @@ class PipelineValidation(BaseModel):
     parameters: Optional[PipelineParameters]
 
 
-class PipelineRequestRun(BaseModel):
-    pipeline_run_specs: list[PipelineRunSpec]
-
-
-class PipelineRequestBenchmark(BaseModel):
-    fps_floor: int = 30
-    pipeline_benchmark_specs: list[PipelineBenchmarkSpec]
-
-
 class PipelineRequestOptimize(BaseModel):
     type: OptimizationType
     parameters: Optional[Dict[str, Any]]
 
 
-class PipelineInstanceResponse(BaseModel):
-    instance_id: str
+class PerformanceTestSpec(BaseModel):
+    pipeline_performance_specs: list[PipelinePerformanceSpec]
 
 
-class PipelineInstanceStatus(BaseModel):
+class DensityTestSpec(BaseModel):
+    fps_floor: int = Field(ge=0)
+    pipeline_density_specs: list[PipelineDensitySpec]
+
+
+class TestJobResponse(BaseModel):
+    job_id: str
+
+
+class TestsJobStatus(BaseModel):
     id: str
     start_time: int
     elapsed_time: int
-    state: PipelineInstanceState
+    state: TestJobState
     total_fps: Optional[float]
     per_stream_fps: Optional[float]
     total_streams: Optional[int]
-    streams_per_pipeline: Optional[List[PipelineRunSpec]]
+    streams_per_pipeline: Optional[List[PipelinePerformanceSpec]]
     error_message: Optional[str]
 
 
-class PipelineInstanceSummary(BaseModel):
+class PerformanceJobStatus(TestsJobStatus):
+    pass
+
+
+class DensityJobStatus(TestsJobStatus):
+    pass
+
+
+class PerformanceJobSummary(BaseModel):
     id: str
-    request: PipelineRequestRun | PipelineRequestBenchmark
-    type: str
+    request: PerformanceTestSpec
+
+
+class DensityJobSummary(BaseModel):
+    id: str
+    request: DensityTestSpec
 
 
 class OptimizationJobResponse(BaseModel):
