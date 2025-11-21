@@ -11,6 +11,7 @@ from api.api_schemas import (
     OptimizationType,
     OptimizationJobState,
     PipelineType,
+    PipelineSource,
 )
 from managers.optimization_manager import (
     OptimizationManager,
@@ -71,9 +72,11 @@ class TestOptimizationManager(unittest.TestCase):
         """Helper that constructs a minimal Pipeline instance."""
         graph = PipelineGraph.model_validate_json(self.test_graph_json)
         return Pipeline(
+            id="pipeline-test123",
             name="user-defined-pipelines",
-            version="test-pipeline",
+            version=1,
             description="A test pipeline",
+            source=PipelineSource.USER_CREATED,
             # Use some valid PipelineType; value is irrelevant for these tests.
             type=PipelineType.GSTREAMER,
             # we only care about pipeline_graph here

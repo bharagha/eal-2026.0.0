@@ -9,6 +9,11 @@ class PipelineType(str, Enum):
     FFMPEG = "FFmpeg"
 
 
+class PipelineSource(str, Enum):
+    PREDEFINED = "PREDEFINED"
+    USER_CREATED = "USER_CREATED"
+
+
 class TestJobState(str, Enum):
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
@@ -85,21 +90,21 @@ class PipelineParameters(BaseModel):
 
 
 class PipelinePerformanceSpec(BaseModel):
-    name: str
-    version: str
+    id: str
     streams: int = Field(default=1, ge=0)
 
 
 class PipelineDensitySpec(BaseModel):
-    name: str
-    version: str
+    id: str
     stream_rate: int = Field(default=100, ge=0)
 
 
 class Pipeline(BaseModel):
+    id: str
     name: str
-    version: str
+    version: int
     description: str
+    source: PipelineSource
     type: PipelineType
     pipeline_graph: PipelineGraph
     parameters: Optional[PipelineParameters]
@@ -107,8 +112,9 @@ class Pipeline(BaseModel):
 
 class PipelineDefinition(BaseModel):
     name: str
-    version: str
+    version: int = Field(default=1, ge=1)
     description: str
+    source: PipelineSource = PipelineSource.USER_CREATED
     type: PipelineType
     pipeline_description: str
     parameters: Optional[PipelineParameters]
@@ -130,7 +136,7 @@ class PerformanceTestSpec(BaseModel):
 
 
 class DensityTestSpec(BaseModel):
-    fps_floor: int = Field(ge=0)
+    fps_floor: int = Field(ge=0, examples=[30])
     pipeline_density_specs: list[PipelineDensitySpec]
 
 
