@@ -139,11 +139,11 @@ def get_performance_job_summary(job_id: str):
             "model": schemas.MessageResponse,
         },
         404: {
-            "description": "Density test job not found",
+            "description": "Performance test job not found",
             "model": schemas.MessageResponse,
         },
         409: {
-            "description": "Density test job not running",
+            "description": "Performance test job not running",
             "model": schemas.MessageResponse,
         },
         500: {

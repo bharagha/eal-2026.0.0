@@ -319,7 +319,7 @@
             }
           },
           "404": {
-            "description": "Density test job not found",
+            "description": "Performance test job not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -329,7 +329,7 @@
             }
           },
           "409": {
-            "description": "Density test job not running",
+            "description": "Performance test job not running",
             "content": {
               "application/json": {
                 "schema": {

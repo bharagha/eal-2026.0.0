@@ -2,7 +2,7 @@ import logging
 import sys
 import threading
 import time
-from typing import Dict, Optional, List, Union
+from typing import Dict, Optional, List
 from dataclasses import dataclass
 import uuid
 
@@ -100,7 +100,7 @@ class TestsManager:
         job_id = self._generate_job_id()
 
         # Create job record
-        job: Union[PerformanceJob, DensityJob]
+        job: PerformanceJob | DensityJob
         if isinstance(test_request, PerformanceTestSpec):
             job = PerformanceJob(
                 id=job_id,
