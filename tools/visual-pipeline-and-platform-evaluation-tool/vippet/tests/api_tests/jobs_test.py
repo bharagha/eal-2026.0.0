@@ -299,6 +299,68 @@ class TestJobsAPI(unittest.TestCase):
             "get_optimization_job_status",
         )
 
+    @patch("api.routes.jobs.tests_manager")
+    def test_stop_test_job_success(self, mock_manager):
+        job_id = "46b55660b96011f0948d9b40bdd1b89c"
+        mock_manager.stop_job.return_value = (
+            True,
+            f"Job {job_id} stopped",
+        )
+        response = self.client.delete(f"/jobs/tests/performance/{job_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"message": f"Job {job_id} stopped"})
+        response = self.client.delete(f"/jobs/tests/density/{job_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"message": f"Job {job_id} stopped"})
+
+    @patch("api.routes.jobs.tests_manager")
+    def test_stop_test_job_not_found(self, mock_tests_manager):
+        job_id = "46b55660b96011f0948d9b40bdd1b89c"
+        mock_tests_manager.stop_job.return_value = (
+            False,
+            f"Job {job_id} not found",
+        )
+        response = self.client.delete(f"/jobs/tests/performance/{job_id}")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {"message": f"Job {job_id} not found"})
+        response = self.client.delete(f"/jobs/tests/density/{job_id}")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {"message": f"Job {job_id} not found"})
+
+    @patch("api.routes.jobs.tests_manager")
+    def test_stop_test_job_not_running(self, mock_tests_manager):
+        job_id = "46b55660b96011f0948d9b40bdd1b89c"
+        mock_tests_manager.stop_job.return_value = (
+            False,
+            f"Job {job_id} is not running (state: COMPLETED)",
+        )
+        response = self.client.delete(f"/jobs/tests/performance/{job_id}")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            response.json(),
+            {"message": f"Job {job_id} is not running (state: COMPLETED)"},
+        )
+        response = self.client.delete(f"/jobs/tests/density/{job_id}")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            response.json(),
+            {"message": f"Job {job_id} is not running (state: COMPLETED)"},
+        )
+
+    @patch("api.routes.jobs.tests_manager")
+    def test_stop_test_job_server_error(self, mock_tests_manager):
+        job_id = "46b55660b96011f0948d9b40bdd1b89c"
+        mock_tests_manager.stop_job.return_value = (
+            False,
+            "Unexpected error occurred",
+        )
+        response = self.client.delete(f"/jobs/tests/performance/{job_id}")
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.json(), {"message": "Unexpected error occurred"})
+        response = self.client.delete(f"/jobs/tests/density/{job_id}")
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.json(), {"message": "Unexpected error occurred"})
+
 
 if __name__ == "__main__":
     # Allow running this module directly for quick local verification.

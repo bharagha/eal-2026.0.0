@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from enum import Enum
 
 
@@ -87,13 +87,13 @@ class PipelineParameters(BaseModel):
 class PipelinePerformanceSpec(BaseModel):
     name: str
     version: str
-    streams: int = 1
+    streams: int = Field(default=1, ge=0)
 
 
 class PipelineDensitySpec(BaseModel):
     name: str
     version: str
-    stream_rate: int = 100
+    stream_rate: int = Field(default=100, ge=0)
 
 
 class Pipeline(BaseModel):
@@ -130,7 +130,7 @@ class PerformanceTestSpec(BaseModel):
 
 
 class DensityTestSpec(BaseModel):
-    fps_floor: int = 30
+    fps_floor: int = Field(ge=0)
     pipeline_density_specs: list[PipelineDensitySpec]
 
 
@@ -138,7 +138,7 @@ class TestJobResponse(BaseModel):
     job_id: str
 
 
-class PerformanceJobStatus(BaseModel):
+class TestsJobStatus(BaseModel):
     id: str
     start_time: int
     elapsed_time: int
@@ -150,16 +150,12 @@ class PerformanceJobStatus(BaseModel):
     error_message: Optional[str]
 
 
-class DensityJobStatus(BaseModel):
-    id: str
-    start_time: int
-    elapsed_time: int
-    state: TestJobState
-    total_fps: Optional[float]
-    per_stream_fps: Optional[float]
-    total_streams: Optional[int]
-    streams_per_pipeline: Optional[List[PipelinePerformanceSpec]]
-    error_message: Optional[str]
+class PerformanceJobStatus(TestsJobStatus):
+    pass
+
+
+class DensityJobStatus(TestsJobStatus):
+    pass
 
 
 class PerformanceJobSummary(BaseModel):

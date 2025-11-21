@@ -1311,8 +1311,8 @@
         "properties": {
           "fps_floor": {
             "type": "integer",
-            "title": "Fps Floor",
-            "default": 30
+            "minimum": 0.0,
+            "title": "Fps Floor"
           },
           "pipeline_density_specs": {
             "items": {
@@ -1324,6 +1324,7 @@
         },
         "type": "object",
         "required": [
+          "fps_floor",
           "pipeline_density_specs"
         ],
         "title": "DensityTestSpec"
@@ -1869,6 +1870,7 @@
           },
           "stream_rate": {
             "type": "integer",
+            "minimum": 0.0,
             "title": "Stream Rate",
             "default": 100
           }
@@ -1950,6 +1952,7 @@
           },
           "streams": {
             "type": "integer",
+            "minimum": 0.0,
             "title": "Streams",
             "default": 1
           }

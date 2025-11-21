@@ -2,7 +2,7 @@ import logging
 import sys
 import threading
 import time
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Union
 from dataclasses import dataclass
 import uuid
 
@@ -11,11 +11,11 @@ from api.api_schemas import (
     DensityTestSpec,
     PerformanceJobSummary,
     PerformanceTestSpec,
-    PipelineGraph,
     TestJobState,
     PipelinePerformanceSpec,
     PerformanceJobStatus,
     DensityJobStatus,
+    TestsJobStatus,
 )
 from pipeline_runner import PipelineRunner
 from benchmark import Benchmark
@@ -100,15 +100,16 @@ class TestsManager:
         job_id = self._generate_job_id()
 
         # Create job record
-        if test_request.__class__ == PerformanceTestSpec:
-            job: PerformanceJob = PerformanceJob(
+        job: Union[PerformanceJob, DensityJob]
+        if isinstance(test_request, PerformanceTestSpec):
+            job = PerformanceJob(
                 id=job_id,
                 request=test_request,
                 state=TestJobState.RUNNING,
                 start_time=int(time.time() * 1000),  # milliseconds
             )
         else:  # DensityTestSpec
-            job: DensityJob = DensityJob(
+            job = DensityJob(
                 id=job_id,
                 request=test_request,
                 state=TestJobState.RUNNING,
@@ -327,32 +328,32 @@ class TestsManager:
             error_message=job.error_message,
         )
 
-    def get_job_statuses_by_type(
-        self, job_type
-    ) -> list[PerformanceJobStatus | DensityJobStatus]:
-        """Get status of all jobs of a specific type."""
+    def get_job_statuses_by_type(self, job_type) -> list[TestsJobStatus]:
+        """Get status of all jobs of a specific type (PerformanceJob or DensityJob).
+        Returns a list of TestsJobStatus objects (common base for all job statuses).
+        """
         with self.lock:
-            statuses = [
-                self._build_performance_status(job)
-                for job in self.jobs.values()
-                if isinstance(job, job_type)
-            ]
+            statuses: list[TestsJobStatus] = []
+            for job in self.jobs.values():
+                if job_type == PerformanceJob and isinstance(job, PerformanceJob):
+                    statuses.append(self._build_performance_status(job))
+                elif job_type == DensityJob and isinstance(job, DensityJob):
+                    statuses.append(self._build_density_status(job))
             self.logger.debug(f"Current job statuses for type {job_type}: {statuses}")
             return statuses
 
-    def get_job_status(
-        self, job_id: str
-    ) -> Optional[PerformanceJobStatus | DensityJobStatus]:
-        """Get status of a specific job by ID."""
+    def get_job_status(self, job_id: str) -> Optional[TestsJobStatus]:
+        """Get status of a specific job by ID. Returns a TestsJobStatus object."""
         with self.lock:
             if job_id not in self.jobs:
                 return None
             job = self.jobs[job_id]
-            job_status = (
-                self._build_performance_status(job)
-                if isinstance(job, PerformanceJob)
-                else self._build_density_status(job)
-            )
+            if isinstance(job, PerformanceJob):
+                job_status = self._build_performance_status(job)
+            elif isinstance(job, DensityJob):
+                job_status = self._build_density_status(job)
+            else:
+                job_status = None
             self.logger.debug(f"Pipeline job status for {job_id}: {job_status}")
             return job_status
 

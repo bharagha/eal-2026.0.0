@@ -1,7 +1,12 @@
 import unittest
 from unittest.mock import patch
 
-from benchmark import Benchmark, BenchmarkResult, PipelineBenchmarkSpec, PipelineRunSpec
+from benchmark import (
+    Benchmark,
+    BenchmarkResult,
+    PipelineDensitySpec,
+    PipelinePerformanceSpec,
+)
 from pipeline_runner import PipelineRunResult
 
 
@@ -9,12 +14,8 @@ class TestBenchmark(unittest.TestCase):
     def setUp(self):
         self.fps_floor = 30
         self.pipeline_benchmark_specs = [
-            PipelineBenchmarkSpec(
-                name="test-pipeline-1", version="1.0", stream_rate=50
-            ),
-            PipelineBenchmarkSpec(
-                name="test-pipeline-2", version="1.0", stream_rate=50
-            ),
+            PipelineDensitySpec(name="test-pipeline-1", version="1.0", stream_rate=50),
+            PipelineDensitySpec(name="test-pipeline-2", version="1.0", stream_rate=50),
         ]
         self.benchmark = Benchmark()
 
@@ -24,12 +25,12 @@ class TestBenchmark(unittest.TestCase):
         expected_result = BenchmarkResult(
             n_streams=3,
             streams_per_pipeline=[
-                PipelineRunSpec(
+                PipelinePerformanceSpec(
                     name="test-pipeline-1",
                     version="1.0",
                     streams=2,
                 ),
-                PipelineRunSpec(
+                PipelinePerformanceSpec(
                     name="test-pipeline-2",
                     version="1.0",
                     streams=1,
@@ -127,9 +128,9 @@ class TestBenchmark(unittest.TestCase):
 
     def test_calculate_streams_per_pipeline(self):
         pipeline_benchmark_specs = [
-            PipelineBenchmarkSpec(name="pipeline-1", version="1.0", stream_rate=50),
-            PipelineBenchmarkSpec(name="pipeline-2", version="1.0", stream_rate=30),
-            PipelineBenchmarkSpec(name="pipeline-3", version="1.0", stream_rate=20),
+            PipelineDensitySpec(name="pipeline-1", version="1.0", stream_rate=50),
+            PipelineDensitySpec(name="pipeline-2", version="1.0", stream_rate=30),
+            PipelineDensitySpec(name="pipeline-3", version="1.0", stream_rate=20),
         ]
 
         # Test with total_streams = 10
