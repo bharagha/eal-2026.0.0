@@ -11,6 +11,7 @@ from api.api_schemas import (
     OptimizationType,
     OptimizationJobState,
     PipelineType,
+    PipelineSource,
 )
 from managers.optimization_manager import (
     OptimizationManager,
@@ -75,6 +76,7 @@ class TestOptimizationManager(unittest.TestCase):
             name="user-defined-pipelines",
             version=1,
             description="A test pipeline",
+            source=PipelineSource.USER_CREATED,
             # Use some valid PipelineType; value is irrelevant for these tests.
             type=PipelineType.GSTREAMER,
             # we only care about pipeline_graph here

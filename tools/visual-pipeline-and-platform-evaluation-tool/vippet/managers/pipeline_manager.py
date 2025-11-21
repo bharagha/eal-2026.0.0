@@ -7,6 +7,7 @@ from utils import make_tee_names_unique, generate_unique_id
 from graph import Graph
 from api.api_schemas import (
     PipelineType,
+    PipelineSource,
     Pipeline,
     PipelineDefinition,
     PipelinePerformanceSpec,
@@ -52,6 +53,7 @@ class PipelineManager:
             name=new_pipeline.name,
             version=new_pipeline.version,
             description=new_pipeline.description,
+            source=new_pipeline.source,
             type=new_pipeline.type,
             pipeline_graph=PipelineGraph.model_validate(pipeline_graph),
             parameters=new_pipeline.parameters,
@@ -122,6 +124,7 @@ class PipelineManager:
                     name=config.get("name", "unnamed-pipeline"),
                     version=int(config.get("version", 1)),
                     description=config.get("definition", ""),
+                    source=PipelineSource.PREDEFINED,
                     type=PipelineType.GSTREAMER,
                     pipeline_graph=PipelineGraph.model_validate(pipeline_graph),
                     parameters=None,

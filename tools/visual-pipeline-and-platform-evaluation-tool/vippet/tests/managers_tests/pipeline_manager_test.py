@@ -1,7 +1,12 @@
 import unittest
 
 from managers.pipeline_manager import PipelineManager
-from api.api_schemas import PipelineType, PipelineDefinition, PipelinePerformanceSpec
+from api.api_schemas import (
+    PipelineType,
+    PipelineSource,
+    PipelineDefinition,
+    PipelinePerformanceSpec,
+)
 
 
 class TestPipelineManager(unittest.TestCase):
@@ -14,6 +19,7 @@ class TestPipelineManager(unittest.TestCase):
             name="user-defined-pipelines",
             version=1,
             description="A test pipeline",
+            source=PipelineSource.USER_CREATED,
             type=PipelineType.GSTREAMER,
             pipeline_description="filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
             parameters=None,
@@ -42,6 +48,7 @@ class TestPipelineManager(unittest.TestCase):
             name="user-defined-pipelines",
             version=1,
             description="A test pipeline",
+            source=PipelineSource.USER_CREATED,
             type=PipelineType.GSTREAMER,
             pipeline_description="filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
             parameters=None,
@@ -107,6 +114,7 @@ class TestPipelineManager(unittest.TestCase):
             name="test-pipelines",
             version=1,
             description="Test pipeline for single stream",
+            source=PipelineSource.USER_CREATED,
             type=PipelineType.GSTREAMER,
             pipeline_description="fakesrc ! fakesink",
             parameters=None,
@@ -132,6 +140,7 @@ class TestPipelineManager(unittest.TestCase):
             name="test-pipelines",
             version=1,
             description="Test pipeline for multiple streams",
+            source=PipelineSource.USER_CREATED,
             type=PipelineType.GSTREAMER,
             pipeline_description="videotestsrc ! tee name=t ! queue ! fakesink t. ! queue ! fakesink",
             parameters=None,
@@ -157,6 +166,7 @@ class TestPipelineManager(unittest.TestCase):
             name="test-pipelines",
             version=1,
             description="First test pipeline",
+            source=PipelineSource.USER_CREATED,
             type=PipelineType.GSTREAMER,
             pipeline_description="fakesrc name=source1 ! fakesink",
             parameters=None,
@@ -165,6 +175,7 @@ class TestPipelineManager(unittest.TestCase):
             name="test-pipelines",
             version=2,
             description="Second test pipeline",
+            source=PipelineSource.USER_CREATED,
             type=PipelineType.GSTREAMER,
             pipeline_description="videotestsrc name=source2 ! fakesink",
             parameters=None,

@@ -1764,6 +1764,9 @@
             "type": "string",
             "title": "Description"
           },
+          "source": {
+            "$ref": "#/components/schemas/PipelineSource"
+          },
           "type": {
             "$ref": "#/components/schemas/PipelineType"
           },
@@ -1787,6 +1790,7 @@
           "name",
           "version",
           "description",
+          "source",
           "type",
           "pipeline_graph",
           "parameters"
@@ -1801,11 +1805,17 @@
           },
           "version": {
             "type": "integer",
-            "title": "Version"
+            "minimum": 1.0,
+            "title": "Version",
+            "default": 1
           },
           "description": {
             "type": "string",
             "title": "Description"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PipelineSource",
+            "default": "USER_CREATED"
           },
           "type": {
             "$ref": "#/components/schemas/PipelineType"
@@ -1828,7 +1838,6 @@
         "type": "object",
         "required": [
           "name",
-          "version",
           "description",
           "type",
           "pipeline_description",
@@ -1956,6 +1965,14 @@
           "parameters"
         ],
         "title": "PipelineRequestOptimize"
+      },
+      "PipelineSource": {
+        "type": "string",
+        "enum": [
+          "PREDEFINED",
+          "USER_CREATED"
+        ],
+        "title": "PipelineSource"
       },
       "PipelineType": {
         "type": "string",

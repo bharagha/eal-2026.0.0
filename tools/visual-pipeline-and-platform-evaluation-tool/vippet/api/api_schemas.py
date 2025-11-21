@@ -9,6 +9,11 @@ class PipelineType(str, Enum):
     FFMPEG = "FFmpeg"
 
 
+class PipelineSource(str, Enum):
+    PREDEFINED = "PREDEFINED"
+    USER_CREATED = "USER_CREATED"
+
+
 class TestJobState(str, Enum):
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
@@ -99,6 +104,7 @@ class Pipeline(BaseModel):
     name: str
     version: int
     description: str
+    source: PipelineSource
     type: PipelineType
     pipeline_graph: PipelineGraph
     parameters: Optional[PipelineParameters]
@@ -106,8 +112,9 @@ class Pipeline(BaseModel):
 
 class PipelineDefinition(BaseModel):
     name: str
-    version: int
+    version: int = Field(default=1, ge=1)
     description: str
+    source: PipelineSource = PipelineSource.USER_CREATED
     type: PipelineType
     pipeline_description: str
     parameters: Optional[PipelineParameters]

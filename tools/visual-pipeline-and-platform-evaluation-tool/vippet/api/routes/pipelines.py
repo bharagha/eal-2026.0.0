@@ -40,6 +40,8 @@ def create_pipeline(body: schemas.PipelineDefinition):
     """Create a custom pipeline from a launch string."""
     # TODO: Validate the launch string
     try:
+        # Enforce USER_CREATED source for pipelines created via API
+        body.source = schemas.PipelineSource.USER_CREATED
         pipeline = pipeline_manager.add_pipeline(body)
 
         return JSONResponse(
