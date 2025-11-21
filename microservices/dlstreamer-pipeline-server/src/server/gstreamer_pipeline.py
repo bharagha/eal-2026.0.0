@@ -808,7 +808,7 @@ class GStreamerPipeline(Pipeline):
                                                                 err=error_message,
                                                                 debug=self._debug_message))
             # Attempt to recover from connection errors
-            if self._handle_source_error(error_message):
+            if self._handle_source_error(error_message, self._debug_message):
                 return True  # Recovery initiated, don't terminate yet
             self._delete_pipeline_with_lock(Pipeline.State.ERROR)
         elif message_type == Gst.MessageType.STATE_CHANGED:
@@ -831,12 +831,14 @@ class GStreamerPipeline(Pipeline):
                         message=Gst.Structure.to_string(structure)))
         return True
 
-    def _handle_source_error(self, error_message):
+    def _handle_source_error(self, error_message, debug_message):
         # Handle RTSP source connection errors with automatic recovery
         error_str = str(error_message).lower()
+        debug_str = str(debug_message).lower() if debug_message else ""
 
-        recoverable_keywords = ["connection", "rtsp", "timeout"]
-        is_source_error = any(kw in error_str for kw in recoverable_keywords)
+        recoverable_keywords = ["connection", "rtsp", "timeout", "connect", "failed to connect"]
+        is_source_error = any(kw in error_str for kw in recoverable_keywords) or \
+                          any(kw in debug_str for kw in recoverable_keywords)
 
         if not is_source_error:
             return False
