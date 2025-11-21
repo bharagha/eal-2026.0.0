@@ -97,7 +97,7 @@ class PipelineDensitySpec(BaseModel):
 class Pipeline(BaseModel):
     id: str
     name: str
-    version: str
+    version: int
     description: str
     type: PipelineType
     pipeline_graph: PipelineGraph
@@ -106,7 +106,7 @@ class Pipeline(BaseModel):
 
 class PipelineDefinition(BaseModel):
     name: str
-    version: str
+    version: int
     description: str
     type: PipelineType
     pipeline_description: str

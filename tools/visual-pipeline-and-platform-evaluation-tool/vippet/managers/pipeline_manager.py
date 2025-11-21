@@ -120,7 +120,7 @@ class PipelineManager:
                 Pipeline(
                     id=generate_unique_id("pipeline"),
                     name=config.get("name", "unnamed-pipeline"),
-                    version=str(config.get("version", "1.0")),
+                    version=int(config.get("version", 1)),
                     description=config.get("definition", ""),
                     type=PipelineType.GSTREAMER,
                     pipeline_graph=PipelineGraph.model_validate(pipeline_graph),

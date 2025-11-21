@@ -47,7 +47,7 @@ class TestPipelinesAPI(unittest.TestCase):
             schemas.Pipeline(
                 id="pipeline-abc123",
                 name="predefined-pipelines",
-                version="SmartNVRPipeline",
+                version=1,
                 description="Smart Network Video Recorder (NVR) Proxy Pipeline",
                 type=schemas.PipelineType.GSTREAMER,
                 pipeline_graph=schemas.PipelineGraph.model_validate_json(
@@ -58,7 +58,7 @@ class TestPipelinesAPI(unittest.TestCase):
             schemas.Pipeline(
                 id="pipeline-def456",
                 name="user-defined-pipelines",
-                version="TestPipeline",
+                version=1,
                 description="Test Pipeline Description",
                 type=schemas.PipelineType.GSTREAMER,
                 pipeline_graph=schemas.PipelineGraph.model_validate_json(
@@ -79,7 +79,7 @@ class TestPipelinesAPI(unittest.TestCase):
         first_pipeline = data[0]
         self.assertEqual(first_pipeline["id"], "pipeline-abc123")
         self.assertEqual(first_pipeline["name"], "predefined-pipelines")
-        self.assertEqual(first_pipeline["version"], "SmartNVRPipeline")
+        self.assertEqual(first_pipeline["version"], 1)
         self.assertEqual(
             first_pipeline["description"],
             "Smart Network Video Recorder (NVR) Proxy Pipeline",
@@ -92,7 +92,7 @@ class TestPipelinesAPI(unittest.TestCase):
         second_pipeline = data[1]
         self.assertEqual(second_pipeline["id"], "pipeline-def456")
         self.assertEqual(second_pipeline["name"], "user-defined-pipelines")
-        self.assertEqual(second_pipeline["version"], "TestPipeline")
+        self.assertEqual(second_pipeline["version"], 1)
         self.assertEqual(second_pipeline["description"], "Test Pipeline Description")
         self.assertEqual(second_pipeline["type"], schemas.PipelineType.GSTREAMER)
         self.assertIn("pipeline_graph", second_pipeline)
@@ -104,7 +104,7 @@ class TestPipelinesAPI(unittest.TestCase):
         mock_pipeline = schemas.Pipeline(
             id="pipeline-newtest",
             name="user-defined-pipelines",
-            version="test-pipeline",
+            version=1,
             description="A custom test pipeline",
             type=schemas.PipelineType.GSTREAMER,
             pipeline_graph=schemas.PipelineGraph.model_validate_json(self.test_graph),
@@ -114,7 +114,7 @@ class TestPipelinesAPI(unittest.TestCase):
 
         new_pipeline = {
             "name": "user-defined-pipelines",
-            "version": "test-pipeline",
+            "version": 1,
             "description": "A custom test pipeline",
             "type": schemas.PipelineType.GSTREAMER,
             "pipeline_description": "filesrc location=/tmp/test.mp4 ! decodebin ! autovideosink",
@@ -139,7 +139,7 @@ class TestPipelinesAPI(unittest.TestCase):
 
         duplicate_pipeline = {
             "name": "user-defined-pipelines",
-            "version": "test-pipeline",
+            "version": 1,
             "description": "A custom test pipeline",
             "type": schemas.PipelineType.GSTREAMER,
             "pipeline_description": "filesrc location=/tmp/test.mp4 ! decodebin ! autovideosink",
@@ -160,7 +160,7 @@ class TestPipelinesAPI(unittest.TestCase):
 
         new_pipeline = {
             "name": "user-defined-pipelines",
-            "version": "test-pipeline",
+            "version": 1,
             "description": "A custom test pipeline",
             "type": schemas.PipelineType.GSTREAMER,
             "pipeline_description": "filesrc location=/tmp/test.mp4 ! decodebin ! autovideosink",
@@ -182,7 +182,7 @@ class TestPipelinesAPI(unittest.TestCase):
         mock_pipeline_manager.get_pipeline_by_id.return_value = schemas.Pipeline(
             id="pipeline-ghi789",
             name="user-defined-pipelines",
-            version="test-pipeline",
+            version=1,
             description="A custom test pipeline",
             type=schemas.PipelineType.GSTREAMER,
             pipeline_graph=schemas.PipelineGraph.model_validate_json(self.test_graph),
@@ -195,7 +195,7 @@ class TestPipelinesAPI(unittest.TestCase):
         data = response.json()
         self.assertEqual(data["id"], "pipeline-ghi789")
         self.assertEqual(data["name"], "user-defined-pipelines")
-        self.assertEqual(data["version"], "test-pipeline")
+        self.assertEqual(data["version"], 1)
         self.assertEqual(data["description"], "A custom test pipeline")
         self.assertEqual(data["type"], schemas.PipelineType.GSTREAMER)
         self.assertIn("pipeline_graph", data)

@@ -1757,7 +1757,7 @@
             "title": "Name"
           },
           "version": {
-            "type": "string",
+            "type": "integer",
             "title": "Version"
           },
           "description": {
@@ -1800,7 +1800,7 @@
             "title": "Name"
           },
           "version": {
-            "type": "string",
+            "type": "integer",
             "title": "Version"
           },
           "description": {

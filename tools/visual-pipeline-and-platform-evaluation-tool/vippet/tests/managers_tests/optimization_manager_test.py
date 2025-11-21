@@ -73,7 +73,7 @@ class TestOptimizationManager(unittest.TestCase):
         return Pipeline(
             id="pipeline-test123",
             name="user-defined-pipelines",
-            version="test-pipeline",
+            version=1,
             description="A test pipeline",
             # Use some valid PipelineType; value is irrelevant for these tests.
             type=PipelineType.GSTREAMER,

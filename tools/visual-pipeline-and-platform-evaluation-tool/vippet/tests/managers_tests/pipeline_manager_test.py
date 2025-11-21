@@ -12,7 +12,7 @@ class TestPipelineManager(unittest.TestCase):
 
         new_pipeline = PipelineDefinition(
             name="user-defined-pipelines",
-            version="test-pipeline",
+            version=1,
             description="A test pipeline",
             type=PipelineType.GSTREAMER,
             pipeline_description="filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
@@ -27,12 +27,12 @@ class TestPipelineManager(unittest.TestCase):
         self.assertIsNotNone(added_pipeline.id)
         self.assertTrue(added_pipeline.id.startswith("pipeline-"))
         self.assertEqual(added_pipeline.name, "user-defined-pipelines")
-        self.assertEqual(added_pipeline.version, "test-pipeline")
+        self.assertEqual(added_pipeline.version, 1)
 
         # Verify we can retrieve it by ID
         retrieved = manager.get_pipeline_by_id(added_pipeline.id)
         self.assertEqual(retrieved.name, "user-defined-pipelines")
-        self.assertEqual(retrieved.version, "test-pipeline")
+        self.assertEqual(retrieved.version, 1)
 
     def test_add_pipeline_duplicate(self):
         manager = PipelineManager()
@@ -40,7 +40,7 @@ class TestPipelineManager(unittest.TestCase):
 
         new_pipeline = PipelineDefinition(
             name="user-defined-pipelines",
-            version="test-pipeline",
+            version=1,
             description="A test pipeline",
             type=PipelineType.GSTREAMER,
             pipeline_description="filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
@@ -76,17 +76,17 @@ class TestPipelineManager(unittest.TestCase):
         expected = [
             (
                 "Simple Video Structurization (D-T-C)",
-                "1",
+                1,
                 "Test Pipeline Description",
             ),
             (
                 "Smart Network Video Recorder (NVR) Proxy Pipeline - Analytics Branch",
-                "1",
+                1,
                 "Test Pipeline Description",
             ),
             (
                 "Smart Network Video Recorder (NVR) Proxy Pipeline - Media Only Branch",
-                "1",
+                1,
                 "Test Pipeline Description",
             ),
         ]
@@ -94,10 +94,7 @@ class TestPipelineManager(unittest.TestCase):
         # Check that each expected pipeline is present in the loaded pipelines
         for exp_name, exp_version, exp_desc in expected:
             found = [
-                p
-                for p in pipelines
-                if p.name == exp_name
-                and p.version == exp_version
+                p for p in pipelines if p.name == exp_name and p.version == exp_version
             ]
             self.assertTrue(found, f"Pipeline {exp_name} {exp_version} not found")
             self.assertIsNotNone(found[0].pipeline_graph)
@@ -108,7 +105,7 @@ class TestPipelineManager(unittest.TestCase):
         # Add a test pipeline
         test_pipeline = PipelineDefinition(
             name="test-pipelines",
-            version="test-single",
+            version=1,
             description="Test pipeline for single stream",
             type=PipelineType.GSTREAMER,
             pipeline_description="fakesrc ! fakesink",
@@ -133,7 +130,7 @@ class TestPipelineManager(unittest.TestCase):
         # Add a test pipeline
         test_pipeline = PipelineDefinition(
             name="test-pipelines",
-            version="test-multi",
+            version=1,
             description="Test pipeline for multiple streams",
             type=PipelineType.GSTREAMER,
             pipeline_description="videotestsrc ! tee name=t ! queue ! fakesink t. ! queue ! fakesink",
@@ -158,7 +155,7 @@ class TestPipelineManager(unittest.TestCase):
         # Add two test pipelines
         pipeline1 = PipelineDefinition(
             name="test-pipelines",
-            version="pipeline1",
+            version=1,
             description="First test pipeline",
             type=PipelineType.GSTREAMER,
             pipeline_description="fakesrc name=source1 ! fakesink",
@@ -166,7 +163,7 @@ class TestPipelineManager(unittest.TestCase):
         )
         pipeline2 = PipelineDefinition(
             name="test-pipelines",
-            version="pipeline2",
+            version=2,
             description="Second test pipeline",
             type=PipelineType.GSTREAMER,
             pipeline_description="videotestsrc name=source2 ! fakesink",
