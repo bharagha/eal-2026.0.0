@@ -16,7 +16,10 @@ def get_job_status_or_404(job_id: str, job_type: str):
     status = tests_manager.get_job_status(job_id)
     if status is None:
         return JSONResponse(
-            content={"message": f"{job_type} job {job_id} not found"}, status_code=404
+            content=schemas.MessageResponse(
+                message=f"{job_type} job {job_id} not found"
+            ).model_dump(),
+            status_code=404,
         )
     return status
 
