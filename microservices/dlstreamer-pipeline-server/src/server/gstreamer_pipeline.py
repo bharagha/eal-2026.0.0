@@ -105,6 +105,8 @@ class GStreamerPipeline(Pipeline):
         self.rtsp_path = None
         self._debug_message = ""
         self._options = options
+        self._connection_retries = 0
+        self._current_retry_delay = 1000  # 1000ms initial delay
 
 
         if (not GStreamerPipeline._mainloop):
@@ -843,10 +845,6 @@ class GStreamerPipeline(Pipeline):
         if not is_source_error:
             return False
 
-        if not hasattr(self, '_connection_retries'):
-            self._connection_retries = 0
-            self._current_retry_delay = 1000  # 1000ms initial delay
-
         max_retries = 5
         if self._connection_retries >= max_retries:
             self._logger.error(f"Pipeline {self.identifier}: Max retries ({max_retries}) exhausted")
@@ -934,6 +932,7 @@ class GStreamerPipeline(Pipeline):
             # Reconnection successful
             self.state = Pipeline.State.RUNNING
             self._connection_retries = 0  # Reset retry counter on success
+            self._current_retry_delay = 1000
             self._logger.info(f"Pipeline {self.identifier}: Reconnection successful")
             return False  # Don't reschedule
 
