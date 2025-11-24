@@ -22,9 +22,8 @@ endif()
 # Renamed target and output (old: gstva_gpu_filter / va_gpu_filter)
 # Add required post-processing implementation sources for ROIToFrameAttacher vtable
 if(MSVC)
-  # Minimal source set for Windows (avoid OpenVINO-dependent converters)
+  # Windows build: keep minimal extra sources but we now REQUIRE analytics relation meta linkage for dual metadata.
   set(GVAMD_EXTRA_SOURCES
-    # Strip analytics/meta attachment & converters to avoid unresolved externals
     ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/logger/logger.cpp
     ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/logger/perf_logger.cpp
     ${CMAKE_SOURCE_DIR}/src/utils/utils.cpp
@@ -116,6 +115,7 @@ target_link_libraries(gstgvamotiondetect PRIVATE
   PkgConfig::GST
   dlstreamer_gst
   dlstreamer_gst_meta
+  gstvideoanalyticsmeta  # Needed for GstAnalyticsRelationMeta functions (dual metadata on all platforms)
 )
 
 if(NOT MSVC)
