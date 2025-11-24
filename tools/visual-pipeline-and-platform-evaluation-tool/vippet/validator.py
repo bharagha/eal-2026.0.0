@@ -82,13 +82,40 @@ def configure_root_logging(level: int) -> None:
     This function sets a basic logging configuration with a uniform format
     and the given log level. It is intended to be called once early in main().
 
-    Args:
-        level: Logging level (e.g. logging.INFO).
+    The configuration is split into two handlers:
+
+    * stdout_handler – handles all log records with level < ERROR,
+      writing them to stdout.
+    * stderr_handler – handles ERROR and CRITICAL records (including those
+      produced by logger.exception()), writing them to stderr.
+
+    This ensures that only error-level messages end up on stderr while
+    all informational and debug logs go to stdout.
     """
-    logging.basicConfig(
-        level=level,
-        format="[%(name)s] [%(levelname)8s] - %(message)s",
-    )
+    # Remove any existing handlers that might have been configured by
+    # previous calls or by other libraries, to avoid duplicate logs.
+    root = logging.getLogger()
+    for handler in list(root.handlers):
+        root.removeHandler(handler)
+
+    root.setLevel(level)
+
+    # Simple "logger - LEVEL - message" format, without brackets or categories.
+    log_format = "%(name)s - %(levelname)s - %(message)s"
+
+    # Handler for non‑error messages -> stdout
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.DEBUG)
+    stdout_handler.addFilter(lambda record: record.levelno < logging.ERROR)
+    stdout_handler.setFormatter(logging.Formatter(log_format))
+
+    # Handler for error and critical messages -> stderr
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setLevel(logging.ERROR)
+    stderr_handler.setFormatter(logging.Formatter(log_format))
+
+    root.addHandler(stdout_handler)
+    root.addHandler(stderr_handler)
 
 
 def get_logger() -> logging.Logger:
@@ -121,7 +148,7 @@ def gst_log_bridge(
     - Below INFO      -> logger.debug()
 
     Args:
-        category: GStreamer debug category.
+        category: GStreamer debug category (unused).
         level: GStreamer debug level.
         file: Source file name (unused).
         function: Function name (unused).
@@ -129,18 +156,28 @@ def gst_log_bridge(
         obj: GObject instance (unused).
         message: GLib.LogMessage, from which we extract the human-readable text.
         user_data: Custom user data (unused).
+
+    All messages are logged without the GStreamer category – only the
+    human‑readable message text is propagated. Any newline or carriage
+    return characters in the original message are replaced with spaces
+    so that each log record is emitted as a single line.
     """
     logger = get_logger()
     text = message.get()
 
+    # Normalize message to a single line: replace newlines and carriage
+    # returns with spaces. This keeps stderr parsing in the caller simple.
+    text = text.replace("\r", " ").replace("\n", " ")
+
+    # Log only the message body, without any extra category/prefix.
     if level >= Gst.DebugLevel.ERROR:
-        logger.error("[Gst:%s] %s", category.get_name(), text)
+        logger.error("%s", text)
     elif level >= Gst.DebugLevel.WARNING:
-        logger.warning("[Gst:%s] %s", category.get_name(), text)
+        logger.warning("%s", text)
     elif level >= Gst.DebugLevel.INFO:
-        logger.info("[Gst:%s] %s", category.get_name(), text)
+        logger.info("%s", text)
     else:
-        logger.debug("[Gst:%s] %s", category.get_name(), text)
+        logger.debug("%s", text)
 
 
 def initialize_gstreamer_logging() -> None:
@@ -208,10 +245,12 @@ def drain_bus_messages(
 
         if mtype == Gst.MessageType.ERROR:
             error, debug = message.parse_error()
+            debug = debug.replace("\r", " ").replace("\n", " ")
             logger.error("Pipeline error: %s (debug: %s)", error.message, debug)
             saw_error = True
         elif mtype == Gst.MessageType.WARNING:
             warning, debug = message.parse_warning()
+            debug = debug.replace("\r", " ").replace("\n", " ")
             logger.warning("Pipeline warning: %s (debug: %s)", warning.message, debug)
         elif mtype == Gst.MessageType.STATE_CHANGED:
             old, new, pending = message.parse_state_changed()
@@ -252,36 +291,27 @@ def _parse_log_collector(
 ) -> None:
     """Temporary log function used only during parsing.
 
-    It mirrors GStreamer logs to the main logger (similar to gst_log_bridge)
-    and additionally records whether any ERROR-level messages were seen
-    while Gst.parse_launch() is running.
+    This handler's sole responsibility is to record whether an ERROR-level
+    GStreamer log was observed while :func:`Gst.parse_launch` is running.
 
-    This allows us to treat pipelines as invalid if GStreamer reports
-    ERRORs during parse_launch, even if no Python exception is raised.
+    It deliberately does *not* emit any Python log messages itself to avoid
+    double-logging, because the global :func:`gst_log_bridge` is already
+    registered and forwards all GStreamer messages to the Python logging
+    system.
 
     Args:
-        category: GStreamer debug category.
+        category: GStreamer debug category (unused).
         level: GStreamer debug level.
         file: Source file name (unused).
         function: Function name (unused).
         line: Line number (unused).
         obj: GObject instance (unused).
-        message: GLib.LogMessage, from which we extract the human-readable text.
+        message: GLib.LogMessage, from which we extract the human-readable text (unused).
         state: A _ParseLogState instance used to record whether an ERROR
                was observed.
     """
-    logger = get_logger()
-    text = message.get()
-
     if level >= Gst.DebugLevel.ERROR:
         state.error_seen = True
-        logger.error("[Gst-parse:%s] %s", category.get_name(), text)
-    elif level >= Gst.DebugLevel.WARNING:
-        logger.warning("[Gst-parse:%s] %s", category.get_name(), text)
-    elif level >= Gst.DebugLevel.INFO:
-        logger.info("[Gst-parse:%s] %s", category.get_name(), text)
-    else:
-        logger.debug("[Gst-parse:%s] %s", category.get_name(), text)
 
 
 def parse_pipeline(pipeline_description: str) -> Tuple[Optional[Gst.Pipeline], bool]:
@@ -325,6 +355,8 @@ def parse_pipeline(pipeline_description: str) -> Tuple[Optional[Gst.Pipeline], b
         try:
             pipeline = Gst.parse_launch(pipeline_description)
         except Exception as exc:  # noqa: BLE001
+            # This will be logged once via gst_log_bridge (from GStreamer)
+            # and once here as the high-level Python error message.
             logger.error("Failed to parse pipeline (exception): %r", exc)
             return None, False
     finally:
@@ -409,6 +441,7 @@ class _ValidationRunner:
 
         if msg_type == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
+            debug = debug.replace("\r", " ").replace("\n", " ")
             self._logger.error(
                 "Pipeline runtime error during validation: %s (debug: %s)",
                 err.message,

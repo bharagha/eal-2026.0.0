@@ -1,4 +1,3 @@
-import json
 import logging
 import subprocess
 import sys
@@ -14,6 +13,7 @@ from api.api_schemas import (
     ValidationJobSummary,
     ValidationJobState,
 )
+from graph import Graph
 
 logger = logging.getLogger("validation_manager")
 
@@ -52,6 +52,9 @@ class ValidationJob:
 
     id: str
     request: PipelineValidation
+    # Converted GStreamer launch string used for the actual validation.
+    # Keeping it here makes it visible in future summaries/debug logs.
+    pipeline_description: str
     state: ValidationJobState
     start_time: int
     end_time: Optional[int] = None
@@ -72,7 +75,7 @@ class ValidatorRunner:
 
     def run(
         self,
-        pipeline_request: PipelineValidation,
+        pipeline_description: str,
         max_runtime: int,
         hard_timeout: int,
     ) -> Tuple[bool, List[str]]:
@@ -81,11 +84,10 @@ class ValidatorRunner:
 
         Parameters
         ----------
-        pipeline_request:
-            The original :class:`PipelineValidation` request. In this
-            reference implementation it is serialized to JSON and passed
-            via stdin, but the exact contract with ``validator.py`` can
-            be adapted as needed.
+        pipeline_description:
+            GStreamer pipeline launch string to be validated. This is
+            passed as the last CLI argument to ``validator.py`` so that
+            the validator does not depend on stdin semantics.
         max_runtime:
             Soft execution limit in seconds, taken from the request
             parameters (or defaulted by the manager).
@@ -101,31 +103,27 @@ class ValidatorRunner:
             * ``errors`` – list of human‑readable error strings produced
               by ``validator.py`` (possibly empty when valid).
         """
-        # Build the command; adapt path / arguments as needed.
-        cmd = [sys.executable, "validator.py", "--max-runtime", str(max_runtime)]
+        # Build the command; the pipeline string is passed as the last argument.
+        cmd = [
+            sys.executable,
+            "validator.py",
+            "--max-runtime",
+            str(max_runtime),
+            pipeline_description,
+        ]
 
-        # Serialize the request for validator.py.  Using a plain dict keeps
-        # the interface language‑agnostic.
-        payload = pipeline_request.model_dump()
-
+        payload = {"pipeline_description": pipeline_description}
         self.logger.debug(
             "Starting validator subprocess with cmd=%s, payload=%s", cmd, payload
         )
 
-        # Start subprocess with pipes for stdin/stdout/stderr so we can
-        # capture and parse all messages.
+        # Start subprocess with pipes for stdout/stderr so we can capture and parse all messages.
         proc = subprocess.Popen(
             cmd,
-            stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
         )
-
-        # Send JSON payload to validator.py
-        assert proc.stdin is not None  # for type checkers
-        proc.stdin.write(json.dumps(payload))
-        proc.stdin.close()
 
         try:
             # Wait for completion up to the hard timeout.
@@ -167,33 +165,33 @@ class ValidatorRunner:
         Parse raw stderr from ``validator.py`` into a list of clean messages.
 
         The implementation:
-        * splits stderr into lines,
-        * strips whitespace,
-        * removes the leading ``"[validator] [   ERROR] - "`` prefix when
-          present,
-        * discards empty lines,
-        * returns messages as a list of strings.
 
-        Any newline characters embedded in the original messages are
-        effectively converted to spaces by the line‑based splitting.
+        * splits stderr into lines,
+        * filters only lines starting with ``"validator - ERROR - "``,
+        * strips that prefix from each selected line,
+        * trims surrounding whitespace,
+        * discards lines that are empty or contain only whitespace,
+        * returns messages as a list of strings.
         """
         if not raw_stderr:
             return []
 
         messages: List[str] = []
-        prefix = "[validator] [   ERROR] - "
+        prefix = "validator - ERROR - "
 
         for line in raw_stderr.splitlines():
-            line = line.strip()
-            if not line:
+            # Only consider messages produced by validator's ERROR logger.
+            if not line.startswith(prefix):
                 continue
-            if line.startswith(prefix):
-                line = line[len(prefix) :]
-            # Replace remaining newlines (if any) with spaces to keep
-            # messages single‑line as requested.
-            cleaned = " ".join(line.splitlines())
-            if cleaned:
-                messages.append(cleaned)
+
+            # Remove prefix and trim whitespace.
+            content = line[len(prefix) :].strip()
+            if not content:
+                # Skip messages that become empty / whitespace-only
+                # after cutting the prefix.
+                continue
+
+            messages.append(content)
 
         return messages
 
@@ -233,6 +231,7 @@ class ValidationManager:
 
         The method:
 
+        * converts the pipeline graph to a pipeline description string,
         * extracts and validates runtime parameters (e.g. ``max-runtime``),
         * creates a new :class:`ValidationJob` with RUNNING state,
         * spawns a background thread that executes ``validator.py`` via
@@ -244,6 +243,13 @@ class ValidationManager:
             If user‑provided parameters are invalid (e.g. ``max-runtime``
             is less than 1).
         """
+        # Convert PipelineGraph to a launch string once and reuse it for
+        # the lifetime of the job.  This mirrors the approach used in
+        # :mod:`optimization_manager`.
+        pipeline_description = Graph.from_dict(
+            validation_request.pipeline_graph.model_dump()
+        ).to_pipeline_description()
+
         params = validation_request.parameters or {}
         max_runtime = params.get("max-runtime", 10)
 
@@ -267,19 +273,11 @@ class ValidationManager:
             request=validation_request,
             state=ValidationJobState.RUNNING,
             start_time=int(time.time() * 1000),  # milliseconds
+            pipeline_description=pipeline_description,
         )
 
         with self.lock:
             self.jobs[job_id] = job
-
-        # Start execution in a background thread.  The thread updates the
-        # job state once finished or on error.
-        thread = threading.Thread(
-            target=self._execute_validation,
-            args=(job_id, validation_request, max_runtime, hard_timeout),
-            daemon=True,
-        )
-        thread.start()
 
         self.logger.info(
             "Validation started for job %s with max-runtime=%s, hard-timeout=%s",
@@ -288,12 +286,19 @@ class ValidationManager:
             hard_timeout,
         )
 
+        thread = threading.Thread(
+            target=self._execute_validation,
+            args=(job_id, pipeline_description, max_runtime, hard_timeout),
+            daemon=True,
+        )
+        thread.start()
+
         return job_id
 
     def _execute_validation(
         self,
         job_id: str,
-        validation_request: PipelineValidation,
+        pipeline_description: str,
         max_runtime: int,
         hard_timeout: int,
     ) -> None:
@@ -306,10 +311,8 @@ class ValidationManager:
         """
         runner = ValidatorRunner()
         try:
-            self.logger.info("Starting validator.py execution for job %s", job_id)
-
             is_valid, errors = runner.run(
-                pipeline_request=validation_request,
+                pipeline_description=pipeline_description,
                 max_runtime=max_runtime,
                 hard_timeout=hard_timeout,
             )
@@ -333,7 +336,7 @@ class ValidationManager:
                     )
                 else:
                     job.state = ValidationJobState.ERROR
-                    self.logger.warning(
+                    self.logger.error(
                         "Validation job %s failed with errors: %s", job_id, errors
                     )
 
