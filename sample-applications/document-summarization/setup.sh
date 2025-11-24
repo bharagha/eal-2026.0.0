@@ -35,4 +35,3 @@ python3 export_model.py text_generation --source_model $LLM_MODEL --weight-forma
 
 # Wait for any process to exit
 wait -n
-

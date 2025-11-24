@@ -38,4 +38,3 @@ spec:
               value: "{{ .Values.chatqnaui.env.APP_MAX_TOKENS }}"
           securityContext:
             allowPrivilegeEscalation: false
-
