@@ -127,6 +127,7 @@ class FeatureExtractor {
 
     int input_height_;
     int input_width_;
+    bool is_nhwc_layout_; // True if model expects NHWC, false for NCHW
 
     cv::Mat preprocess(const cv::Mat &image);
     std::vector<float> postprocess(const ov::Tensor &output);

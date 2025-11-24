@@ -189,20 +189,41 @@ FeatureExtractor::FeatureExtractor(const std::string &model_path, const std::str
     auto input_port = compiled_model_.input();
 
     if (model_path.find("mars") != std::string::npos) {
-        // MARS model: expects [1, 3, 128, 64] - NCHW format
         const auto &partial_shape = input_port.get_partial_shape();
         const auto &input_shape =
             partial_shape.is_dynamic() ? partial_shape.get_min_shape() : partial_shape.get_shape();
 
         if (input_shape.size() < 4) {
-            throw std::runtime_error("MARS model input must have at least 4 dimensions (NCHW)");
+            throw std::runtime_error("MARS model input must have at least 4 dimensions (NCHW or NHWC)");
         }
 
-        input_height_ = input_shape[2]; // Height = 128
-        input_width_ = input_shape[3];  // Width = 64
+        // Detect layout: NCHW [1,3,128,64] vs NHWC [1,128,64,3]
+        if (input_shape[1] == 3 && input_shape[2] > 10 && input_shape[3] > 10) {
+            // NCHW format: [1, 3, 128, 64]
+            is_nhwc_layout_ = false;
+            input_height_ = input_shape[2]; // Height = 128
+            input_width_ = input_shape[3];  // Width = 64
+            GST_INFO("MARS model detected: NCHW layout [%lu, %lu, %lu, %lu], using H=%d, W=%d", input_shape[0],
+                     input_shape[1], input_shape[2], input_shape[3], input_height_, input_width_);
+        } else if (input_shape[3] == 3 && input_shape[1] > 10 && input_shape[2] > 10) {
+            // NHWC format: [1, 128, 64, 3]
+            is_nhwc_layout_ = true;
+            input_height_ = input_shape[1]; // Height = 128
+            input_width_ = input_shape[2];  // Width = 64
+            GST_INFO("MARS model detected: NHWC layout [%lu, %lu, %lu, %lu], using H=%d, W=%d", input_shape[0],
+                     input_shape[1], input_shape[2], input_shape[3], input_height_, input_width_);
+        } else {
+            GST_ERROR("Cannot detect MARS model layout from shape [%lu, %lu, %lu, %lu]", input_shape[0], input_shape[1],
+                      input_shape[2], input_shape[3]);
+            throw std::runtime_error("Cannot detect MARS model layout");
+        }
 
-        GST_INFO("MARS model detected: input shape [%lu, %lu, %lu, %lu], using H=%d, W=%d", input_shape[0],
-                 input_shape[1], input_shape[2], input_shape[3], input_height_, input_width_);
+        if (input_height_ != 128 || input_width_ != 64) {
+            GST_ERROR("Unexpected MARS model input dimensions: H=%d, W=%d. Expecting 128x64.", input_height_,
+                      input_width_);
+            throw std::runtime_error("Unexpected MARS model input dimensions: " + std::to_string(input_width_) + "x" +
+                                     std::to_string(input_height_));
+        }
 
     } else {
         GST_ERROR("Unsupported model provided for Deep SORT feature extractor: %s. Expecting MARS model with input "
@@ -253,9 +274,24 @@ std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rec
         // Set input tensor
         auto input_tensor = infer_request_.get_input_tensor();
 
+        // Handle dynamic shape - set tensor shape explicitly
+        ov::Shape tensor_shape;
+        if (is_nhwc_layout_) {
+            tensor_shape = ov::Shape{1, static_cast<size_t>(input_height_), static_cast<size_t>(input_width_), 3};
+        } else {
+            tensor_shape = ov::Shape{1, 3, static_cast<size_t>(input_height_), static_cast<size_t>(input_width_)};
+        }
+        input_tensor.set_shape(tensor_shape);
+
         // Bounds check
         size_t expected_size = preprocessed.total();
         size_t tensor_size = input_tensor.get_size();
+
+        GST_DEBUG("Preprocessing output: total=%lu, rows=%d, cols=%d, channels=%d, type=%d", expected_size,
+                  preprocessed.rows, preprocessed.cols, preprocessed.channels(), preprocessed.type());
+        GST_DEBUG("Input tensor: size=%lu, shape=[%s], element_type=%s", tensor_size,
+                  input_tensor.get_shape().to_string().c_str(),
+                  input_tensor.get_element_type().get_type_name().c_str());
 
         if (expected_size != tensor_size) {
             GST_ERROR("Size mismatch: preprocessed=%lu, tensor=%lu", expected_size, tensor_size);
@@ -263,12 +299,21 @@ std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rec
         }
 
         if (input_tensor.get_element_type() == ov::element::f32) {
-            // Model uses FP32 (or INT8) - direct copy
+            // Model uses FP32 - direct copy of normalized floats
             float *input_data = input_tensor.data<float>();
             std::memcpy(input_data, preprocessed.data, expected_size * sizeof(float));
 
+        } else if (input_tensor.get_element_type() == ov::element::u8) {
+            // Model uses U8 - convert normalized floats [0-1] to uint8 [0-255]
+            uint8_t *input_data = input_tensor.data<uint8_t>();
+            float *src_data = preprocessed.ptr<float>();
+
+            for (size_t i = 0; i < expected_size; ++i) {
+                input_data[i] = static_cast<uint8_t>(src_data[i] * 255.0f);
+            }
+
         } else {
-            GST_ERROR("Unsupported tensor data type: %s. Supporting only FP32 for now.",
+            GST_ERROR("Unsupported tensor data type: %s. Supported types: f32, u8.",
                       input_tensor.get_element_type().get_type_name().c_str());
             return std::vector<float>(DEFAULT_FEATURES_VECTOR_SIZE_128, 0.0f);
         }
@@ -336,33 +381,42 @@ cv::Mat FeatureExtractor::preprocess(const cv::Mat &image) {
             return cv::Mat();
         }
 
-        // Manual pixel-by-pixel copying with maximum safety
-        int channels = normalized.channels();
-        cv::Mat result = cv::Mat::zeros(1, channels * input_height_ * input_width_, CV_32F);
-        float *result_data = result.ptr<float>();
-
-        if (!result_data) {
-            GST_ERROR("Failed to get result data pointer");
-            return cv::Mat();
-        }
-
-        // Convert HWC to CHW format using memcpy for efficiency
-        if (normalized.isContinuous()) {
-            // Direct memory copy for continuous data
-            size_t pixel_count = input_height_ * input_width_;
-            float *src_data = normalized.ptr<float>();
-
-            for (int c = 0; c < channels; ++c) {
-                for (size_t i = 0; i < pixel_count; ++i) {
-                    result_data[c * pixel_count + i] = src_data[i * channels + c];
-                }
-            }
+        // Return data in format matching model layout
+        if (is_nhwc_layout_) {
+            // NHWC model: keep HWC format, just reshape to 1D
+            // Shape: [H, W, C] -> [1, H*W*C]
+            cv::Mat result = normalized.reshape(1, 1); // Flatten to 1D row vector
+            return result.clone();
         } else {
-            GST_ERROR("Image data is not continuous, cannot use optimized copy");
-            return cv::Mat();
-        }
+            // NCHW model: convert HWC to CHW format
+            // Manual pixel-by-pixel copying with maximum safety
+            int channels = normalized.channels();
+            cv::Mat result = cv::Mat::zeros(1, channels * input_height_ * input_width_, CV_32F);
+            float *result_data = result.ptr<float>();
 
-        return result;
+            if (!result_data) {
+                GST_ERROR("Failed to get result data pointer");
+                return cv::Mat();
+            }
+
+            // Convert HWC to CHW format using memcpy for efficiency
+            if (normalized.isContinuous()) {
+                // Direct memory copy for continuous data
+                size_t pixel_count = input_height_ * input_width_;
+                float *src_data = normalized.ptr<float>();
+
+                for (int c = 0; c < channels; ++c) {
+                    for (size_t i = 0; i < pixel_count; ++i) {
+                        result_data[c * pixel_count + i] = src_data[i * channels + c];
+                    }
+                }
+            } else {
+                GST_ERROR("Image data is not continuous, cannot use optimized copy");
+                return cv::Mat();
+            }
+
+            return result;
+        }
     } catch (const cv::Exception &e) {
         GST_ERROR("OpenCV exception in preprocess: %s", e.what());
         return cv::Mat();
