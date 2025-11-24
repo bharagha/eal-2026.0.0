@@ -1,8 +1,8 @@
 import { useParams } from "react-router";
 import {
   useGetPipelineQuery,
-  useRunPipelineMutation,
-  useStopPipelineInstanceMutation,
+  useRunPerformanceTestMutation,
+  useStopPerformanceTestJobMutation,
 } from "@/api/api.generated";
 import {
   type Edge as ReactFlowEdge,
@@ -13,8 +13,8 @@ import { useState } from "react";
 import PipelineEditor from "@/features/pipeline-editor/PipelineEditor.tsx";
 import FpsDisplay from "@/features/pipeline-editor/FpsDisplay.tsx";
 import { toast } from "sonner";
-import RunPipelineButton from "@/features/pipeline-editor/RunPipelineButton.tsx";
-import StopPipelineButton from "@/features/pipeline-editor/StopPipelineButton.tsx";
+import RunPerformanceTestButton from "@/features/pipeline-editor/RunPerformanceTestButton.tsx";
+import StopPerformanceTestButton from "@/features/pipeline-editor/StopPerformanceTestButton.tsx";
 import StatePreviewButton from "@/features/pipeline-editor/StatePreviewButton.tsx";
 import ExportPipelineButton from "@/features/pipeline-editor/ExportPipelineButton.tsx";
 import OpenPipelineButton from "@/features/pipeline-editor/OpenPipelineButton.tsx";
@@ -26,9 +26,9 @@ type UrlParams = {
 
 const Pipelines = () => {
   const { id } = useParams<UrlParams>();
-  const [pipelineInstanceId, setPipelineInstanceId] = useState<string | null>(
-    null,
-  );
+  const [performanceTestJobId, setPerformanceTestJobId] = useState<
+    string | null
+  >(null);
   const [currentNodes, setCurrentNodes] = useState<ReactFlowNode[]>([]);
   const [currentEdges, setCurrentEdges] = useState<ReactFlowEdge[]>([]);
   const [currentViewport, setCurrentViewport] = useState<Viewport>({
@@ -41,17 +41,17 @@ const Pipelines = () => {
 
   const { data, isSuccess } = useGetPipelineQuery(
     {
-      name: "predefined_pipelines",
-      version: id ?? "",
+      pipelineId: id ?? "",
     },
     {
       skip: !id,
     },
   );
 
-  const [runPipeline, { isLoading: isRunning }] = useRunPipelineMutation();
-  const [stopPipelineInstance, { isLoading: isStopping }] =
-    useStopPipelineInstanceMutation();
+  const [runPerformanceTest, { isLoading: isRunning }] =
+    useRunPerformanceTestMutation();
+  const [stopPerformanceTest, { isLoading: isStopping }] =
+    useStopPerformanceTestJobMutation();
 
   const handleNodesChange = (nodes: ReactFlowNode[]) => {
     setCurrentNodes(nodes);
@@ -69,46 +69,19 @@ const Pipelines = () => {
     if (!id) return;
 
     try {
-      const apiNodes = currentNodes.map((node) => ({
-        id: node.id,
-        type: node.type ?? "default",
-        data: Object.fromEntries(
-          Object.entries(node.data ?? {}).map(([key, value]) => [
-            key,
-            String(value),
-          ]),
-        ),
-      }));
-
-      const response = await runPipeline({
-        name: "predefined_pipelines",
-        version: id,
-        pipelineRequestRunInput: {
-          async_: true,
-          source: {
-            type: "uri",
-            uri: "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4",
-          },
-          parameters: {
-            inferencing_channels: 20,
-            recording_channels: 0,
-            pipeline_graph: {
-              nodes: apiNodes,
-              edges: currentEdges,
+      const response = await runPerformanceTest({
+        performanceTestSpec: {
+          pipeline_performance_specs: [
+            {
+              id,
+              streams: 20,
             },
-          },
-          tags: {
-            additionalProp1: "string",
-          },
+          ],
         },
       }).unwrap();
 
-      if (
-        response &&
-        typeof response === "object" &&
-        "instance_id" in response
-      ) {
-        setPipelineInstanceId(response.instance_id as string);
+      if (response && typeof response === "object" && "job_id" in response) {
+        setPerformanceTestJobId(response.job_id as string);
       }
 
       toast.success("Pipeline run started", {
@@ -123,14 +96,14 @@ const Pipelines = () => {
   };
 
   const handleStopPipeline = async () => {
-    if (!pipelineInstanceId) return;
+    if (!performanceTestJobId) return;
 
     try {
-      await stopPipelineInstance({
-        instanceId: pipelineInstanceId,
+      await stopPerformanceTest({
+        jobId: performanceTestJobId,
       }).unwrap();
 
-      setPipelineInstanceId(null);
+      setPerformanceTestJobId(null);
 
       toast.success("Pipeline stopped", {
         description: new Date().toISOString(),
@@ -190,15 +163,15 @@ const Pipelines = () => {
 
             <ImportPipelineButton onImport={handleImport} />
 
-            {pipelineInstanceId ? (
-              <StopPipelineButton
+            {performanceTestJobId ? (
+              <StopPerformanceTestButton
                 isStopping={isStopping}
-                onStopPipeline={handleStopPipeline}
+                onStop={handleStopPipeline}
               />
             ) : (
-              <RunPipelineButton
+              <RunPerformanceTestButton
                 isRunning={isRunning}
-                onRunPipeline={handleRunPipeline}
+                onRun={handleRunPipeline}
               />
             )}
 
@@ -206,7 +179,7 @@ const Pipelines = () => {
               edges={currentEdges}
               nodes={currentNodes}
               viewport={currentViewport}
-              pipelineName={data.version}
+              pipelineName={data.name}
             />
 
             <StatePreviewButton
