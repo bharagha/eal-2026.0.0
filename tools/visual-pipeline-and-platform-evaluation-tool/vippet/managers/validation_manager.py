@@ -36,7 +36,7 @@ def get_validation_manager() -> "ValidationManager":
         try:
             _validation_manager_instance = ValidationManager()
         except Exception as e:  # pragma: no cover - defensive
-            logger.error(f"Failed to initialize ValidationManager: {e}")
+            logger.error("Failed to initialize ValidationManager: %s", e)
             sys.exit(1)
     return _validation_manager_instance
 
