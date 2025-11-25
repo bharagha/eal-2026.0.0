@@ -3,7 +3,7 @@ import time
 import uuid
 import threading
 import logging
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 from dataclasses import dataclass
 
 from graph import Graph
