@@ -370,9 +370,9 @@ static gboolean gst_gva_track_start(GstBaseTransform *trans) {
     GstGvaTrack *gva_track = GST_GVA_TRACK(trans);
 
     if (gva_track->tracking_type == DEEP_SORT) {
-        g_print("Deep SORT configuration:\n -- Feature model: %s\n -- Deep SORT config: %s\n",
-                gva_track->feature_model ? gva_track->feature_model : "using gvainference",
-                gva_track->deepsort_trck_cfg ? gva_track->deepsort_trck_cfg : "using defaults");
+        GST_INFO_OBJECT(gva_track, "Deep SORT configuration:\n -- Feature model: %s\n -- Deep SORT config: %s\n",
+                        gva_track->feature_model ? gva_track->feature_model : "using gvainference",
+                        gva_track->deepsort_trck_cfg ? gva_track->deepsort_trck_cfg : "using defaults");
     } else {
         GST_INFO_OBJECT(gva_track, "%s parameters:\n -- Device: %s\n -- Tracking type: %s\n -- Tracking config: %s\n",
                         GST_ELEMENT_NAME(GST_ELEMENT_CAST(gva_track)), gva_track->device,
