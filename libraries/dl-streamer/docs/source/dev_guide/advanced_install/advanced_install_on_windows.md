@@ -15,6 +15,8 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
 
 ## Step 2: Run installation script
 
+### Build script details:
+
 - The script will install automatically following dependencies if they don't exist:
   | Required dependency | Path |
   | -------- | ------- |
@@ -40,12 +42,13 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
 
 - The script assues that proxy is properly configured
 
-- Run PowerShell with administrative privileges and execute:
 
-  ```
-  cd ./libraries/dl-streamer/
-  ./scripts/build_dlstreamer_dlls.ps1
-  ```
+### Run PowerShell with administrative privileges and execute:
+
+```
+cd ./libraries/dl-streamer/
+./scripts/build_dlstreamer_dlls.ps1
+```
 
 
 
