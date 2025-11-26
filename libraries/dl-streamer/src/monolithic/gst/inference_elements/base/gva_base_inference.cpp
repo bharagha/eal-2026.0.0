@@ -806,6 +806,9 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
     case PROP_SHARE_VADISPLAY_CTX:
         g_value_set_boolean(value, base_inference->share_va_display_ctx);
         break;
+    case PROP_SCHEDULING_POLICY:
+        g_value_set_string(value, base_inference->scheduling_policy);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -884,6 +887,8 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
              "using memory:VAMemory for better performance. \n",
              base_inference->device));
     }
+
+    display_parse_pipeline_debug_info(base_inference);
 
     if (base_inference->inference && base_inference->info &&
         gst_video_info_is_equal(base_inference->info, &video_info) && base_inference->caps_feature == caps_feature) {
@@ -1128,4 +1133,120 @@ GstFlowReturn gva_base_inference_transform_ip(GstBaseTransform *trans, GstBuffer
 
     return status;
     /* return GST_FLOW_OK; FIXME shouldn't signal about dropping frames in inplace transform function*/
+}
+static gboolean _pipeline_checked = FALSE;
+void display_parse_pipeline_debug_info(GvaBaseInference *base_inference) {
+
+    if (_pipeline_checked)
+        return;
+
+    // Display the entire pipeline content with elements and parameters
+    GstObject *parent = GST_OBJECT_PARENT(GST_ELEMENT(base_inference));
+    GstElement *pipeline = nullptr;
+    // Traverse up the hierarchy to find the pipeline
+    while (parent && !GST_IS_PIPELINE(parent)) {
+        parent = GST_OBJECT_PARENT(parent);
+    }
+    if (parent && GST_IS_PIPELINE(parent)) {
+        pipeline = GST_ELEMENT(parent);
+    }
+    if (pipeline) {
+        gchar *pipeline_desc = gst_debug_bin_to_dot_data(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL);
+
+        if (pipeline_desc) {
+
+            // Also get a simpler text representation
+            GstIterator *it = gst_bin_iterate_elements(GST_BIN(pipeline));
+            GValue value = G_VALUE_INIT;
+            gboolean done = FALSE;
+            std::vector<GstElement *> elements;
+
+            // collect all elements in the pipeline
+            while (!done) {
+                switch (gst_iterator_next(it, &value)) {
+                case GST_ITERATOR_OK: {
+                    GstElement *element = GST_ELEMENT(g_value_get_object(&value));
+                    elements.push_back(element);
+                    g_value_reset(&value);
+                    break;
+                }
+                case GST_ITERATOR_RESYNC:
+                    gst_iterator_resync(it);
+                    break;
+                case GST_ITERATOR_ERROR:
+                case GST_ITERATOR_DONE:
+                    done = TRUE;
+                    break;
+                }
+            }
+            g_value_unset(&value);
+            gst_iterator_free(it);
+            g_free(pipeline_desc);
+
+            // print elements in reverse order (from sink to source)
+            {
+                g_print("\n=== PIPELINE CONTENT ===\n");
+                g_print("Pipeline elements:\n");
+                for (auto it = elements.rbegin(); it != elements.rend(); ++it) {
+                    GstElement *element = *it;
+                    // const gchar *elem_name = GST_ELEMENT_NAME(element);
+                    const gchar *factory_name = GST_OBJECT_NAME(gst_element_get_factory(element));
+                    g_print("  - %s", factory_name);
+
+                    // Check if this is a GVA element
+                    gboolean is_gva_element = g_str_has_prefix(factory_name, "gvadetect") ||
+                                              g_str_has_prefix(factory_name, "gvaclassify") ||
+                                              g_str_has_prefix(factory_name, "gvainference");
+
+                    // Print some key properties for inference elements
+                    if (is_gva_element) {
+                        gchar *device_prop = nullptr;
+                        gchar *model_prop = nullptr;
+                        guint batch_size = 0;
+                        guint nireq = 0;
+                        g_object_get(element, "device", &device_prop, "model", &model_prop, "batch-size", &batch_size,
+                                     "nireq", &nireq, nullptr);
+                        if (device_prop || model_prop || batch_size || nireq) {
+                            g_print(" [device=%s, model=%s, batch-size=%u, nireq=%u]",
+                                    device_prop ? device_prop : "unset", model_prop ? model_prop : "unset", batch_size,
+                                    nireq);
+                        }
+                        g_free(device_prop);
+                        g_free(model_prop);
+                    }
+
+                    // Print some key properties for non-inference GVA elements
+                    if (g_str_has_prefix(factory_name, "gvawatermark")) {
+                        gchar *device_prop = nullptr;
+                        g_object_get(element, "device", &device_prop, nullptr);
+                        if (device_prop) {
+                            g_print(" [device=%s]", device_prop);
+                        }
+                        g_free(device_prop);
+                    }
+
+                    if (g_str_has_prefix(factory_name, "gvatrack")) {
+                        // gchar *tracking_type_prop = nullptr;
+                        gchar *deepsort_trck_cfg = nullptr;
+                        g_object_get(element, "deepsort-trck-cfg", &deepsort_trck_cfg, nullptr);
+                        // g_object_get(element, "tracking-type", &tracking_type_prop, "deepsort-trck-cfg",
+                        //              &deepsort_trck_cfg, nullptr);
+                        // if (tracking_type_prop) {
+                        //     g_print(" [tracking-type=%s]", tracking_type_prop);
+                        // }
+                        if (deepsort_trck_cfg) {
+                            g_print(" [deepsort_trck_cfg=%s]", deepsort_trck_cfg ? deepsort_trck_cfg : "default");
+                        }
+                        // g_free(tracking_type_prop);
+                        g_free(deepsort_trck_cfg);
+                    }
+
+                    g_print("\n");
+                }
+                g_print("=== END PIPELINE CONTENT ===\n\n");
+            }
+            _pipeline_checked = TRUE;
+        }
+        // No need to unref pipeline since we didn't increase its reference count
+    }
 }
