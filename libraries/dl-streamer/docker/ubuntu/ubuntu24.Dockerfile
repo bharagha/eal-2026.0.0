@@ -73,6 +73,7 @@ RUN \
     intel-metrics-discovery=\* intel-gsc=\* libvpl2=\* \
     libze-intel-gpu1=25.31.34666.3-1~24.04~ppa2 libze1=1.23.1-1~24.04~ppa1 intel-opencl-icd=25.31.34666.3-1~24.04~ppa2 clinfo=3.0.23.01.25-1build1 \
     intel-media-va-driver-non-free=25.3.2-0ubuntu1~24.04~ppa1 libmfx-gen1=25.3.1-0ubuntu1~24.04~ppa1 libvpl-tools=1.4.0-0ubuntu1~24.04~ppa1 libva-glx2=2.22.0-1ubuntu1~24.04~ppa1 va-driver-all=2.22.0-1ubuntu1~24.04~ppa1 vainfo=2.22.0-0ubuntu1~24.04~ppa1 && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Intel NPU drivers and prerequisites installation
@@ -81,6 +82,7 @@ WORKDIR /tmp/npu_deps
 RUN curl -LO https://github.com/intel/linux-npu-driver/releases/download/v1.23.0/linux-npu-driver-v1.23.0.20250827-17270089246-ubuntu2404.tar.gz && \
     tar -xf linux-npu-driver-v1.23.0.20250827-17270089246-ubuntu2404.tar.gz && \
     dpkg -i ./*.deb && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/npu_deps
 
 WORKDIR /
@@ -497,6 +499,7 @@ RUN \
     intel-metrics-discovery=\* intel-gsc=\* libvpl2=\* \
     libze-intel-gpu1=25.31.34666.3-1~24.04~ppa2 libze1=1.23.1-1~24.04~ppa1 intel-opencl-icd=25.31.34666.3-1~24.04~ppa2 clinfo=3.0.23.01.25-1build1 \
     intel-media-va-driver-non-free=25.3.2-0ubuntu1~24.04~ppa1 libmfx-gen1=25.3.1-0ubuntu1~24.04~ppa1 libvpl-tools=1.4.0-0ubuntu1~24.04~ppa1 libva-glx2=2.22.0-1ubuntu1~24.04~ppa1 va-driver-all=2.22.0-1ubuntu1~24.04~ppa1 vainfo=2.22.0-0ubuntu1~24.04~ppa1 && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Intel NPU drivers and prerequisites installation
@@ -505,6 +508,7 @@ WORKDIR /tmp/npu_deps
 RUN curl -LO https://github.com/intel/linux-npu-driver/releases/download/v1.23.0/linux-npu-driver-v1.23.0.20250827-17270089246-ubuntu2404.tar.gz && \
     tar -xf linux-npu-driver-v1.23.0.20250827-17270089246-ubuntu2404.tar.gz && \
     dpkg -i ./*.deb && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/npu_deps
 
 WORKDIR /
