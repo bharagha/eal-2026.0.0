@@ -1,0 +1,183 @@
+import { useEffect, useState } from "react";
+import {
+  type PerformanceJobStatus,
+  useGetDensityJobStatusQuery,
+  useGetPipelinesQuery,
+  useRunDensityTestMutation,
+} from "@/api/api.generated.ts";
+import {
+  PipelinesDensityDataTable,
+  type PipelineWithParticipation,
+} from "@/components/shared/PipelinesDensityDataTable.tsx";
+import { TestProgressIndicator } from "@/components/shared/TestProgressIndicator.tsx";
+import { PipelineStreamsSummary } from "@/components/shared/PipelineStreamsSummary.tsx";
+
+const DensityTests = () => {
+  const { data: pipelines, isLoading, error } = useGetPipelinesQuery();
+  const [runDensityTest, { isLoading: isRunning }] =
+    useRunDensityTestMutation();
+  const [selectedPipelines, setSelectedPipelines] = useState<
+    PipelineWithParticipation[]
+  >([]);
+  const [fpsFloor, setFpsFloor] = useState<number>(30);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<PerformanceJobStatus | null>(
+    null,
+  );
+
+  const { data: jobStatus } = useGetDensityJobStatusQuery(
+    { jobId: jobId! },
+    {
+      skip: !jobId,
+      pollingInterval: 1000,
+    },
+  );
+
+  useEffect(() => {
+    if (jobStatus?.state === "COMPLETED") {
+      setTestResult(jobStatus);
+      setJobId(null);
+    } else if (jobStatus?.state === "ERROR" || jobStatus?.state === "ABORTED") {
+      console.error("Test failed:", jobStatus.error_message);
+      setJobId(null);
+    }
+  }, [jobStatus]);
+
+  const handleRunTest = async () => {
+    if (selectedPipelines.length === 0) return;
+
+    setTestResult(null);
+    try {
+      const result = await runDensityTest({
+        densityTestSpec: {
+          fps_floor: fpsFloor,
+          pipeline_density_specs: selectedPipelines.map((pipeline) => ({
+            id: pipeline.id,
+            stream_rate: pipeline.stream_rate,
+          })),
+        },
+      }).unwrap();
+      setJobId(result.job_id);
+    } catch (err) {
+      console.error("Failed to run density test:", err);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p>Loading pipelines...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-red-500">Error loading pipelines</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto py-10">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">Density Tests</h1>
+        <p className="text-muted-foreground mt-2">
+          Select pipelines and set participation rate for density testing
+        </p>
+      </div>
+
+      <PipelinesDensityDataTable
+        data={pipelines ?? []}
+        onSelectionChange={setSelectedPipelines}
+      />
+
+      <div className="my-4">
+        <label className="block text-sm font-medium mb-2">Set target FPS</label>
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            value={fpsFloor}
+            onChange={(e) => setFpsFloor(Number(e.target.value))}
+            min={1}
+            max={120}
+            className="w-24 px-3 py-2 border rounded-md"
+          />
+          <span className="text-sm text-muted-foreground">FPS</span>
+        </div>
+
+        <div className="my-4">
+          <button
+            onClick={handleRunTest}
+            disabled={isRunning || selectedPipelines.length === 0 || !!jobId}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {jobId ? "Running..." : isRunning ? "Starting..." : "Run test"}
+          </button>
+        </div>
+
+        {jobId && jobStatus && (
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+              Test Status: {jobStatus.state}
+            </p>
+            {jobStatus.state === "RUNNING" && (
+              <div className="mt-2">
+                <div className="animate-pulse flex items-center gap-2">
+                  <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-xs text-blue-700 dark:text-blue-300">
+                    Running density test...
+                  </span>
+                </div>
+                <TestProgressIndicator />
+              </div>
+            )}
+            {jobStatus.state === "ERROR" && (
+              <div className="mt-2">
+                <div className="animate-pulse flex items-center gap-2">
+                  <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-xs text-blue-700 dark:text-blue-300">
+                    {jobStatus.error_message}
+                  </span>
+                </div>
+                <TestProgressIndicator />
+              </div>
+            )}
+          </div>
+        )}
+
+        {testResult && (
+          <div className="mb-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
+            <p className="text-sm font-medium text-green-900 dark:text-green-100 mb-2">
+              Test Completed Successfully
+            </p>
+            <div className="space-y-1 text-sm">
+              <p className="text-green-800 dark:text-green-200">
+                <span className="font-medium">Per Stream FPS:</span>{" "}
+                {testResult.per_stream_fps?.toFixed(2) ?? "N/A"}
+              </p>
+              <p className="text-green-800 dark:text-green-200">
+                <span className="font-medium">Total Streams:</span>{" "}
+                {testResult.total_streams ?? "N/A"}
+              </p>
+              {testResult.streams_per_pipeline && (
+                <div className="mt-2">
+                  <p className="text-green-800 dark:text-green-200 font-medium mb-1">
+                    Streams per Pipeline:
+                  </p>
+                  <PipelineStreamsSummary
+                    streamsPerPipeline={testResult.streams_per_pipeline}
+                    pipelines={pipelines ?? []}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default DensityTests;
