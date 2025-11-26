@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+import sys
 from typing import Dict, List, Optional, Tuple
 
 import config
@@ -19,6 +20,24 @@ VAAPI_SUFFIX_PLACEHOLDER = "{vaapi_suffix}"
 
 logger = logging.getLogger("video_encoder")
 videos_manager = get_videos_manager()
+
+# Singleton instance for VideoEncoder
+_video_encoder_instance: Optional["VideoEncoder"] = None
+
+
+def get_video_encoder() -> "VideoEncoder":
+    """
+    Returns the singleton instance of VideoEncoder.
+    If it cannot be created, logs an error and exits the application.
+    """
+    global _video_encoder_instance
+    if _video_encoder_instance is None:
+        try:
+            _video_encoder_instance = VideoEncoder()
+        except Exception as e:
+            logger.error(f"Failed to initialize VideoEncoder: {e}")
+            sys.exit(1)
+    return _video_encoder_instance
 
 
 class VideoEncoder:

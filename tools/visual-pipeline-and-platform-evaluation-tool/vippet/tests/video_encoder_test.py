@@ -21,6 +21,7 @@ class TestVideoEncoderClass(unittest.TestCase):
     @patch("video_encoder.GstInspector")
     def test_initialization(self, mock_gst_inspector):
         """Test VideoEncoder initialization."""
+        # Reset singleton for this test
         encoder = VideoEncoder()
         self.assertIsNotNone(encoder.gst_inspector)
         self.assertIn("h264", encoder.encoder_configs)

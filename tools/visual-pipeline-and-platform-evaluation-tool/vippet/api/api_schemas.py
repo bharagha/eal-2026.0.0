@@ -132,7 +132,7 @@ class PipelineRequestOptimize(BaseModel):
 
 
 class EncoderDeviceConfig(BaseModel):
-    device_name: Optional[str] = Field(
+    device_name: str = Field(
         default="CPU",
         description="Name of the encoder device (e.g., 'GPU', 'CPU', 'NPU')",
         examples=["GPU", "CPU", "NPU"],

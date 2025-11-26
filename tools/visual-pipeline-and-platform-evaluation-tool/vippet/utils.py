@@ -43,9 +43,8 @@ def make_tee_names_unique(
     """
     Replace all tee names in the pipeline string with unique names based on pipeline and stream indices.
 
-    GStreamer pipelines may contain multiple tees with different names (e.g., tee name=t0, tee name=t1).
-    Each tee is referenced later in the pipeline (e.g., t0., t1.).
-    This function ensures each tee gets a unique name to avoid conflicts when combining multiple pipelines.
+    GStreamer tees can be referenced multiple times (e.g., multiple t0. branches).
+    New name format: t{pipeline_index}{stream_index}{tee_idx}{original_digits}
 
     Args:
         pipeline_str: The GStreamer pipeline string containing tee elements.
@@ -53,7 +52,7 @@ def make_tee_names_unique(
         stream_index: The index of the stream within the pipeline.
 
     Returns:
-        str: The pipeline string with all tee names replaced with unique identifiers.
+        str: The pipeline string with all tee names and references replaced.
 
     Example:
         Input:  "... tee name=t0 ! queue t0. ! ..."
@@ -96,8 +95,7 @@ def make_tee_names_unique(
             pipeline_str,
         )
 
-        # Replace references to the tee (e.g., "t0." becomes "t100.")
-        # The pattern matches the original name followed by a dot and optional space
+        # Replace references to the tee (e.g., "t0." becomes "t1000.")
         pipeline_str = re.sub(
             rf"\b{re.escape(original_name)}\.", f"{new_name}.", pipeline_str
         )
@@ -118,8 +116,11 @@ def generate_unique_filename(filename: str) -> str:
     """
     # Extract stem and extension
     path = Path(filename)
-    stem = path.stem
+    stem = Path(path.name).stem
     ext = path.suffix
+
+    if not ext:
+        ext = ".mp4"  # default extension
 
     # Generate timestamp and short unique suffix
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

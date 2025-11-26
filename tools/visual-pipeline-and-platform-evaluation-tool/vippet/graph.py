@@ -146,9 +146,10 @@ class Graph:
         Returns:
             tuple: (updated Graph object, list of output file paths)
         """
+        nodes = self.nodes[:]
         output_paths: list[str] = []
 
-        for node in self.nodes:
+        for node in nodes:
             # Check if node is a sink type
             if not node.type.endswith("sink"):
                 continue
@@ -181,9 +182,10 @@ class Graph:
         Returns:
             list: List of input video filenames.
         """
+        nodes = self.nodes[:]
         input_filenames: list[str] = []
 
-        for node in self.nodes:
+        for node in nodes:
             if node.type.endswith("sink"):
                 # Skip sinks to avoid overwriting output paths
                 continue

@@ -1316,14 +1316,29 @@
             "title": "Pipeline Density Specs"
           },
           "video_output": {
-            "$ref": "#/components/schemas/VideoOutputConfig"
+            "$ref": "#/components/schemas/VideoOutputConfig",
+            "description": "Video output configuration.",
+            "default": {
+              "enabled": false,
+              "encoder_device": {
+                "device_name": "CPU"
+              }
+            },
+            "examples": [
+              {
+                "enabled": false,
+                "encoder_device": {
+                  "device_name": "GPU",
+                  "gpu_id": 0
+                }
+              }
+            ]
           }
         },
         "type": "object",
         "required": [
           "fps_floor",
-          "pipeline_density_specs",
-          "video_output"
+          "pipeline_density_specs"
         ],
         "title": "DensityTestSpec"
       },
@@ -1345,14 +1360,29 @@
             "title": "Pipeline Density Specs"
           },
           "video_output": {
-            "$ref": "#/components/schemas/VideoOutputConfig"
+            "$ref": "#/components/schemas/VideoOutputConfig",
+            "description": "Video output configuration.",
+            "default": {
+              "enabled": false,
+              "encoder_device": {
+                "device_name": "CPU"
+              }
+            },
+            "examples": [
+              {
+                "enabled": false,
+                "encoder_device": {
+                  "device_name": "GPU",
+                  "gpu_id": 0
+                }
+              }
+            ]
           }
         },
         "type": "object",
         "required": [
           "fps_floor",
-          "pipeline_density_specs",
-          "video_output"
+          "pipeline_density_specs"
         ],
         "title": "DensityTestSpec"
       },
@@ -1437,14 +1467,7 @@
       "EncoderDeviceConfig": {
         "properties": {
           "device_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Device Name",
             "description": "Name of the encoder device (e.g., 'GPU', 'CPU', 'NPU')",
             "default": "CPU",
@@ -1852,13 +1875,28 @@
             "title": "Pipeline Performance Specs"
           },
           "video_output": {
-            "$ref": "#/components/schemas/VideoOutputConfig"
+            "$ref": "#/components/schemas/VideoOutputConfig",
+            "description": "Video output configuration.",
+            "default": {
+              "enabled": false,
+              "encoder_device": {
+                "device_name": "CPU"
+              }
+            },
+            "examples": [
+              {
+                "enabled": false,
+                "encoder_device": {
+                  "device_name": "GPU",
+                  "gpu_id": 0
+                }
+              }
+            ]
           }
         },
         "type": "object",
         "required": [
-          "pipeline_performance_specs",
-          "video_output"
+          "pipeline_performance_specs"
         ],
         "title": "PerformanceTestSpec"
       },
@@ -1872,13 +1910,28 @@
             "title": "Pipeline Performance Specs"
           },
           "video_output": {
-            "$ref": "#/components/schemas/VideoOutputConfig"
+            "$ref": "#/components/schemas/VideoOutputConfig",
+            "description": "Video output configuration.",
+            "default": {
+              "enabled": false,
+              "encoder_device": {
+                "device_name": "CPU"
+              }
+            },
+            "examples": [
+              {
+                "enabled": false,
+                "encoder_device": {
+                  "device_name": "GPU",
+                  "gpu_id": 0
+                }
+              }
+            ]
           }
         },
         "type": "object",
         "required": [
-          "pipeline_performance_specs",
-          "video_output"
+          "pipeline_performance_specs"
         ],
         "title": "PerformanceTestSpec"
       },
@@ -2254,15 +2307,17 @@
             "default": false
           },
           "encoder_device": {
-            "anyOf": [
+            "$ref": "#/components/schemas/EncoderDeviceConfig",
+            "description": "Encoder device configuration (only applicable when video output is enabled).",
+            "default": {
+              "device_name": "CPU"
+            },
+            "examples": [
               {
-                "$ref": "#/components/schemas/EncoderDeviceConfig"
-              },
-              {
-                "type": "null"
+                "device_name": "GPU",
+                "gpu_id": 0
               }
-            ],
-            "description": "Encoder device configuration (only applicable when video output is enabled)."
+            ]
           }
         },
         "type": "object",

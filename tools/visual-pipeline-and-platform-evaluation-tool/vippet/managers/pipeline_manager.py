@@ -3,7 +3,7 @@ import sys
 from typing import Optional, List
 
 from pipelines.loader import PipelineLoader
-from video_encoder import VideoEncoder
+from video_encoder import get_video_encoder
 from utils import make_tee_names_unique, generate_unique_id
 from graph import Graph
 from api.api_schemas import (
@@ -41,7 +41,7 @@ class PipelineManager:
     def __init__(self):
         self.logger = logging.getLogger("PipelineManager")
         self.pipelines = self.load_predefined_pipelines()
-        self.video_encoder = VideoEncoder()
+        self.video_encoder = get_video_encoder()
 
     def add_pipeline(self, new_pipeline: PipelineDefinition):
         # Check for duplicate pipeline name and version
