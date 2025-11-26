@@ -78,7 +78,7 @@ class VideoEncoder:
             },
         }
 
-    def select_gpu(self, device: str) -> Tuple[int, Optional[str]]:
+    def select_gpu(self, device: str | None) -> Tuple[int, Optional[str]]:
         """
         Parse device name and determine GPU ID and VAAPI suffix.
 
@@ -98,7 +98,7 @@ class VideoEncoder:
         # If there is more than one GPU, device names are like GPU.0, GPU.1, ...
         if device == "GPU":
             gpu_id = 0
-        elif device.startswith("GPU."):
+        elif device is not None and device.startswith("GPU."):
             try:
                 gpu_index = int(device.split(".")[1])
                 if gpu_index == 0:
@@ -135,7 +135,7 @@ class VideoEncoder:
         if encoder_device.device_name == "GPU":
             if encoder_device.gpu_id == 0:
                 key = GPU_0
-            elif encoder_device.gpu_id > 0:
+            elif encoder_device.gpu_id is not None and encoder_device.gpu_id > 0:
                 key = GPU_N
 
         pairs = field_dict.get(key, [])

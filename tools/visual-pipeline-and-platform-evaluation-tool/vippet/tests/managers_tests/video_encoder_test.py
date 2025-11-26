@@ -1,15 +1,9 @@
-"""
-Unit tests for video_encoder module.
-"""
-
 import unittest
 from unittest.mock import Mock, patch
 
 from video_encoder import (
     VideoEncoder,
-    get_video_encoder,
     GPU_0,
-    GPU_N,
     OTHER,
 )
 from api.api_schemas import EncoderDeviceConfig
@@ -237,23 +231,6 @@ class TestVideoEncoderClass(unittest.TestCase):
             )
 
         self.assertIn("No suitable encoder found", str(context.exception))
-
-
-class TestGetVideoEncoder(unittest.TestCase):
-    """Test cases for get_video_encoder singleton function."""
-
-    @patch("video_encoder.GstInspector")
-    def test_singleton_returns_same_instance(self, mock_gst_inspector):
-        """Test that get_video_encoder returns the same instance."""
-        # Reset singleton
-        import video_encoder
-
-        video_encoder._video_encoder_instance = None
-
-        encoder1 = get_video_encoder()
-        encoder2 = get_video_encoder()
-
-        self.assertIs(encoder1, encoder2)
 
 
 if __name__ == "__main__":

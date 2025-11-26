@@ -6,6 +6,7 @@ from api.api_schemas import (
     PipelineSource,
     PipelineDefinition,
     PipelinePerformanceSpec,
+    VideoOutputConfig,
 )
 
 
@@ -126,11 +127,15 @@ class TestPipelineManager(unittest.TestCase):
 
         # Build command with one pipeline and one stream using the pipeline ID
         pipeline_performance_specs = [PipelinePerformanceSpec(id=added.id, streams=1)]
+        video_config = VideoOutputConfig(enabled=False)
 
-        command = manager.build_pipeline_command(pipeline_performance_specs)
+        command, output_paths = manager.build_pipeline_command(
+            pipeline_performance_specs, video_config
+        )
 
         # Verify command is not empty and contains pipeline elements
         self.assertIsInstance(command, str)
+        self.assertIsInstance(output_paths, dict)
         self.assertGreater(len(command), 0)
         self.assertIn("fakesrc", command)
         self.assertIn("fakesink", command)
@@ -152,11 +157,15 @@ class TestPipelineManager(unittest.TestCase):
 
         # Build command with one pipeline and 3 streams using the pipeline ID
         pipeline_performance_specs = [PipelinePerformanceSpec(id=added.id, streams=3)]
+        video_config = VideoOutputConfig(enabled=False)
 
-        command = manager.build_pipeline_command(pipeline_performance_specs)
+        command, output_paths = manager.build_pipeline_command(
+            pipeline_performance_specs, video_config
+        )
 
         # Verify command contains multiple instances
         self.assertIsInstance(command, str)
+        self.assertIsInstance(output_paths, dict)
         self.assertGreater(len(command), 0)
         # Should have 3 instances of videotestsrc (one per stream)
         self.assertEqual(command.count("videotestsrc"), 3)
@@ -191,11 +200,15 @@ class TestPipelineManager(unittest.TestCase):
             PipelinePerformanceSpec(id=added1.id, streams=2),
             PipelinePerformanceSpec(id=added2.id, streams=3),
         ]
+        video_config = VideoOutputConfig(enabled=False)
 
-        command = manager.build_pipeline_command(pipeline_performance_specs)
+        command, output_paths = manager.build_pipeline_command(
+            pipeline_performance_specs, video_config
+        )
 
         # Verify both pipeline types are present
         self.assertIsInstance(command, str)
+        self.assertIsInstance(output_paths, dict)
         self.assertGreater(len(command), 0)
         # Should have 2 instances of fakesrc and 3 instances of videotestsrc
         self.assertEqual(command.count("fakesrc"), 2)
@@ -208,9 +221,10 @@ class TestPipelineManager(unittest.TestCase):
         pipeline_performance_specs = [
             PipelinePerformanceSpec(id="nonexistent-pipeline-id", streams=1)
         ]
+        video_config = VideoOutputConfig(enabled=False)
 
         with self.assertRaises(ValueError) as context:
-            manager.build_pipeline_command(pipeline_performance_specs)
+            manager.build_pipeline_command(pipeline_performance_specs, video_config)
 
         self.assertIn(
             "Pipeline with id 'nonexistent-pipeline-id' not found",

@@ -148,21 +148,40 @@ class VideoOutputConfig(BaseModel):
     enabled: bool = Field(
         default=False, description="Flag to enable or disable video output generation."
     )
-    encoder_device: Optional[EncoderDeviceConfig] = Field(
-        default=None,
+    encoder_device: EncoderDeviceConfig = Field(
+        default=EncoderDeviceConfig(device_name="CPU", gpu_id=None),
         description="Encoder device configuration (only applicable when video output is enabled).",
+        examples=[{"device_name": "GPU", "gpu_id": 0}],
     )
 
 
 class PerformanceTestSpec(BaseModel):
     pipeline_performance_specs: list[PipelinePerformanceSpec]
-    video_output: VideoOutputConfig
+    video_output: VideoOutputConfig = Field(
+        default=VideoOutputConfig(
+            enabled=False,
+            encoder_device=EncoderDeviceConfig(device_name="CPU", gpu_id=None),
+        ),
+        description="Video output configuration.",
+        examples=[
+            {"enabled": False, "encoder_device": {"device_name": "GPU", "gpu_id": 0}}
+        ],
+    )
 
 
 class DensityTestSpec(BaseModel):
     fps_floor: int = Field(ge=0, examples=[30])
     pipeline_density_specs: list[PipelineDensitySpec]
-    video_output: VideoOutputConfig
+    video_output: VideoOutputConfig = Field(
+        default=VideoOutputConfig(
+            enabled=False,
+            encoder_device=EncoderDeviceConfig(device_name="CPU", gpu_id=None),
+        ),
+        description="Video output configuration.",
+        examples=[
+            {"enabled": False, "encoder_device": {"device_name": "GPU", "gpu_id": 0}}
+        ],
+    )
 
 
 class TestJobResponse(BaseModel):

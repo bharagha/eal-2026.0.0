@@ -64,7 +64,8 @@ class TestTestsAPI(unittest.TestCase):
                     "id": "pipeline-test123",
                     "streams": 2,
                 }
-            ]
+            ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/performance", json=request_body)
 
@@ -102,7 +103,8 @@ class TestTestsAPI(unittest.TestCase):
                     "id": "pipeline-def456",
                     "streams": 3,
                 },
-            ]
+            ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/performance", json=request_body)
 
@@ -149,7 +151,8 @@ class TestTestsAPI(unittest.TestCase):
                     "id": "pipeline-test789",
                     "streams": -1,
                 }
-            ]
+            ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/performance", json=request_body)
 
@@ -184,6 +187,7 @@ class TestTestsAPI(unittest.TestCase):
                     "stream_rate": 100,
                 }
             ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/density", json=request_body)
 
@@ -224,6 +228,7 @@ class TestTestsAPI(unittest.TestCase):
                     "stream_rate": 75,
                 },
             ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/density", json=request_body)
 
@@ -278,6 +283,7 @@ class TestTestsAPI(unittest.TestCase):
                     "stream_rate": 100,
                 }
             ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/density", json=request_body)
 
@@ -302,6 +308,7 @@ class TestTestsAPI(unittest.TestCase):
                     "stream_rate": -50,
                 }
             ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/density", json=request_body)
 
