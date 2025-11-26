@@ -339,7 +339,7 @@ setup_gpu(){
         $SUDO_PREFIX apt-get install -y --no-install-recommends software-properties-common
         $SUDO_PREFIX add-apt-repository -y $INTEL_CL_GPU_REPO_URL
         $SUDO_PREFIX apt update
-        echo "Snapshot: 20250911T030400Z" | $SUDO_PREFIX tee -a /etc/apt/sources.list.d/$INTEL_GPU_LIST
+        echo "Snapshot: 20251007T030400Z" | $SUDO_PREFIX tee -a /etc/apt/sources.list.d/$INTEL_GPU_LIST
         $SUDO_PREFIX apt update
         install_packages intel-metrics-discovery intel-gsc libvpl2 \
             libze-intel-gpu1=25.31.34666.3-1~24.04~ppa2 libze1=1.23.1-1~24.04~ppa1 intel-opencl-icd=25.31.34666.3-1~24.04~ppa2 clinfo=3.0.23.01.25-1build1 \

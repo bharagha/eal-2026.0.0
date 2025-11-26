@@ -67,7 +67,7 @@ RUN \
     apt-get install -y --no-install-recommends software-properties-common=\* && \
     add-apt-repository -y ppa:kobuk-team/intel-graphics && \
     apt-get update && \
-    echo "Snapshot: 20250911T030400Z" >> /etc/apt/sources.list.d/kobuk-team-ubuntu-intel-graphics-noble.sources && \
+    echo "Snapshot: 20251007T030400Z" >> /etc/apt/sources.list.d/kobuk-team-ubuntu-intel-graphics-noble.sources && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     intel-metrics-discovery=\* intel-gsc=\* libvpl2=\* \
@@ -493,7 +493,7 @@ RUN \
     apt-get install -y --no-install-recommends software-properties-common=\* && \
     add-apt-repository -y ppa:kobuk-team/intel-graphics && \
     apt-get update && \
-    echo "Snapshot: 20250911T030400Z" >> /etc/apt/sources.list.d/kobuk-team-ubuntu-intel-graphics-noble.sources && \
+    echo "Snapshot: 20251007T030400Z" >> /etc/apt/sources.list.d/kobuk-team-ubuntu-intel-graphics-noble.sources && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     intel-metrics-discovery=\* intel-gsc=\* libvpl2=\* \
