@@ -43,8 +43,9 @@ def make_tee_names_unique(
     """
     Replace all tee names in the pipeline string with unique names based on pipeline and stream indices.
 
-    GStreamer tees can be referenced multiple times (e.g., multiple t0. branches).
-    New name format: t{pipeline_index}{stream_index}{tee_idx}{original_digits}
+    GStreamer pipelines may contain multiple tees with different names (e.g., tee name=t0, tee name=t1).
+    Each tee is referenced later in the pipeline (e.g., t0., t1.).
+    This function ensures each tee gets a unique name to avoid conflicts when combining multiple pipelines.
 
     Args:
         pipeline_str: The GStreamer pipeline string containing tee elements.
@@ -52,7 +53,7 @@ def make_tee_names_unique(
         stream_index: The index of the stream within the pipeline.
 
     Returns:
-        str: The pipeline string with all tee names and references replaced.
+        str: The pipeline string with all tee names replaced with unique identifiers.
 
     Example:
         Input:  "... tee name=t0 ! queue t0. ! ..."

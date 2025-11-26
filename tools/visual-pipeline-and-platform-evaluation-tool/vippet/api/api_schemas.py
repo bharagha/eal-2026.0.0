@@ -133,7 +133,7 @@ class PipelineRequestOptimize(BaseModel):
 
 class EncoderDeviceConfig(BaseModel):
     device_name: str = Field(
-        default="CPU",
+        default="GPU",
         description="Name of the encoder device (e.g., 'GPU', 'CPU', 'NPU')",
         examples=["GPU", "CPU", "NPU"],
     )
@@ -149,7 +149,7 @@ class VideoOutputConfig(BaseModel):
         default=False, description="Flag to enable or disable video output generation."
     )
     encoder_device: EncoderDeviceConfig = Field(
-        default=EncoderDeviceConfig(device_name="CPU", gpu_id=None),
+        default=EncoderDeviceConfig(device_name="GPU", gpu_id=None),
         description="Encoder device configuration (only applicable when video output is enabled).",
         examples=[{"device_name": "GPU", "gpu_id": 0}],
     )
@@ -160,7 +160,7 @@ class PerformanceTestSpec(BaseModel):
     video_output: VideoOutputConfig = Field(
         default=VideoOutputConfig(
             enabled=False,
-            encoder_device=EncoderDeviceConfig(device_name="CPU", gpu_id=None),
+            encoder_device=EncoderDeviceConfig(device_name="GPU", gpu_id=None),
         ),
         description="Video output configuration.",
         examples=[
@@ -175,7 +175,7 @@ class DensityTestSpec(BaseModel):
     video_output: VideoOutputConfig = Field(
         default=VideoOutputConfig(
             enabled=False,
-            encoder_device=EncoderDeviceConfig(device_name="CPU", gpu_id=None),
+            encoder_device=EncoderDeviceConfig(device_name="GPU", gpu_id=None),
         ),
         description="Video output configuration.",
         examples=[

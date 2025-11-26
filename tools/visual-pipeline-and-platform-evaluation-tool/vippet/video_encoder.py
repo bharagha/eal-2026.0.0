@@ -3,16 +3,18 @@ from pathlib import Path
 import sys
 from typing import Dict, List, Optional, Tuple
 
-import config
 from explore import GstInspector
 from api.api_schemas import EncoderDeviceConfig
 from utils import generate_unique_filename
-from videos import get_videos_manager
+from videos import get_videos_manager, OUTPUT_VIDEO_DIR
 
 # Keys for device selection
 GPU_0 = "GPU_0"
 GPU_N = "GPU_N"
 OTHER = "OTHER"
+
+# Default codec for encoding
+DEFAULT_CODEC = "h264"
 
 # Placeholder for vaapi_suffix to be replaced at runtime
 VAAPI_SUFFIX_PLACEHOLDER = "{vaapi_suffix}"
@@ -196,11 +198,14 @@ class VideoEncoder:
             Detected codec name, defaults to "h264" if cannot be determined
         """
         if not input_video_filenames:
-            self.logger.warning("No input video filenames provided, defaulting to h264")
-            return "h264"
+            self.logger.warning(
+                f"No input video filenames provided, defaulting to {DEFAULT_CODEC}"
+            )
+            return DEFAULT_CODEC
 
+        # Detect codec from the first input video
         video = videos_manager.get_video(input_video_filenames[0])
-        detected_codec = video.codec if video and video.codec else "h264"
+        detected_codec = video.codec if video and video.codec else DEFAULT_CODEC
 
         self.logger.debug(
             f"Detected codec: {detected_codec} from {input_video_filenames[0]}"
@@ -279,7 +284,7 @@ class VideoEncoder:
             output_filename = generate_unique_filename(
                 f"pipeline_output_{pipeline_id}.mp4"
             )
-            output_path = str(Path(config.OUTPUT_VIDEO_DIR) / output_filename)
+            output_path = str(Path(OUTPUT_VIDEO_DIR) / output_filename)
             output_paths.append(output_path)
 
             # Replace first occurrence of fakesink

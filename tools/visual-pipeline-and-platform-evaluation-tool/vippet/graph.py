@@ -5,9 +5,8 @@ from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-import config
 from utils import generate_unique_filename
-from videos import get_videos_manager
+from videos import get_videos_manager, OUTPUT_VIDEO_DIR
 from models import get_supported_models_manager
 
 logger = logging.getLogger(__name__)
@@ -143,13 +142,15 @@ class Graph:
         Iterates through all sink nodes, generates unique filenames with timestamp and random suffix,
         updates the location to the output directory, and collects the output paths.
 
+        Note: This is used only during pipeline execution preparation and does not affect
+        the original graph stored in the database.
+
         Returns:
-            tuple: (updated Graph object, list of output file paths)
+            tuple: (Graph object with updated sink nodes, list of output file paths)
         """
-        nodes = self.nodes[:]
         output_paths: list[str] = []
 
-        for node in nodes:
+        for node in self.nodes:
             # Check if node is a sink type
             if not node.type.endswith("sink"):
                 continue
@@ -163,7 +164,7 @@ class Graph:
             new_filename = generate_unique_filename(location)
 
             # Construct new full path
-            new_path = str(Path(config.OUTPUT_VIDEO_DIR) / new_filename)
+            new_path = str(Path(OUTPUT_VIDEO_DIR) / new_filename)
 
             # Update node's location
             node.data["location"] = new_path
@@ -182,10 +183,9 @@ class Graph:
         Returns:
             list: List of input video filenames.
         """
-        nodes = self.nodes[:]
         input_filenames: list[str] = []
 
-        for node in nodes:
+        for node in self.nodes:
             if node.type.endswith("sink"):
                 # Skip sinks to avoid overwriting output paths
                 continue

@@ -1321,7 +1321,7 @@
             "default": {
               "enabled": false,
               "encoder_device": {
-                "device_name": "CPU"
+                "device_name": "GPU"
               }
             },
             "examples": [
@@ -1365,7 +1365,7 @@
             "default": {
               "enabled": false,
               "encoder_device": {
-                "device_name": "CPU"
+                "device_name": "GPU"
               }
             },
             "examples": [
@@ -1470,7 +1470,7 @@
             "type": "string",
             "title": "Device Name",
             "description": "Name of the encoder device (e.g., 'GPU', 'CPU', 'NPU')",
-            "default": "CPU",
+            "default": "GPU",
             "examples": [
               "GPU",
               "CPU",
@@ -1880,7 +1880,7 @@
             "default": {
               "enabled": false,
               "encoder_device": {
-                "device_name": "CPU"
+                "device_name": "GPU"
               }
             },
             "examples": [
@@ -1915,7 +1915,7 @@
             "default": {
               "enabled": false,
               "encoder_device": {
-                "device_name": "CPU"
+                "device_name": "GPU"
               }
             },
             "examples": [
@@ -2310,7 +2310,7 @@
             "$ref": "#/components/schemas/EncoderDeviceConfig",
             "description": "Encoder device configuration (only applicable when video output is enabled).",
             "default": {
-              "device_name": "CPU"
+              "device_name": "GPU"
             },
             "examples": [
               {
