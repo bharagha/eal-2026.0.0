@@ -236,3 +236,205 @@ class TestPipelineManager(unittest.TestCase):
             "Pipeline with id 'nonexistent-pipeline-id' not found",
             str(context.exception),
         )
+
+    def test_update_pipeline_description_and_name(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        new_pipeline = PipelineDefinition(
+            name="original-name",
+            version=1,
+            description="Original description",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        added = manager.add_pipeline(new_pipeline)
+
+        updated = manager.update_pipeline(
+            pipeline_id=added.id,
+            name="updated-name",
+            description="Updated description",
+        )
+
+        self.assertEqual(updated.id, added.id)
+        self.assertEqual(updated.name, "updated-name")
+        self.assertEqual(updated.description, "Updated description")
+
+        # Ensure the change is reflected in manager state
+        retrieved = manager.get_pipeline_by_id(added.id)
+        self.assertEqual(retrieved.name, "updated-name")
+        self.assertEqual(retrieved.description, "Updated description")
+
+    def test_update_pipeline_graph_and_parameters(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        new_pipeline = PipelineDefinition(
+            name="test-pipeline",
+            version=1,
+            description="Pipeline to be updated",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        added = manager.add_pipeline(new_pipeline)
+
+        updated_graph = PipelineGraph(
+            nodes=[
+                Node(id="0", type="videotestsrc", data={}),
+                Node(id="1", type="fakesink", data={}),
+            ],
+            edges=[Edge(id="0", source="0", target="1")],
+        )
+
+        updated_params = PipelineParameters(default={"key": "value"})
+
+        updated = manager.update_pipeline(
+            pipeline_id=added.id,
+            pipeline_graph=updated_graph,
+            parameters=updated_params,
+        )
+
+        self.assertEqual(updated.id, added.id)
+        self.assertEqual(updated.pipeline_graph, updated_graph)
+        self.assertEqual(updated.parameters, updated_params)
+
+    def test_update_pipeline_not_found_raises(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        with self.assertRaises(ValueError) as context:
+            manager.update_pipeline(pipeline_id="nonexistent", name="new-name")
+
+        self.assertIn(
+            "Pipeline with id 'nonexistent' not found.", str(context.exception)
+        )
+
+    def test_build_pipeline_command_with_video_output_enabled(self):
+        """Test building pipeline command with video output enabled."""
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        # Add a test pipeline
+        new_pipeline = PipelineDefinition(
+            name="test-video-output",
+            version=1,
+            description="Pipeline for testing video output",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="videotestsrc ! fakesink",
+            parameters=None,
+        )
+        added = manager.add_pipeline(new_pipeline)
+
+        pipeline_performance_specs = [PipelinePerformanceSpec(id=added.id, streams=1)]
+        video_config = VideoOutputConfig(
+            enabled=True,
+            encoder_device=EncoderDeviceConfig(device_name="CPU", gpu_id=None),
+        )
+
+        command, output_paths = manager.build_pipeline_command(
+            pipeline_performance_specs, video_config
+        )
+
+        # Verify video output is configured
+        self.assertIsInstance(command, str)
+        self.assertIsInstance(output_paths, dict)
+        self.assertIn(added.id, output_paths)
+        self.assertGreater(len(output_paths[added.id]), 0)
+
+        # Verify output directory is in the command
+        self.assertIn(OUTPUT_VIDEO_DIR, command)
+
+        # Verify fakesink is replaced with encoder pipeline
+        self.assertNotIn("fakesink", command)
+        self.assertIn("filesink", command)
+
+    def test_build_pipeline_command_with_gpu_encoder(self):
+        """Test building pipeline command with GPU encoder."""
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        new_pipeline = PipelineDefinition(
+            name="test-gpu-encoder",
+            version=1,
+            description="Pipeline with GPU encoder",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="videotestsrc ! fakesink",
+            parameters=None,
+        )
+        added = manager.add_pipeline(new_pipeline)
+
+        pipeline_performance_specs = [PipelinePerformanceSpec(id=added.id, streams=2)]
+        video_config = VideoOutputConfig(
+            enabled=True,
+            encoder_device=EncoderDeviceConfig(device_name="GPU", gpu_id=0),
+        )
+
+        command, output_paths = manager.build_pipeline_command(
+            pipeline_performance_specs, video_config
+        )
+
+        # Verify output paths for all streams
+        self.assertIn(added.id, output_paths)
+        # Should have only 1 output path (first stream)
+        self.assertEqual(len(output_paths[added.id]), 1)
+        # Verify output directory is in the command
+        self.assertIn(OUTPUT_VIDEO_DIR, command)
+
+    def test_build_pipeline_command_video_output_multiple_pipelines(self):
+        """Test video output with multiple pipelines - only first stream gets output."""
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        pipeline1 = PipelineDefinition(
+            name="pipeline-1",
+            version=1,
+            description="First pipeline",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="videotestsrc ! fakesink",
+            parameters=None,
+        )
+        pipeline2 = PipelineDefinition(
+            name="pipeline-2",
+            version=1,
+            description="Second pipeline",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="videotestsrc ! fakesink",
+            parameters=None,
+        )
+
+        added1 = manager.add_pipeline(pipeline1)
+        added2 = manager.add_pipeline(pipeline2)
+
+        pipeline_performance_specs = [
+            PipelinePerformanceSpec(id=added1.id, streams=2),
+            PipelinePerformanceSpec(id=added2.id, streams=3),
+        ]
+        video_config = VideoOutputConfig(
+            enabled=True,
+            encoder_device=EncoderDeviceConfig(device_name="CPU", gpu_id=None),
+        )
+
+        command, output_paths = manager.build_pipeline_command(
+            pipeline_performance_specs, video_config
+        )
+
+        # Verify video output paths exist for both pipelines
+        self.assertIn(added1.id, output_paths)
+        self.assertIn(added2.id, output_paths)
+
+        # Each pipeline should have only 1 output path (first stream)
+        self.assertEqual(len(output_paths[added1.id]), 1)
+        self.assertEqual(len(output_paths[added2.id]), 1)
+
+        # Verify output directory is in the command
+        self.assertIn(OUTPUT_VIDEO_DIR, command)
