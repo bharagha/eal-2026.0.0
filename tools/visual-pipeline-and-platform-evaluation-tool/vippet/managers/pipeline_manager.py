@@ -147,9 +147,9 @@ class PipelineManager:
         if description is not None:
             pipeline.description = description
 
-        # If a new pipeline graph is provided, validate and replace the existing one.
+        # If a new pipeline graph is provided, validate and replace the existing one
         if pipeline_graph is not None:
-            # Validate the pipeline graph by converting it to a pipeline description.
+            # Validate the pipeline graph by converting it to a pipeline description
             pipeline_description = Graph.from_dict(
                 pipeline_graph.model_dump()
             ).to_pipeline_description()
