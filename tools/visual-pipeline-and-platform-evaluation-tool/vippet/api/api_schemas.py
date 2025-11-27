@@ -83,6 +83,10 @@ class MessageResponse(BaseModel):
     message: str
 
 
+class PipelineCreationResponse(BaseModel):
+    id: str
+
+
 class PipelineDescription(BaseModel):
     pipeline_description: str
 
