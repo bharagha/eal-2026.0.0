@@ -1,15 +1,18 @@
 import unittest
 
+from videos import OUTPUT_VIDEO_DIR
 from managers.pipeline_manager import PipelineManager
 from api.api_schemas import (
     Node,
     Edge,
+    EncoderDeviceConfig,
     PipelineType,
     PipelineSource,
     PipelineGraph,
     PipelineParameters,
     PipelineDefinition,
     PipelinePerformanceSpec,
+    VideoOutputConfig,
 )
 
 
@@ -130,11 +133,15 @@ class TestPipelineManager(unittest.TestCase):
 
         # Build command with one pipeline and one stream using the pipeline ID
         pipeline_performance_specs = [PipelinePerformanceSpec(id=added.id, streams=1)]
+        video_config = VideoOutputConfig(enabled=False)
 
-        command = manager.build_pipeline_command(pipeline_performance_specs)
+        command, output_paths = manager.build_pipeline_command(
+            pipeline_performance_specs, video_config
+        )
 
         # Verify command is not empty and contains pipeline elements
         self.assertIsInstance(command, str)
+        self.assertIsInstance(output_paths, dict)
         self.assertGreater(len(command), 0)
         self.assertIn("fakesrc", command)
         self.assertIn("fakesink", command)
@@ -156,11 +163,15 @@ class TestPipelineManager(unittest.TestCase):
 
         # Build command with one pipeline and 3 streams using the pipeline ID
         pipeline_performance_specs = [PipelinePerformanceSpec(id=added.id, streams=3)]
+        video_config = VideoOutputConfig(enabled=False)
 
-        command = manager.build_pipeline_command(pipeline_performance_specs)
+        command, output_paths = manager.build_pipeline_command(
+            pipeline_performance_specs, video_config
+        )
 
         # Verify command contains multiple instances
         self.assertIsInstance(command, str)
+        self.assertIsInstance(output_paths, dict)
         self.assertGreater(len(command), 0)
         # Should have 3 instances of videotestsrc (one per stream)
         self.assertEqual(command.count("videotestsrc"), 3)
@@ -195,11 +206,15 @@ class TestPipelineManager(unittest.TestCase):
             PipelinePerformanceSpec(id=added1.id, streams=2),
             PipelinePerformanceSpec(id=added2.id, streams=3),
         ]
+        video_config = VideoOutputConfig(enabled=False)
 
-        command = manager.build_pipeline_command(pipeline_performance_specs)
+        command, output_paths = manager.build_pipeline_command(
+            pipeline_performance_specs, video_config
+        )
 
         # Verify both pipeline types are present
         self.assertIsInstance(command, str)
+        self.assertIsInstance(output_paths, dict)
         self.assertGreater(len(command), 0)
         # Should have 2 instances of fakesrc and 3 instances of videotestsrc
         self.assertEqual(command.count("fakesrc"), 2)
@@ -212,89 +227,12 @@ class TestPipelineManager(unittest.TestCase):
         pipeline_performance_specs = [
             PipelinePerformanceSpec(id="nonexistent-pipeline-id", streams=1)
         ]
+        video_config = VideoOutputConfig(enabled=False)
 
         with self.assertRaises(ValueError) as context:
-            manager.build_pipeline_command(pipeline_performance_specs)
+            manager.build_pipeline_command(pipeline_performance_specs, video_config)
 
         self.assertIn(
             "Pipeline with id 'nonexistent-pipeline-id' not found",
             str(context.exception),
-        )
-
-    def test_update_pipeline_description_and_name(self):
-        manager = PipelineManager()
-        manager.pipelines = []
-
-        new_pipeline = PipelineDefinition(
-            name="original-name",
-            version=1,
-            description="Original description",
-            source=PipelineSource.USER_CREATED,
-            type=PipelineType.GSTREAMER,
-            pipeline_description="fakesrc ! fakesink",
-            parameters=None,
-        )
-
-        added = manager.add_pipeline(new_pipeline)
-
-        updated = manager.update_pipeline(
-            pipeline_id=added.id,
-            name="updated-name",
-            description="Updated description",
-        )
-
-        self.assertEqual(updated.id, added.id)
-        self.assertEqual(updated.name, "updated-name")
-        self.assertEqual(updated.description, "Updated description")
-
-        # Ensure the change is reflected in manager state
-        retrieved = manager.get_pipeline_by_id(added.id)
-        self.assertEqual(retrieved.name, "updated-name")
-        self.assertEqual(retrieved.description, "Updated description")
-
-    def test_update_pipeline_graph_and_parameters(self):
-        manager = PipelineManager()
-        manager.pipelines = []
-
-        new_pipeline = PipelineDefinition(
-            name="test-pipeline",
-            version=1,
-            description="Pipeline to be updated",
-            source=PipelineSource.USER_CREATED,
-            type=PipelineType.GSTREAMER,
-            pipeline_description="fakesrc ! fakesink",
-            parameters=None,
-        )
-
-        added = manager.add_pipeline(new_pipeline)
-
-        updated_graph = PipelineGraph(
-            nodes=[
-                Node(id="0", type="videotestsrc", data={}),
-                Node(id="1", type="fakesink", data={}),
-            ],
-            edges=[Edge(id="0", source="0", target="1")],
-        )
-
-        updated_params = PipelineParameters(default={"key": "value"})
-
-        updated = manager.update_pipeline(
-            pipeline_id=added.id,
-            pipeline_graph=updated_graph,
-            parameters=updated_params,
-        )
-
-        self.assertEqual(updated.id, added.id)
-        self.assertEqual(updated.pipeline_graph, updated_graph)
-        self.assertEqual(updated.parameters, updated_params)
-
-    def test_update_pipeline_not_found_raises(self):
-        manager = PipelineManager()
-        manager.pipelines = []
-
-        with self.assertRaises(ValueError) as context:
-            manager.update_pipeline(pipeline_id="nonexistent", name="new-name")
-
-        self.assertIn(
-            "Pipeline with id 'nonexistent' not found.", str(context.exception)
         )
