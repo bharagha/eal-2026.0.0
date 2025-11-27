@@ -122,12 +122,20 @@ class Pipeline(BaseModel):
 
 
 class PipelineDefinition(BaseModel):
-    name: str
-    version: int = Field(default=1, ge=1)
-    description: str
+    name: str = Field(..., min_length=1, description="Non-empty pipeline name.")
+    version: int = Field(
+        default=1,
+        ge=1,
+        description="Pipeline version (must be greater than or equal to 1).",
+    )
+    description: str = Field(
+        ..., min_length=1, description="Non-empty human-readable pipeline description."
+    )
     source: PipelineSource = PipelineSource.USER_CREATED
     type: PipelineType
-    pipeline_description: str
+    pipeline_description: str = Field(
+        ..., min_length=1, description="Non-empty pipeline description."
+    )
     parameters: Optional[PipelineParameters]
 
 
