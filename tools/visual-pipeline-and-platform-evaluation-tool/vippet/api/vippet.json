@@ -1222,7 +1222,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PerformanceTestSpec"
+                "$ref": "#/components/schemas/PerformanceTestSpec-Input"
               }
             }
           },
@@ -1264,7 +1264,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DensityTestSpec"
+                "$ref": "#/components/schemas/DensityTestSpec-Input"
               }
             }
           },
@@ -1387,6 +1387,23 @@
             ],
             "title": "Streams Per Pipeline"
           },
+          "video_output_paths": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Output Paths"
+          },
           "error_message": {
             "anyOf": [
               {
@@ -1409,6 +1426,7 @@
           "per_stream_fps",
           "total_streams",
           "streams_per_pipeline",
+          "video_output_paths",
           "error_message"
         ],
         "title": "DensityJobStatus"
@@ -1420,7 +1438,7 @@
             "title": "Id"
           },
           "request": {
-            "$ref": "#/components/schemas/DensityTestSpec"
+            "$ref": "#/components/schemas/DensityTestSpec-Output"
           }
         },
         "type": "object",
@@ -1430,7 +1448,7 @@
         ],
         "title": "DensityJobSummary"
       },
-      "DensityTestSpec": {
+      "DensityTestSpec-Input": {
         "properties": {
           "fps_floor": {
             "type": "integer",
@@ -1446,6 +1464,69 @@
             },
             "type": "array",
             "title": "Pipeline Density Specs"
+          },
+          "video_output": {
+            "$ref": "#/components/schemas/VideoOutputConfig",
+            "description": "Video output configuration.",
+            "default": {
+              "enabled": false,
+              "encoder_device": {
+                "device_name": "GPU"
+              }
+            },
+            "examples": [
+              {
+                "enabled": false,
+                "encoder_device": {
+                  "device_name": "GPU",
+                  "gpu_id": 0
+                }
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "fps_floor",
+          "pipeline_density_specs"
+        ],
+        "title": "DensityTestSpec"
+      },
+      "DensityTestSpec-Output": {
+        "properties": {
+          "fps_floor": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Fps Floor",
+            "examples": [
+              30
+            ]
+          },
+          "pipeline_density_specs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineDensitySpec"
+            },
+            "type": "array",
+            "title": "Pipeline Density Specs"
+          },
+          "video_output": {
+            "$ref": "#/components/schemas/VideoOutputConfig",
+            "description": "Video output configuration.",
+            "default": {
+              "enabled": false,
+              "encoder_device": {
+                "device_name": "GPU"
+              }
+            },
+            "examples": [
+              {
+                "enabled": false,
+                "encoder_device": {
+                  "device_name": "GPU",
+                  "gpu_id": 0
+                }
+              }
+            ]
           }
         },
         "type": "object",
@@ -1532,6 +1613,39 @@
           "target"
         ],
         "title": "Edge"
+      },
+      "EncoderDeviceConfig": {
+        "properties": {
+          "device_name": {
+            "type": "string",
+            "title": "Device Name",
+            "description": "Name of the encoder device (e.g., 'GPU', 'CPU', 'NPU')",
+            "default": "GPU",
+            "examples": [
+              "GPU",
+              "CPU",
+              "NPU"
+            ]
+          },
+          "gpu_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpu Id",
+            "description": "GPU device index (only applicable when device_name indicates a GPU)",
+            "examples": [
+              0,
+              1
+            ]
+          }
+        },
+        "type": "object",
+        "title": "EncoderDeviceConfig"
       },
       "HTTPValidationError": {
         "properties": {
@@ -1840,6 +1954,23 @@
             ],
             "title": "Streams Per Pipeline"
           },
+          "video_output_paths": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Output Paths"
+          },
           "error_message": {
             "anyOf": [
               {
@@ -1862,6 +1993,7 @@
           "per_stream_fps",
           "total_streams",
           "streams_per_pipeline",
+          "video_output_paths",
           "error_message"
         ],
         "title": "PerformanceJobStatus"
@@ -1873,7 +2005,7 @@
             "title": "Id"
           },
           "request": {
-            "$ref": "#/components/schemas/PerformanceTestSpec"
+            "$ref": "#/components/schemas/PerformanceTestSpec-Output"
           }
         },
         "type": "object",
@@ -1883,7 +2015,7 @@
         ],
         "title": "PerformanceJobSummary"
       },
-      "PerformanceTestSpec": {
+      "PerformanceTestSpec-Input": {
         "properties": {
           "pipeline_performance_specs": {
             "items": {
@@ -1891,6 +2023,60 @@
             },
             "type": "array",
             "title": "Pipeline Performance Specs"
+          },
+          "video_output": {
+            "$ref": "#/components/schemas/VideoOutputConfig",
+            "description": "Video output configuration.",
+            "default": {
+              "enabled": false,
+              "encoder_device": {
+                "device_name": "GPU"
+              }
+            },
+            "examples": [
+              {
+                "enabled": false,
+                "encoder_device": {
+                  "device_name": "GPU",
+                  "gpu_id": 0
+                }
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "pipeline_performance_specs"
+        ],
+        "title": "PerformanceTestSpec"
+      },
+      "PerformanceTestSpec-Output": {
+        "properties": {
+          "pipeline_performance_specs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelinePerformanceSpec"
+            },
+            "type": "array",
+            "title": "Pipeline Performance Specs"
+          },
+          "video_output": {
+            "$ref": "#/components/schemas/VideoOutputConfig",
+            "description": "Video output configuration.",
+            "default": {
+              "enabled": false,
+              "encoder_device": {
+                "device_name": "GPU"
+              }
+            },
+            "examples": [
+              {
+                "enabled": false,
+                "encoder_device": {
+                  "device_name": "GPU",
+                  "gpu_id": 0
+                }
+              }
+            ]
           }
         },
         "type": "object",
@@ -2393,6 +2579,31 @@
           "duration"
         ],
         "title": "Video"
+      },
+      "VideoOutputConfig": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Flag to enable or disable video output generation.",
+            "default": false
+          },
+          "encoder_device": {
+            "$ref": "#/components/schemas/EncoderDeviceConfig",
+            "description": "Encoder device configuration (only applicable when video output is enabled).",
+            "default": {
+              "device_name": "GPU"
+            },
+            "examples": [
+              {
+                "device_name": "GPU",
+                "gpu_id": 0
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "VideoOutputConfig"
       }
     }
   }
