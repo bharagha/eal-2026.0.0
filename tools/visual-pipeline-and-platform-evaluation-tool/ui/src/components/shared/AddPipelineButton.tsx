@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
+import { useNavigate } from "react-router";
 import {
   Dialog,
   DialogContent,
@@ -7,15 +8,111 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useCreatePipelineMutation } from "@/api/api.generated";
+import {
+  useCreatePipelineMutation,
+  useToGraphMutation,
+  useValidatePipelineMutation,
+  useGetValidationJobStatusQuery,
+} from "@/api/api.generated";
 import { toast } from "sonner";
 
 const AddPipelineButton = () => {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [pipelineDescription, setPipelineDescription] = useState("");
-  const [createPipeline, { isLoading }] = useCreatePipelineMutation();
+  const [validationJobId, setValidationJobId] = useState<string | null>(null);
+  const [validationStatus, setValidationStatus] = useState<string>("");
+  const [pendingPipelineData, setPendingPipelineData] = useState<{
+    name: string;
+    description: string;
+    pipelineDescription: string;
+  } | null>(null);
+
+  const [createPipeline, { isLoading: isCreating }] =
+    useCreatePipelineMutation();
+  const [toGraph, { isLoading: isConverting }] = useToGraphMutation();
+  const [validatePipeline, { isLoading: isValidating }] =
+    useValidatePipelineMutation();
+
+  const { data: validationJobStatus } = useGetValidationJobStatusQuery(
+    { jobId: validationJobId! },
+    {
+      skip: !validationJobId,
+      pollingInterval: 1000,
+    },
+  );
+
+  useEffect(() => {
+    const handleCreatePipeline = async () => {
+      if (!pendingPipelineData) return;
+
+      try {
+        const response = await createPipeline({
+          pipelineDefinition: {
+            name: pendingPipelineData.name.trim(),
+            description: pendingPipelineData.description.trim(),
+            source: "USER_CREATED",
+            type: "GStreamer",
+            pipeline_description: pendingPipelineData.pipelineDescription,
+            parameters: {
+              default: {
+                additionalProp1: {},
+              },
+            },
+          },
+        }).unwrap();
+
+        if (response.id) {
+          setOpen(false);
+          setName("");
+          setDescription("");
+          setPipelineDescription("");
+          setValidationJobId(null);
+          setValidationStatus("");
+          setPendingPipelineData(null);
+          toast.success("Pipeline created successfully");
+          navigate(`/pipelines/${response.id}`);
+        }
+      } catch (error) {
+        toast.error("Failed to create pipeline", {
+          description: error instanceof Error ? error.message : "Unknown error",
+        });
+        console.error("Failed to create pipeline:", error);
+        setValidationJobId(null);
+        setValidationStatus("");
+        setPendingPipelineData(null);
+      }
+    };
+
+    if (validationJobStatus?.state === "COMPLETED") {
+      if (validationJobStatus.is_valid) {
+        handleCreatePipeline();
+      } else {
+        const errors =
+          validationJobStatus.error_message?.join(", ") || "Validation failed";
+        toast.error("Pipeline validation failed", {
+          description: errors,
+        });
+        setValidationJobId(null);
+        setValidationStatus("");
+        setPendingPipelineData(null);
+      }
+    } else if (
+      validationJobStatus?.state === "ERROR" ||
+      validationJobStatus?.state === "ABORTED"
+    ) {
+      const errors =
+        validationJobStatus.error_message?.join(", ") || "Validation error";
+      toast.error("Pipeline validation error", {
+        description: errors,
+      });
+      setValidationJobId(null);
+      setValidationStatus("");
+      setPendingPipelineData(null);
+    }
+  }, [validationJobStatus, createPipeline, navigate, pendingPipelineData]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -36,33 +133,45 @@ const AddPipelineButton = () => {
     }
 
     try {
-      await createPipeline({
-        pipelineDefinition: {
-          name: name.trim(),
-          description: description.trim(),
-          source: "USER_CREATED",
-          type: "GStreamer",
+      // Step 1: Convert description to graph
+      setValidationStatus("Converting pipeline description...");
+      const graphResponse = await toGraph({
+        pipelineDescription: {
           pipeline_description: pipelineDescription,
-          parameters: {
-            default: {
-              additionalProp1: {},
-            },
-          },
         },
       }).unwrap();
 
-      toast.success("Pipeline created successfully");
-      setOpen(false);
-      setName("");
-      setDescription("");
-      setPipelineDescription("");
+      // Step 2: Validate pipeline graph
+      setValidationStatus("Validating pipeline...");
+      const validationResponse = await validatePipeline({
+        pipelineValidationInput: {
+          type: "GStreamer",
+          pipeline_graph: graphResponse,
+        },
+      }).unwrap();
+
+      // If validation returns job_id, start polling
+      if ("job_id" in validationResponse) {
+        setValidationJobId(validationResponse.job_id);
+        setValidationStatus("Waiting for validation...");
+        // Store the pipeline data for later use when validation completes
+        setPendingPipelineData({
+          name: name.trim(),
+          description: description.trim(),
+          pipelineDescription: pipelineDescription,
+        });
+      }
     } catch (error) {
-      toast.error("Failed to create pipeline", {
+      toast.error("Failed to process pipeline", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
-      console.error("Failed to create pipeline:", error);
+      console.error("Failed to process pipeline:", error);
+      setValidationStatus("");
     }
   };
+
+  const isLoading =
+    isConverting || isValidating || !!validationJobId || isCreating;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -162,7 +271,11 @@ const AddPipelineButton = () => {
                 isLoading || !name.trim() || !pipelineDescription.trim()
               }
             >
-              {isLoading ? "Creating..." : "Add"}
+              {validationStatus
+                ? validationStatus
+                : isLoading
+                  ? "Processing..."
+                  : "Add"}
             </button>
           </div>
         </div>

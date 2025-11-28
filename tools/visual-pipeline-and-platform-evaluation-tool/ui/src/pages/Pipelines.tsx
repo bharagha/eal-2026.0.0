@@ -3,13 +3,15 @@ import {
   useGetPipelineQuery,
   useRunPerformanceTestMutation,
   useStopPerformanceTestJobMutation,
+  useUpdatePipelineMutation,
+  useGetPerformanceJobStatusQuery,
 } from "@/api/api.generated";
 import {
   type Edge as ReactFlowEdge,
   type Node as ReactFlowNode,
   type Viewport,
 } from "@xyflow/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PipelineEditor from "@/features/pipeline-editor/PipelineEditor.tsx";
 import FpsDisplay from "@/features/pipeline-editor/FpsDisplay.tsx";
 import { toast } from "sonner";
@@ -39,6 +41,7 @@ const Pipelines = () => {
   const [editorKey, setEditorKey] = useState(0);
   const [shouldFitView, setShouldFitView] = useState(false);
   const [videoOutputEnabled, setVideoOutputEnabled] = useState(true);
+  const [encoderDevice, setEncoderDevice] = useState<string>("CPU");
 
   const { data, isSuccess } = useGetPipelineQuery(
     {
@@ -53,6 +56,29 @@ const Pipelines = () => {
     useRunPerformanceTestMutation();
   const [stopPerformanceTest, { isLoading: isStopping }] =
     useStopPerformanceTestJobMutation();
+  const [updatePipeline] = useUpdatePipelineMutation();
+
+  const { data: jobStatus } = useGetPerformanceJobStatusQuery(
+    { jobId: performanceTestJobId! },
+    {
+      skip: !performanceTestJobId,
+      pollingInterval: 1000,
+    },
+  );
+
+  useEffect(() => {
+    if (jobStatus?.state === "COMPLETED") {
+      toast.success("Pipeline run completed", {
+        description: new Date().toISOString(),
+      });
+      setPerformanceTestJobId(null);
+    } else if (jobStatus?.state === "ERROR" || jobStatus?.state === "ABORTED") {
+      toast.error("Pipeline run failed", {
+        description: jobStatus.error_message || "Unknown error",
+      });
+      setPerformanceTestJobId(null);
+    }
+  }, [jobStatus]);
 
   const handleNodesChange = (nodes: ReactFlowNode[]) => {
     setCurrentNodes(nodes);
@@ -70,10 +96,36 @@ const Pipelines = () => {
     if (!id) return;
 
     try {
+      await updatePipeline({
+        pipelineId: id,
+        pipelineUpdate: {
+          pipeline_graph: {
+            nodes: currentNodes.map((node) => ({
+              id: node.id,
+              type: node.type || "",
+              data: node.data as { [key: string]: string },
+            })),
+            edges: currentEdges.map((edge) => ({
+              id: edge.id,
+              source: edge.source,
+              target: edge.target,
+            })),
+          },
+        },
+      }).unwrap();
+
       const response = await runPerformanceTest({
         performanceTestSpecInput: {
           video_output: {
             enabled: videoOutputEnabled,
+            encoder_device: videoOutputEnabled
+              ? {
+                  device_name: encoderDevice.startsWith("GPU") ? "GPU" : "CPU",
+                  gpu_id: encoderDevice.startsWith("GPU")
+                    ? parseInt(encoderDevice.split("/")[1])
+                    : undefined,
+                }
+              : undefined,
           },
           pipeline_performance_specs: [
             {
@@ -201,6 +253,18 @@ const Pipelines = () => {
               />
               <span className="text-sm font-medium">Create Video</span>
             </label>
+
+            {videoOutputEnabled && (
+              <select
+                value={encoderDevice}
+                onChange={(e) => setEncoderDevice(e.target.value)}
+                className="bg-white p-2 rounded-lg shadow-lg text-sm font-medium cursor-pointer border-none outline-none"
+              >
+                <option value="CPU">CPU</option>
+                <option value="GPU/0">GPU/0</option>
+                <option value="GPU/1">GPU/1</option>
+              </select>
+            )}
           </div>
         </div>
       </div>

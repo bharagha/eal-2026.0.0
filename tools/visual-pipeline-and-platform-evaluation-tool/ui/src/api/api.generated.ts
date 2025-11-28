@@ -185,6 +185,17 @@ const injectedRtkApi = api
         query: (queryArg) => ({ url: `/pipelines/${queryArg.pipelineId}` }),
         providesTags: ["pipelines"],
       }),
+      updatePipeline: build.mutation<
+        UpdatePipelineApiResponse,
+        UpdatePipelineApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/pipelines/${queryArg.pipelineId}`,
+          method: "PATCH",
+          body: queryArg.pipelineUpdate,
+        }),
+        invalidatesTags: ["pipelines"],
+      }),
       deletePipeline: build.mutation<
         DeletePipelineApiResponse,
         DeletePipelineApiArg
@@ -318,7 +329,7 @@ export type GetPipelinesApiResponse =
   /** status 200 Successful Response */ Pipeline[];
 export type GetPipelinesApiArg = void;
 export type CreatePipelineApiResponse =
-  /** status 201 Pipeline created */ MessageResponse;
+  /** status 201 Pipeline created */ PipelineCreationResponse;
 export type CreatePipelineApiArg = {
   pipelineDefinition: PipelineDefinition;
 };
@@ -332,6 +343,12 @@ export type GetPipelineApiResponse =
   /** status 200 Successful Response */ Pipeline;
 export type GetPipelineApiArg = {
   pipelineId: string;
+};
+export type UpdatePipelineApiResponse =
+  /** status 200 Pipeline updated */ Pipeline;
+export type UpdatePipelineApiArg = {
+  pipelineId: string;
+  pipelineUpdate: PipelineUpdate;
 };
 export type DeletePipelineApiResponse =
   /** status 200 Pipeline deleted */ MessageResponse;
@@ -538,12 +555,19 @@ export type Pipeline = {
   pipeline_graph: PipelineGraph;
   parameters: PipelineParameters | null;
 };
+export type PipelineCreationResponse = {
+  id: string;
+};
 export type PipelineDefinition = {
+  /** Non-empty pipeline name. */
   name: string;
+  /** Pipeline version (must be greater than or equal to 1). */
   version?: number;
+  /** Non-empty human-readable pipeline description. */
   description: string;
   source?: PipelineSource;
   type: PipelineType;
+  /** GStreamer pipeline definition string (e.g., 'fakesrc ! fakesink'). */
   pipeline_description: string;
   parameters: PipelineParameters | null;
 };
@@ -556,6 +580,12 @@ export type PipelineValidation2 = {
   parameters?: {
     [key: string]: any;
   } | null;
+};
+export type PipelineUpdate = {
+  name?: string | null;
+  description?: string | null;
+  pipeline_graph?: PipelineGraph | null;
+  parameters?: PipelineParameters | null;
 };
 export type OptimizationJobResponse = {
   job_id: string;
@@ -622,6 +652,7 @@ export const {
   useValidatePipelineMutation,
   useGetPipelineQuery,
   useLazyGetPipelineQuery,
+  useUpdatePipelineMutation,
   useDeletePipelineMutation,
   useOptimizePipelineMutation,
   useRunPerformanceTestMutation,
