@@ -60,7 +60,7 @@ class GstInspector:
 
             return sorted(elements)
 
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
             self.logger.error(f"Error running gst-inspect-1.0: {e}")
             return []
 
