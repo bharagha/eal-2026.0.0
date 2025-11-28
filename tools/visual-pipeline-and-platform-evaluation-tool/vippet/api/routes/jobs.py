@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 
 import api.api_schemas as schemas
 from managers.optimization_manager import get_optimization_manager
-from managers.tests_manager import get_tests_manager, PerformanceJob, DensityJob
+from managers.tests_manager import DensityJob, PerformanceJob, get_tests_manager
 from managers.validation_manager import get_validation_manager
 
 router = APIRouter()
@@ -72,29 +72,48 @@ def stop_test_job_handler(job_id: str):
 )
 def get_performance_statuses():
     """
-    Return the status of all known performance test jobs.
+    List statuses of all performance test jobs.
 
-    This endpoint provides a list of :class:`PerformanceJobStatus` objects,
-    each describing the current state and metrics of a performance test job
-    that has been started via the API. The response includes:
+    Operation:
+        Read current state and metrics for every performance test job created
+        via the performance test API.
 
-    * job identifier,
-    * current state (RUNNING, COMPLETED, ERROR, ABORTED),
-    * timing information (start time, elapsed time),
-    * performance metrics (total FPS, per-stream FPS, total streams),
-    * pipeline configuration details (streams per pipeline),
-    * error messages (if any).
+    Path / query parameters:
+        None.
 
-    The implementation delegates to the global :data:`tests_manager` instance,
-    which aggregates and logs all known performance jobs. The returned list
-    is automatically serialized to JSON by FastAPI using the Pydantic model
-    definitions.
+    Returns:
+        200 OK:
+            JSON array of PerformanceJobStatus objects.
 
-    Returns
-    -------
-    List[PerformanceJobStatus]
-        A list of :class:`PerformanceJobStatus` objects, one for each
-        performance test job currently tracked by the system.
+    Success:
+        * TestsManager is initialized.
+        * Zero or more jobs may be present.
+
+    Failure:
+        * Any unexpected internal error (propagated as 500 by FastAPI).
+
+    Response example (200):
+        .. code-block:: json
+
+            [
+              {
+                "id": "job123",
+                "start_time": 1715000000000,
+                "elapsed_time": 120000,
+                "state": "RUNNING",
+                "total_fps": 480.0,
+                "per_stream_fps": 30.0,
+                "total_streams": 16,
+                "streams_per_pipeline": [
+                  {"id": "pipeline-1", "streams": 8},
+                  {"id": "pipeline-2", "streams": 8}
+                ],
+                "video_output_paths": {
+                  "pipeline-1": ["/outputs/job123-p1-0.mp4"]
+                },
+                "error_message": null
+              }
+            ]
     """
     return tests_manager.get_job_statuses_by_type(PerformanceJob)
 
@@ -112,24 +131,50 @@ def get_performance_statuses():
 )
 def get_performance_job_status(job_id: str):
     """
-    Return the detailed status of a specific performance test job.
+    Get detailed status of a single performance test job.
 
-    This endpoint focuses on a single performance test job and provides the
-    complete :class:`PerformanceJobStatus` object for it.
+    Path parameters:
+        job_id: Identifier of the performance job to inspect.
 
-    Parameters
-    ----------
-    job_id : str
-        Identifier of the performance test job whose status should be
-        retrieved.
+    Returns:
+        200 OK:
+            PerformanceJobStatus with current state, timings, FPS and output paths.
+        404 Not Found:
+            MessageResponse if job with given id does not exist.
 
-    Returns
-    -------
-    PerformanceJobStatus | JSONResponse
-        * On success (job exists): the full :class:`PerformanceJobStatus`
-          instance describing the current state and metrics.
-        * On failure (job unknown): a ``404`` :class:`JSONResponse` containing
-          a :class:`MessageResponse` with a human-readable explanation.
+    Success:
+        * Job with given id exists in TestsManager.
+
+    Failure:
+        * Unknown job id → 404.
+
+    Successful response example (200):
+        .. code-block:: json
+
+            {
+              "id": "job123",
+              "start_time": 1715000000000,
+              "elapsed_time": 60000,
+              "state": "COMPLETED",
+              "total_fps": 480.0,
+              "per_stream_fps": 30.0,
+              "total_streams": 16,
+              "streams_per_pipeline": [
+                {"id": "pipeline-1", "streams": 8},
+                {"id": "pipeline-2", "streams": 8}
+              ],
+              "video_output_paths": {
+                "pipeline-1": ["/outputs/job123-p1-0.mp4"]
+              },
+              "error_message": null
+            }
+
+    Error response example (404):
+        .. code-block:: json
+
+            {
+              "message": "Performance job job123 not found"
+            }
     """
     return get_job_status_or_404(job_id, "Performance")
 
@@ -147,22 +192,38 @@ def get_performance_job_status(job_id: str):
 )
 def get_performance_job_summary(job_id: str):
     """
-    Return a short summary of a specific performance test job.
+    Get a short summary of a performance test job.
 
-    Parameters
-    ----------
-    job_id : str
-        The identifier of the performance test job whose summary should
-        be retrieved. This id is the value previously returned by the
-        job creation endpoint.
+    Path parameters:
+        job_id: Identifier of the performance job created earlier.
 
-    Returns
-    -------
-    PerformanceJobSummary | JSONResponse
-        * On success (job exists): a :class:`PerformanceJobSummary` instance
-          capturing the job id and original request parameters.
-        * On failure (unknown id): a ``404`` :class:`JSONResponse` whose body
-          is a :class:`MessageResponse` explaining that the job was not found.
+    Returns:
+        200 OK:
+            PerformanceJobSummary with job id and original PerformanceTestSpec.
+        404 Not Found:
+            MessageResponse when job does not exist.
+
+    Success:
+        * Job exists in TestsManager.
+
+    Failure:
+        * Unknown job id → 404.
+
+    Response example (200):
+        .. code-block:: json
+
+            {
+              "id": "job123",
+              "request": {
+                "pipeline_performance_specs": [
+                  {"id": "pipeline-1", "streams": 8}
+                ],
+                "video_output": {
+                  "enabled": false,
+                  "encoder_device": {"device_name": "GPU", "gpu_id": 0}
+                }
+              }
+            }
     """
     summary = tests_manager.get_job_summary(job_id)
     if summary is None:
@@ -201,31 +262,43 @@ def stop_performance_test_job(job_id: str):
     """
     Stop a running performance test job.
 
-    This endpoint attempts to terminate the active runner associated with
-    the specified performance test job. The outcome of the stop request is mapped to
-    explicit HTTP status codes for straightforward client handling:
+    Path parameters:
+        job_id: Identifier of the performance test job to stop.
 
-    * ``200`` – Job successfully stopped.
-    * ``404`` – Unknown job id or no active runner (never started / purged).
-      Indicates the resource was not found.
-    * ``409`` – Job exists but is not in a RUNNING state (COMPLETED, ABORTED,
-      ERROR). Represents a conflicting state transition.
-    * ``500`` – Unexpected internal failure while attempting to stop
-      (e.g. thread interruption issue). Provides a diagnostic message.
+    Returns:
+        200 OK:
+            MessageResponse when the job was RUNNING and cancellation was
+            successfully requested.
+        404 Not Found:
+            MessageResponse when job id is unknown or there is no active runner
+            (job already finished or was never started).
+        409 Conflict:
+            MessageResponse when job exists but is not in RUNNING state.
+        500 Internal Server Error:
+            MessageResponse when an unexpected error occurs while stopping.
 
+    Success:
+        * Job exists and state == RUNNING.
+        * TestsManager.stop_job() returns success.
 
-    Parameters
-    ----------
-    job_id : str
-            Identifier of the performance test job whose execution should be
-            stopped.
+    Failure:
+        * TestsManager.stop_job() returns "not found" / "no active runner" → 404.
+        * TestsManager.stop_job() returns "not running" → 409.
+        * Any other error message from stop_job() → 500.
 
-    Returns
-    -------
-    MessageResponse | JSONResponse
-            A :class:`MessageResponse` instance (directly for success; wrapped
-            in :class:`JSONResponse` for non-200 cases) describing the result
-            of the stop attempt.
+    Successful response example (200):
+        .. code-block:: json
+
+            {
+              "message": "Job job123 stopped"
+            }
+
+    Conflict example (409):
+        .. code-block:: json
+
+            {
+              "message": "Job job123 is not running (state: COMPLETED)"
+            }
     """
     return stop_test_job_handler(job_id)
 
@@ -237,29 +310,43 @@ def stop_performance_test_job(job_id: str):
 )
 def get_density_statuses():
     """
-    Return the status of all known density test jobs.
+    List statuses of all density test jobs.
 
-    This endpoint provides a list of :class:`DensityJobStatus` objects,
-    each describing the current state and metrics of a density test job
-    that has been started via the API. The response includes:
+    Operation:
+        Read current state and metrics for every density test job.
 
-    * job identifier,
-    * current state (RUNNING, COMPLETED, ERROR, ABORTED),
-    * timing information (start time, elapsed time),
-    * performance metrics (total FPS, per-stream FPS, total streams),
-    * pipeline configuration details (streams per pipeline),
-    * error messages (if any).
+    Path / query parameters:
+        None.
 
-    The implementation delegates to the global :data:`tests_manager` instance,
-    which aggregates and logs all known density jobs. The returned list
-    is automatically serialized to JSON by FastAPI using the Pydantic model
-    definitions.
+    Returns:
+        200 OK:
+            JSON array of DensityJobStatus objects.
 
-    Returns
-    -------
-    List[DensityJobStatus]
-        A list of :class:`DensityJobStatus` objects, one for each
-        density test job currently tracked by the system.
+    Success:
+        * TestsManager is initialized.
+
+    Response example (200):
+        .. code-block:: json
+
+            [
+              {
+                "id": "job456",
+                "start_time": 1715000000000,
+                "elapsed_time": 45000,
+                "state": "RUNNING",
+                "total_fps": null,
+                "per_stream_fps": 28.5,
+                "total_streams": 32,
+                "streams_per_pipeline": [
+                  {"id": "pipeline-1", "streams": 16},
+                  {"id": "pipeline-2", "streams": 16}
+                ],
+                "video_output_paths": {
+                  "pipeline-1": ["/outputs/job456-p1-0.mp4"]
+                },
+                "error_message": null
+              }
+            ]
     """
     return tests_manager.get_job_statuses_by_type(DensityJob)
 
@@ -277,24 +364,23 @@ def get_density_statuses():
 )
 def get_density_job_status(job_id: str):
     """
-    Return the detailed status of a specific density test job.
+    Get detailed status of a single density test job.
 
-    This endpoint focuses on a single density test job and provides the
-    complete :class:`DensityJobStatus` object for it.
+    Path parameters:
+        job_id: Identifier of the density job to inspect.
 
-    Parameters
-    ----------
-    job_id : str
-        Identifier of the density test job whose status should be
-        retrieved.
+    Returns:
+        200 OK:
+            DensityJobStatus for the given job.
+        404 Not Found:
+            MessageResponse when job id is unknown.
 
-    Returns
-    -------
-    DensityJobStatus | JSONResponse
-        * On success (job exists): the full :class:`DensityJobStatus`
-          instance describing the current state and metrics.
-        * On failure (job unknown): a ``404`` :class:`JSONResponse` containing
-          a :class:`MessageResponse` with a human-readable explanation.
+    Error response example (404):
+        .. code-block:: json
+
+            {
+              "message": "Density job job456 not found"
+            }
     """
     return get_job_status_or_404(job_id, "Density")
 
@@ -312,22 +398,34 @@ def get_density_job_status(job_id: str):
 )
 def get_density_job_summary(job_id: str):
     """
-    Return a short summary of a specific density test job.
+    Get a short summary of a density test job.
 
-    Parameters
-    ----------
-    job_id : str
-        The identifier of the density test job whose summary should
-        be retrieved. This id is the value previously returned by the
-        job creation endpoint.
+    Path parameters:
+        job_id: Identifier of the density job created earlier.
 
-    Returns
-    -------
-    DensityJobSummary | JSONResponse
-        * On success (job exists): a :class:`DensityJobSummary` instance
-          capturing the job id and original request parameters.
-        * On failure (unknown id): a ``404`` :class:`JSONResponse` whose body
-          is a :class:`MessageResponse` explaining that the job was not found.
+    Returns:
+        200 OK:
+            DensityJobSummary with job id and original DensityTestSpec.
+        404 Not Found:
+            MessageResponse if job does not exist.
+
+    Response example (200):
+        .. code-block:: json
+
+            {
+              "id": "job456",
+              "request": {
+                "fps_floor": 30,
+                "pipeline_density_specs": [
+                  {"id": "pipeline-1", "stream_rate": 50},
+                  {"id": "pipeline-2", "stream_rate": 50}
+                ],
+                "video_output": {
+                  "enabled": false,
+                  "encoder_device": {"device_name": "GPU", "gpu_id": 0}
+                }
+              }
+            }
     """
     summary = tests_manager.get_job_summary(job_id)
     if summary is None:
@@ -366,31 +464,22 @@ def stop_density_test_job(job_id: str):
     """
     Stop a running density test job.
 
-    This endpoint attempts to terminate the active runner associated with
-    the specified density test job. The outcome of the stop request is mapped to
-    explicit HTTP status codes for straightforward client handling:
+    Path parameters:
+        job_id: Identifier of the density test job to stop.
 
-    * ``200`` – Job successfully stopped.
-    * ``404`` – Unknown job id or no active runner (never started / purged).
-      Indicates the resource was not found.
-    * ``409`` – Job exists but is not in a RUNNING state (COMPLETED, ABORTED,
-      ERROR). Represents a conflicting state transition.
-    * ``500`` – Unexpected internal failure while attempting to stop
-      (e.g. thread interruption issue). Provides a diagnostic message.
+    Returns:
+        200 OK:
+            MessageResponse when the job was RUNNING and cancellation was
+            successfully requested.
+        404 Not Found:
+            MessageResponse if job id is unknown or there is no active runner.
+        409 Conflict:
+            MessageResponse if job exists but is not RUNNING.
+        500 Internal Server Error:
+            MessageResponse for other unexpected errors.
 
-
-    Parameters
-    ----------
-    job_id : str
-            Identifier of the density test job whose execution should be
-            stopped.
-
-    Returns
-    -------
-    MessageResponse | JSONResponse
-            A :class:`MessageResponse` instance (directly for success; wrapped
-            in :class:`JSONResponse` for non-200 cases) describing the result
-            of the stop attempt.
+    Behavior:
+        Same status mapping logic as ``stop_performance_test_job``.
     """
     return stop_test_job_handler(job_id)
 
@@ -402,20 +491,39 @@ def stop_density_test_job(job_id: str):
 )
 def get_optimization_statuses():
     """
-    Return the status of all known optimization jobs.
+    List statuses of all optimization jobs.
 
-    The response is a list of :class:`OptimizationJobStatus` objects
-    describing each job, including:
+    Operation:
+        Read current state and results for every optimization job.
 
-    * job identifier,
-    * current state (RUNNING, COMPLETED, ERROR, ABORTED),
-    * timing information (start / elapsed),
-    * pipeline graphs and descriptions,
-    * optional performance metrics.
+    Path / query parameters:
+        None.
 
-    The implementation simply delegates to the global
-    :data:`optimization_manager` instance, which performs the actual
-    aggregation and logging.
+    Returns:
+        200 OK:
+            JSON array of OptimizationJobStatus objects.
+
+    Success:
+        * OptimizationManager is initialized.
+
+    Response example (200):
+        .. code-block:: json
+
+            [
+              {
+                "id": "opt789",
+                "type": "OPTIMIZE",
+                "start_time": 1715000000000,
+                "elapsed_time": 20000,
+                "state": "RUNNING",
+                "total_fps": null,
+                "original_pipeline_graph": {"nodes": [], "edges": []},
+                "optimized_pipeline_graph": null,
+                "original_pipeline_description": "videotestsrc ! fakesink",
+                "optimized_pipeline_description": null,
+                "error_message": null
+              }
+            ]
     """
     # Delegate to the manager; FastAPI takes care of serializing the
     # resulting Pydantic models into JSON.
@@ -438,22 +546,23 @@ def get_optimization_statuses():
 )
 def get_optimization_job_summary(job_id: str):
     """
-    Return a short summary of a specific optimization job.
+    Get a short summary of an optimization job.
 
-    Parameters
-    ----------
-    job_id:
-        The identifier previously returned when the job was created.
+    Path parameters:
+        job_id: Identifier of the optimization job created earlier.
 
-    Returns
-    -------
-    OptimizationJobSummary | JSONResponse
-        * On success (job exists): an :class:`OptimizationJobSummary`
-          instance containing the job id and the original optimization
-          request.
-        * On failure (job is unknown): a ``404`` :class:`JSONResponse`
-          whose body is a :class:`MessageResponse` explaining that the
-          job was not found.
+    Returns:
+        200 OK:
+            OptimizationJobSummary with job id and original optimization request.
+        404 Not Found:
+            MessageResponse if job does not exist.
+
+    Error response example (404):
+        .. code-block:: json
+
+            {
+              "message": "Optimization job opt789 not found"
+            }
     """
     # Ask the manager for the summary.  It returns None when the job id
     # is unknown, which we map to a 404 HTTP response.
@@ -487,25 +596,17 @@ def get_optimization_job_summary(job_id: str):
 )
 def get_optimization_job_status(job_id: str):
     """
-    Return the detailed status of a specific optimization job.
+    Get detailed status of a single optimization job.
 
-    Compared to :func:`get_optimization_job_summary`, this endpoint
-    exposes the full :class:`OptimizationJobStatus` object, including
-    timing, state and (if available) optimization results.
+    Path parameters:
+        job_id: Identifier of the optimization job to inspect.
 
-    Parameters
-    ----------
-    job_id:
-        Identifier of the optimization job whose status should be
-        retrieved.
-
-    Returns
-    -------
-    OptimizationJobStatus | JSONResponse
-        * On success (job exists): an :class:`OptimizationJobStatus`
-          instance describing the current state of the job.
-        * On failure (job is unknown): a ``404`` :class:`JSONResponse`
-          with a :class:`MessageResponse` body.
+    Returns:
+        200 OK:
+            OptimizationJobStatus containing timings, state, graphs,
+            descriptions and total_fps (for OPTIMIZE).
+        404 Not Found:
+            MessageResponse when job does not exist.
     """
     # Query the manager for the job status.  Unknown job ids are mapped
     # to a 404 response, mirroring the behaviour of the summary endpoint.
@@ -527,16 +628,34 @@ def get_optimization_job_status(job_id: str):
 )
 def get_validation_statuses():
     """
-    Return the status of all known validation jobs.
+    List statuses of all validation jobs.
 
-    The response is a list of :class:`ValidationJobStatus` objects
-    describing each job, including:
+    Operation:
+        Read current state and validation result for all validation jobs.
 
-    * job identifier,
-    * current state (RUNNING, COMPLETED, ERROR, ABORTED),
-    * timing information (start / elapsed),
-    * final validation result (``is_valid`` flag),
-    * detailed error messages (if any).
+    Path / query parameters:
+        None.
+
+    Returns:
+        200 OK:
+            JSON array of ValidationJobStatus objects.
+
+    Success:
+        * ValidationManager is initialized.
+
+    Response example (200):
+        .. code-block:: json
+
+            [
+              {
+                "id": "val001",
+                "start_time": 1715000000000,
+                "elapsed_time": 10000,
+                "state": "RUNNING",
+                "is_valid": null,
+                "error_message": null
+              }
+            ]
     """
     return validation_manager.get_all_job_statuses()
 
@@ -557,21 +676,16 @@ def get_validation_statuses():
 )
 def get_validation_job_summary(job_id: str):
     """
-    Return a short summary of a specific validation job.
+    Get a short summary of a validation job.
 
-    Parameters
-    ----------
-    job_id:
-        The identifier previously returned when the job was created.
+    Path parameters:
+        job_id: Identifier of the validation job created earlier.
 
-    Returns
-    -------
-    ValidationJobSummary | JSONResponse
-        * On success (job exists): a :class:`ValidationJobSummary`
-          instance containing the job id and the original validation
-          request.
-        * On failure (job is unknown): a ``404`` :class:`JSONResponse`
-          whose body is a :class:`MessageResponse`.
+    Returns:
+        200 OK:
+            ValidationJobSummary with job id and original validation request.
+        404 Not Found:
+            MessageResponse when job does not exist.
     """
     summary = validation_manager.get_job_summary(job_id)
     if summary is None:
@@ -600,21 +714,24 @@ def get_validation_job_summary(job_id: str):
 )
 def get_validation_job_status(job_id: str):
     """
-    Return the detailed status of a specific validation job.
+    Get detailed status of a single validation job.
 
-    Parameters
-    ----------
-    job_id:
-        Identifier of the validation job whose status should be
-        retrieved.
+    Path parameters:
+        job_id: Identifier of the validation job to inspect.
 
-    Returns
-    -------
-    ValidationJobStatus | JSONResponse
-        * On success (job exists): a :class:`ValidationJobStatus`
-          instance describing the current state and outcome.
-        * On failure (job is unknown): a ``404`` :class:`JSONResponse`
-          with a :class:`MessageResponse` body.
+    Returns:
+        200 OK:
+            ValidationJobStatus with timings, state, is_valid flag and
+            error_message list.
+        404 Not Found:
+            MessageResponse when job does not exist.
+
+    Error response example (404):
+        .. code-block:: json
+
+            {
+              "message": "Validation job val001 not found"
+            }
     """
     status = validation_manager.get_job_status(job_id)
     if status is None:
