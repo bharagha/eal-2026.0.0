@@ -94,7 +94,7 @@ User has following different options to start and use the application :
 
     ```bash
     export REGISTRY=intel/
-    export TAG=1.3.1
+    export TAG=latest
     ```
 2. Pull public image for Audio Analyzer Microservice:
 

@@ -63,7 +63,7 @@ You can [build the Docker image](./how-to-build-from-source.md#steps-to-build) o
 
 ```bash
 export REGISTRY_URL=intel
-export TAG=1.3.1
+export TAG=latest
 ```
 
 ## Running the Server with CPU

@@ -13,6 +13,7 @@ version: "2.0.1"
 applications:
   - name: chatqna-app
     version: 2.0.1
+
 defaultNamespaces:
   chatqna-app: chatqna
 
@@ -21,4 +22,3 @@ deploymentProfiles:
     applicationProfiles:
       - application: "chatqna-app"
         profile: "ovms"
-
