@@ -6,7 +6,7 @@ This section shows how to deploy the Video Search and Summarization Sample Appli
 Before you begin, ensure that you have the following:
 - Kubernetes\* cluster set up and running.
 - The cluster must support **dynamic provisioning of Persistent Volumes (PV)**. Refer to the [Kubernetes Dynamic Provisioning Guide](https://kubernetes.io/docs/concepts/storage/dynamic-provisioning/) for more details.
-- Install `kubectl` on your system. See the [Installation Guide](https://kubernetes.io/docs/tasks/tools/install-kubectl/). Ensure access to the Kubernetes cluster. 
+- Install `kubectl` on your system. See the [Installation Guide](https://kubernetes.io/docs/tasks/tools/install-kubectl/). Ensure access to the Kubernetes cluster.
 - Helm chart installed on your system. See the [Installation Guide](https://helm.sh/docs/intro/install/).
 - **Storage Requirement :** Application requests for **50GiB** of storage in its default configuration. (This should change with choice of models and needs to be properly configured). Please make sure that required storage is available in you cluster.
 
@@ -75,7 +75,7 @@ Update or edit the values in YAML file as follows:
 
 | Key | Description | Example Value |
 | --- | ----------- | ------------- |
-| `global.pvcName` | Name for PVC to be used for storage by all components of application | `vss-shared-pvc` |
+| `global.sharedPvcName` | Name for PVC to be used for storage by all components of application | `vss-shared-pvc` |
 | `global.keepPvc` | PVC gets deleted by default once helm is uninstalled. Set this to true to persist PVC (helps avoid delay due to model re-downloads when re-installing chart). | `true` or `false` |
 | `global.huggingfaceToken` | Your Hugging Face API token | `<your-huggingface-token>` |
 | `global.proxy.http_proxy` | HTTP proxy if required | `http://proxy-example.com:000` |
@@ -90,10 +90,27 @@ Update or edit the values in YAML file as follows:
 | `global.env.RABBITMQ_DEFAULT_PASS` | RabbitMQ password | `<your-rabbitmq-password>` |
 | `global.env.OTLP_ENDPOINT` | OTLP endpoint | Leave empty if not using telemetry |
 | `global.env.OTLP_ENDPOINT_TRACE` | OTLP trace endpoint | Leave empty if not using telemetry |
+| `global.env.EMBEDDING_MODEL_NAME` | Default embedding model used by all services when not overridden | `CLIP/clip-vit-b-32` (search) or `QwenText/qwen3-embedding-0.6b` (summary+search) |
+| `global.env.TEXT_EMBEDDING_MODEL_NAME` | Optional text-only embedding model. Required when `global.embedding.preferTextModel` is `true`. | `QwenText/qwen3-embedding-0.6b` |
+| `global.embedding.preferTextModel` | When set to `true`, forces all services to use the text embedding model (for unified summary + search deployments). | `true` or `false` |
+| `global.gpu.vlminferenceEnabled ` | To enable vlm-inference on GPU | true or false |
+| `global.gpu.multimodalembeddingmsEnabled ` | To enable multimodal-embedding on GPU | true or false |
+| `global.gpu.ovmsEnabled ` | To enable OVMS on GPU | true or false |
+| `global.gpu.key` | Label assigned to the GPU node on kubernetes cluster by the device plugin example- gpu.intel.com/i915, gpu.intel.com/xe. Identify by running kubectl describe node | Your cluster GPU node key |
+| `global.gpu.device` | Set to `GPU` if need to deploy the inference workload on GPU device | GPU |
 | `videoingestion.odModelName` | Name of object detection model used during video ingestion | `yolov8l-worldv2` |
 | `videoingestion.odModelType` | Type/Category of the object detection Model | `yolo_v8` |
-| `multimodalembeddingms.textEmbeddingModel` | Embedding model name used in unified video search and summarization | `Qwen/Qwen3-Embedding-0.6B` |
-| `multimodalembeddingms.imageEmbeddingModel` | Embedding model name used in standalone video search application | `openai/clip-vit-base-patch32` |
+
+
+
+> **Tip:** Set `global.env.EMBEDDING_MODEL_NAME` to pick the default embedding model for both the multimodal embedding service and DataPrep. When deploying the unified summary + search mode, also set `global.env.TEXT_EMBEDDING_MODEL_NAME` and flip `global.embedding.preferTextModel` to `true` so the chart enforces the text embedding requirement automatically. Review the supported model list in [supported-models](../../../../microservices/multimodal-embedding-serving/docs/user-guide/supported-models.md) before choosing model IDs.
+
+> **Note:** `multimodal-embedding-ms` and `vdms-dataprep` share the same PVC for model/cache storage. If you enable GPU for one of them, enable it for the other as well (`global.gpu.multimodalembeddingmsEnabled=true` **and** `global.gpu.vdmsdataprepEnabled=true`). Mixing GPU/CPU modes between the two causes the GPU pod to wait forever because the shared PVC can only be attached to a single node at a time. The Helm chart validates this pairing and will fail the install/upgrade when the flags don’t match while both services are enabled.
+
+> **Unified-mode GPU examples:**
+> - VLM search + MME + DataPrep on GPU: set `global.gpu.vlminferenceEnabled=true`, `global.gpu.multimodalembeddingmsEnabled=true`, `global.gpu.vdmsdataprepEnabled=true`.
+> - OVMS summary + MME + DataPrep on GPU: set `global.gpu.ovmsEnabled=true`, `global.gpu.multimodalembeddingmsEnabled=true`, `global.gpu.vdmsdataprepEnabled=true`.
+> In each case MME and DataPrep must share the same GPU setting, otherwise Helm blocks the deployment.
 
 
 ### 3. Build Helm Dependencies
@@ -158,11 +175,15 @@ helm install vss . -f search_override.yaml -f user_values_override.yaml -n $my_n
 
 #### **Use Case 4: Unified Video Search and Summarization**
 
-To deploy only the Video Search functionality, use the search override values:
+To deploy the combined video search and summarization functionality, use the unified override values:
 
 ```bash
 helm install vss . -f unified_summary_search.yaml -f user_values_override.yaml -n $my_namespace
 ```
+
+> **Requirement:** Before installing the unified stack, populate `global.env.TEXT_EMBEDDING_MODEL_NAME` and set `global.embedding.preferTextModel=true` (the supplied `unified_summary_search.yaml` does this for you). The chart will raise an error if the text embedding model is omitted while unified mode is enabled. Review the supported model list in [supported-models](../../../../microservices/multimodal-embedding-serving/docs/user-guide/supported-models.md) before choosing model IDs.
+
+> **GPU Tip:** In unified mode the `multimodal-embedding-ms` and `vdms-dataprep` pods always share the same PVC, so either enable GPU for both (`global.gpu.multimodalembeddingmsEnabled=true` and `global.gpu.vdmsdataprepEnabled=true`) or keep both on CPU. Mixing GPU/CPU settings leaves the GPU pod pending because the shared PVC cannot mount on two nodes simultaneously, and the Helm chart blocks such mismatches during install/upgrade.
 
 ### Step 6: Verify the Deployment
 
@@ -184,7 +205,7 @@ kubectl get pods -n $my_namespace
 
 ### Step 7: Accessing the application
 
-Nginx service running as a reverse proxy in one of the pods, helps us to access the application. We need to get Host IP and Port on the node where the nginx service is running. 
+Nginx service running as a reverse proxy in one of the pods, helps us to access the application. We need to get Host IP and Port on the node where the nginx service is running.
 
 Run the following command to get the host IP of the node and port exposed by Nginx service:
 
@@ -218,7 +239,7 @@ If any of the microservice requires more or less storage than the default allott
 
 ### Updating storage for VDMS-Dataprep and MultiModal Embedding Service
 
-Set the required `sharedClaimSize` value while installing the helm chart. 
+Set the required `sharedClaimSize` value while installing the helm chart.
 
 For example, if installing chart in search only mode :
 
@@ -274,7 +295,7 @@ If not set while installing the chart, all services will claim a default amount 
   If PVC has been configured to be retained, most common reason for application to fail to work is a stale PVC. This problem most likely occurs when helm charts are re-installed after some updates to helm chart or the application image. To fix this, delete the PVC before re-installing the helm chart by following command:
 
     ```bash
-    kubectl delete pvc vss-shared-pvc -n <your_namespace>
+    kubectl delete pvc vss-shared-pvc -n $my_namespace
     ```
 
   If you have updated the `global.pvcName` in the values file, use the updated name instead of default PVC name `vss-shared-pvc` in above command.
