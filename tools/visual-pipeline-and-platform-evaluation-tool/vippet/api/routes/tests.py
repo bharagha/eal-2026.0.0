@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
 import api.api_schemas as schemas
 from managers.tests_manager import get_tests_manager
@@ -97,10 +98,16 @@ def run_performance_test(body: schemas.PerformanceTestSpec):
         job_id = test_manager.test_performance(body)
         return schemas.TestJobResponse(job_id=job_id)
     except ValueError as e:
-        return schemas.MessageResponse(message=str(e))
+        return JSONResponse(
+            content=schemas.MessageResponse(message=str(e)).model_dump(),
+            status_code=400,
+        )
     except Exception as e:
-        return schemas.MessageResponse(
-            message=f"Unexpected error while starting performance test: {str(e)}"
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message=f"Unexpected error while starting performance test: {str(e)}"
+            ).model_dump(),
+            status_code=500,
         )
 
 
@@ -197,8 +204,14 @@ def run_density_test(body: schemas.DensityTestSpec):
         job_id = test_manager.test_density(body)
         return schemas.TestJobResponse(job_id=job_id)
     except ValueError as e:
-        return schemas.MessageResponse(message=str(e))
+        return JSONResponse(
+            content=schemas.MessageResponse(message=str(e)).model_dump(),
+            status_code=400,
+        )
     except Exception as e:
-        return schemas.MessageResponse(
-            message=f"Unexpected error while starting density test: {str(e)}"
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message=f"Unexpected error while starting density test: {str(e)}"
+            ).model_dump(),
+            status_code=500,
         )
