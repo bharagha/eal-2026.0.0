@@ -106,22 +106,80 @@ pipeline.add(h264parser)
 ...
 source.link(h264parser)
 </code></td>
-<td><code>pipeline = Gst.Pipeline()<br><br>source = Gst.ElementFactory.make("filesrc", "file-source")<br>decoder = Gst.ElementFactory.make("decodebin3", "media-decoder")<br>...<br>source.set_property('location', args[1])<br>detect.set_property('batch-size', 1)<br>...<br>pipeline.add(source)<br>pipeline.add(decoder)<br>...<br>source.link(decoder)<br>...<br></code></td>
+<td><code>
+pipeline = Gst.Pipeline()
+
+source = Gst.ElementFactory.make("filesrc", "file-source")
+decoder = Gst.ElementFactory.make("decodebin3", "media-decoder")
+
+source.set_property('location', args[1])
+detect.set_property('batch-size', 1)
+
+pipeline.add(source)
+pipeline.add(decoder)
+
+source.link(decoder)
+</code></td>
 </tr>
 </tbody>
 </table>
 
 Once the pipeline is created, both samples register a custom probe handler and attach it to the sink pad of the overlay element. 
 
-| DeepStream Probe Registration | DLStreamer Probe Registration |
-|---|---|
-| <code>osdsinkpad = nvosd.get_static_pad("sink")<br>osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0) | <code>watermarksinkpad = watermark.get_static_pad("sink")<br>watermarksinkpad.add_probe(Gst.PadProbeType.BUFFER, watermark_sink_pad_buffer_probe, 0) |
+<table>
+<thead>
+<tr>
+<th>DeepStream Probe Registration</th>
+<th>DLStreamer Probe Registration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>
+osdsinkpad = nvosd.get_static_pad("sink")
+osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
+</code></td>
+<td><code>
+watermarksinkpad = watermark.get_static_pad("sink")
+watermarksinkpad.add_probe(Gst.PadProbeType.BUFFER, watermark_sink_pad_buffer_probe, 0)
+</code></td>
+</tr>
+</tbody>
+</table>
 
 The main difference is how the probe handler inspects the analytics results. DeepStream sample uses DeepStream-specific structures for frames and metadata. On the contrary, DLStreamer sample uses regular GStreamer data structures from [GstAnalytics metadata library](https://gstreamer.freedesktop.org/documentation/analytics/index.html?gi-language=python#analytics-metadata-library). In addition, DLStreamer handler runs on per-frame frequency while DeepStream sample runs on per-batch (of frames) frequency. 
 
-| DeepStream Probe Iteration | DLStreamer Probe Iteration |
-|---|---|
-| <code>batch_meta = pyds.gst_buffer_get_nvds_batch_meta(hash(gst_buffer))<br>...<br>l_frame = batch_meta.frame_meta_list<br>frame_meta = pyds.NvDsFrameMeta.cast(l_frame.data)<br>l_obj = frame_meta.obj_meta_list | <code># no batch meta in DLStreamer<br>...<br>frame_meta = GstAnalytics.buffer_get_analytics_relation_meta(buffer)<br>for obj in frame_meta:<br>
+<table>
+<thead>
+<tr>
+<th>DeepStream Probe Iteration</th>
+<th>DLStreamer Probe Iteration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>
+batch_meta = pyds.gst_buffer_get_nvds_batch_meta(hash(gst_buffer))
+...
+l_frame = batch_meta.frame_meta_list
+...
+while l_frame is not None:
+  frame_meta = pyds.NvDsFrameMeta.cast(l_frame.data)
+  ...
+  l_obj=frame_meta.obj_meta_list
+    while l_obj is not None:
+      ... proces object metadata
+</code></td>
+<td><code>
+# no batch meta in DLStreamer
+
+frame_meta = GstAnalytics.buffer_get_analytics_relation_meta(buffer)
+for obj in frame_meta:
+  ... process object metadata
+</code></td>
+</tr>
+</tbody>
+</table>
   
 ## Conversion Rules
 
