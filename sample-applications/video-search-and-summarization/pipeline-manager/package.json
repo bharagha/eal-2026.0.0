@@ -37,6 +37,7 @@
     "@opentelemetry/sdk-trace-base": "^2.0.1",
     "axios": "^1.12.2",
     "base64-js": "^1.5.1",
+    "ci": "^2.3.0",
     "https-proxy-agent": "^7.0.6",
     "luxon": "^3.7.1",
     "minio": "^8.0.5",
@@ -47,7 +48,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "srt-parser-2": "^1.2.3",
-    "typeorm": "^0.3.25",
+    "typeorm": "^0.3.26",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
@@ -81,7 +82,8 @@
     "typescript-eslint": "^8.39.0"
   },
   "overrides": {
-    "sha.js": ">=2.4.12"
+    "sha.js": ">=2.4.12",
+    "glob": "^10.5.0"
   },
   "jest": {
     "moduleFileExtensions": [

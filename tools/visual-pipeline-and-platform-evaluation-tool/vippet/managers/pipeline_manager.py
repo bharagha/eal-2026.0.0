@@ -1,5 +1,7 @@
+from copy import deepcopy
 import logging
 import sys
+import threading
 from typing import Optional, List
 
 from pipelines.loader import PipelineLoader
@@ -41,32 +43,37 @@ def get_pipeline_manager() -> "PipelineManager":
 class PipelineManager:
     def __init__(self):
         self.logger = logging.getLogger("PipelineManager")
+        # Shared lock protecting access to pipelines
+        self.lock = threading.Lock()
+        # List of pipelines managed by this instance
         self.pipelines = self.load_predefined_pipelines()
+        # Video encoder instance used by pipelines
         self.video_encoder = get_video_encoder()
 
     def add_pipeline(self, new_pipeline: PipelineDefinition):
-        # Enforce strictly increasing, consecutive pipeline versions per name.
-        self._ensure_next_version(new_pipeline.name, new_pipeline.version)
+        with self.lock:
+            # Enforce strictly increasing, consecutive pipeline versions per name.
+            self._ensure_next_version(new_pipeline.name, new_pipeline.version)
 
-        # Generate ID with "pipeline" prefix
-        pipeline_id = generate_unique_id("pipeline")
+            # Generate ID with "pipeline" prefix
+            pipeline_id = generate_unique_id("pipeline")
 
-        pipeline_graph = Graph.from_pipeline_description(
-            new_pipeline.pipeline_description
-        ).to_dict()
+            pipeline_graph = Graph.from_pipeline_description(
+                new_pipeline.pipeline_description
+            ).to_dict()
 
-        pipeline = Pipeline(
-            id=pipeline_id,
-            name=new_pipeline.name,
-            version=new_pipeline.version,
-            description=new_pipeline.description,
-            source=new_pipeline.source,
-            type=new_pipeline.type,
-            pipeline_graph=PipelineGraph.model_validate(pipeline_graph),
-            parameters=new_pipeline.parameters,
-        )
+            pipeline = Pipeline(
+                id=pipeline_id,
+                name=new_pipeline.name,
+                version=new_pipeline.version,
+                description=new_pipeline.description,
+                source=new_pipeline.source,
+                type=new_pipeline.type,
+                pipeline_graph=PipelineGraph.model_validate(pipeline_graph),
+                parameters=new_pipeline.parameters,
+            )
 
-        self.pipelines.append(pipeline)
+            self.pipelines.append(pipeline)
         self.logger.debug(f"Pipeline added: {pipeline}")
         return pipeline
 
@@ -109,7 +116,8 @@ class PipelineManager:
             )
 
     def get_pipelines(self) -> list[Pipeline]:
-        return self.pipelines
+        with self.lock:
+            return [deepcopy(p) for p in self.pipelines]
 
     def get_pipeline_by_id(self, pipeline_id: str) -> Pipeline:
         """
@@ -124,9 +132,10 @@ class PipelineManager:
         Raises:
             ValueError: If pipeline with given ID is not found.
         """
-        pipeline = self._find_pipeline_by_id(pipeline_id)
-        if pipeline is not None:
-            return pipeline
+        with self.lock:
+            pipeline = self._find_pipeline_by_id(pipeline_id)
+            if pipeline is not None:
+                return deepcopy(pipeline)
         raise ValueError(f"Pipeline with id '{pipeline_id}' not found.")
 
     def _pipeline_exists(self, name: str, version: int) -> bool:
@@ -171,33 +180,34 @@ class PipelineManager:
             ValueError: If the pipeline with the given ID does not exist.
         """
 
-        pipeline = self._find_pipeline_by_id(pipeline_id)
-        if pipeline is None:
-            raise ValueError(f"Pipeline with id '{pipeline_id}' not found.")
+        with self.lock:
+            pipeline = self._find_pipeline_by_id(pipeline_id)
+            if pipeline is None:
+                raise ValueError(f"Pipeline with id '{pipeline_id}' not found.")
 
-        # Update fields if provided
-        if name is not None:
-            pipeline.name = name
+            # Update fields if provided
+            if name is not None:
+                pipeline.name = name
 
-        if description is not None:
-            pipeline.description = description
+            if description is not None:
+                pipeline.description = description
 
-        # If a new pipeline graph is provided, validate and replace the existing one
-        if pipeline_graph is not None:
-            # Validate the pipeline graph by converting it to a pipeline description
-            pipeline_description = Graph.from_dict(
-                pipeline_graph.model_dump()
-            ).to_pipeline_description()
-            if not pipeline_description:
-                raise ValueError("Provided pipeline graph is invalid.")
+            # If a new pipeline graph is provided, validate and replace the existing one
+            if pipeline_graph is not None:
+                # Validate the pipeline graph by converting it to a pipeline description
+                pipeline_description = Graph.from_dict(
+                    pipeline_graph.model_dump()
+                ).to_pipeline_description()
+                if not pipeline_description:
+                    raise ValueError("Provided pipeline graph is invalid.")
 
-            pipeline.pipeline_graph = pipeline_graph
+                pipeline.pipeline_graph = pipeline_graph
 
-        if parameters is not None:
-            pipeline.parameters = parameters
+            if parameters is not None:
+                pipeline.parameters = parameters
 
-        self.logger.debug("Pipeline updated: %s", pipeline)
-        return pipeline
+            self.logger.debug("Pipeline updated: %s", pipeline)
+            return pipeline
 
     def delete_pipeline_by_id(self, pipeline_id: str):
         """
@@ -209,12 +219,13 @@ class PipelineManager:
         Raises:
             ValueError: If pipeline with given ID is not found.
         """
-        pipeline = self._find_pipeline_by_id(pipeline_id)
-        if pipeline is not None:
-            self.pipelines.remove(pipeline)
-            self.logger.debug(f"Pipeline deleted: {pipeline}")
-        else:
-            raise ValueError(f"Pipeline with id '{pipeline_id}' not found.")
+        with self.lock:
+            pipeline = self._find_pipeline_by_id(pipeline_id)
+            if pipeline is not None:
+                self.pipelines.remove(pipeline)
+                self.logger.debug(f"Pipeline deleted: {pipeline}")
+            else:
+                raise ValueError(f"Pipeline with id '{pipeline_id}' not found.")
 
     def load_predefined_pipelines(self):
         predefined_pipelines = []
