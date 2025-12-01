@@ -14,7 +14,7 @@ a working example is described at each step, to help understand the applied modi
 - [Conversion Examples](#conversion-examples)
   - [Command Line Applications](#command-line-applications)
   - [Python Applications](#python-applications)
-- [Conversion Rules](#conversion-rules)
+- [Conversion Rules](#conversion-rules-for-pipeline-elements)
   - [Mux and Demux Elements](#mux-and-demux-elements)
   - [Inferencing Elements](#inferencing-elements)
   - [Video Processing Elements](#video-processing-elements)
@@ -61,9 +61,9 @@ pipeline.
 
 ### Python Applications
 
-While GStreamer command line allows quick demonstration of a running pipeline, fine-grain control typically involves using a GStreamer pipeline object in a programmable way: using Python or C/C++. 
+While GStreamer command line allows quick demonstration of a running pipeline, fine-grain control typically involves using a GStreamer pipeline object in a programmable way: either Python or C/C++ code. 
 
-This section illustrates how to convert [DeepStream Python example](https://github.com/NVIDIA-AI-IOT/deepstream_python_apps/tree/master/apps/deepstream-test1) into [DLStreamer Python example](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/python/hello_dlstreamer). Both applications implement same functionality. The elements in __bold__ are vendor-specific, while others are regular GStreamer elements.
+This section illustrates how to convert [DeepStream Python example](https://github.com/NVIDIA-AI-IOT/deepstream_python_apps/tree/master/apps/deepstream-test1) into [DLStreamer Python example](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/python/hello_dlstreamer). Both applications implement same functionality, yet they use DeepStream or DLStreamer elements as illustrated in a table below. The elements in __bold__ are vendor-specific, while others are regular GStreamer elements.
 
 | DeepStream Element | DLStreamer Element | Function |
 |---|---|---|
@@ -83,7 +83,7 @@ element.link(next_element)
 ```
 
 Please note DeepStream and DLStreamer applications use same set of regular GStreamer library functions to construct pipelines. 
-The difference is mostly in the set of elements created and linked. In addition, DLStreamer `decodebin3` element uses late linking within a callback function.
+The difference is in what elements are created and linked. In addition, DLStreamer `decodebin3` element uses late linking within a callback function.
 
 <table>
 <thead>
@@ -130,8 +130,8 @@ decoder.connect("pad-added",
 </tbody>
 </table>
 
-Once the pipeline is created, both applications register a custom probe handler and attach it to the sink pad of the overlay element.
-This code sequence is (again) very similar, except different elements are used: `nvosd` and `gvawatermark`
+Once pipelines are created, both applications register a custom probe handler and attach it to the sink pad of the overlay element.
+The probe registration code is (again) very similar, except different elements being used: `nvosd` and `gvawatermark`
 
 <table>
 <thead>
@@ -154,13 +154,13 @@ watermarksinkpad.add_probe(Gst.PadProbeType.BUFFER, watermark_sink_pad_buffer_pr
 </tbody>
 </table>
 
-The probe function implementation differs significantly. DeepStream sample uses DeepStream-specific structures for frames and metadata. On the contrary, DLStreamer sample uses regular GStreamer data structures from [GstAnalytics metadata library](https://gstreamer.freedesktop.org/documentation/analytics/index.html?gi-language=python#analytics-metadata-library). In addition, DLStreamer handler runs on per-frame frequency while DeepStream sample runs on per-batch (of frames) frequency. 
+The probe function iterates over prediction metadata found by the AI model. Here, DeepStream and DLStreamer implementation differ significantly. DeepStream sample uses DeepStream-specific structures for batches of frames, frames and objects within a frame. On the contrary, DLStreamer sample uses regular GStreamer data structures from [GstAnalytics metadata library](https://gstreamer.freedesktop.org/documentation/analytics/index.html?gi-language=python#analytics-metadata-library). Please also note DLStreamer handler runs on per-frame frequency while DeepStream sample runs on per-batch (of frames) frequency. 
 
 <table>
 <thead>
 <tr>
-<th>DeepStream Probe Iteration</th>
-<th>DLStreamer Probe Iteration</th>
+<th>DeepStream Probe Implementation</th>
+<th>DLStreamer Probe Implementation</th>
 </tr>
 </thead>
 <tbody>
@@ -178,7 +178,7 @@ while l_frame is not None:
       ... process object metadata
 </code></pre></td>
 <td><pre><code>
-# no batch meta in DLStreamer
+# no batch meta in DLStreamer, probes run per-frame
 ...
 frame_meta = GstAnalytics.buffer_get_analytics_relation_meta(buffer)
 for obj in frame_meta:
@@ -188,8 +188,8 @@ for obj in frame_meta:
 </tbody>
 </table>
 
-The last table compares pipeline execution logic. Both applications set the pipeline state to 'PLAYING' and enter the main program loop.
-DeepStream sample invokes a predefined program loop from a DeepStream library, while DLStreamer application explicitly implements the message processing loop. 
+The last table compares pipeline execution logic. Both applications set the pipeline state to `PLAYING` and run the main GStreamer event loop.
+DeepStream sample invokes a predefined event loop from a DeepStream library, while DLStreamer application explicitly adds the message processing loop. 
 Both implementations keep running the pipeline until end-of-stream message is received.
 
 <table>
@@ -237,7 +237,7 @@ pipeline.set_state(Gst.State.NULL)
 </tbody>
 </table>
 
-## Conversion Rules
+## Conversion Rules for Pipeline Elements
 
 ### Mux and Demux Elements
 
@@ -245,7 +245,7 @@ The following sections provide more details on how to replace each element.
 
 - Remove `nvstreammux` and `nvstreamdemux` and all their properties.
   - These elements combine multiple input streams into a single
-    batched video stream (NVIDIA-specific). Deep Learning Streamer takes
+    batched video stream (DeepStream-specific). Deep Learning Streamer takes
     a different approach: it employs a generic GStreamer syntax to
     define parallel streams. The cross-stream batching happens at
     the inferencing elements by setting the same `model-instance-id`
