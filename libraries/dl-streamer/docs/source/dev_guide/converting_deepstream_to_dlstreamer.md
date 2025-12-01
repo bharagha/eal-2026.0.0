@@ -83,9 +83,33 @@ element.link(next_element)
 ```
 Specifically, two examples discussed here would translate to: 
 
-| DeepStream Pipeline Creation in Python | DLStreamer Pipeline Creation in Python |
-|---|---|
-| <code>pipeline = Gst.Pipeline()<br><br>source = Gst.ElementFactory.make("filesrc", "file-source")<br>h264parser = Gst.ElementFactory.make("h264parse", "h264-parser")<br>...<br>source.set_property('location', args[1])<br>streammux.set_property('batch-size', 1)<br>...<br>pipeline.add(source)<br>pipeline.add(h264parser)<br>...<br>source.link(h264parser)<br>... | <code>pipeline = Gst.Pipeline()<br><br>source = Gst.ElementFactory.make("filesrc", "file-source")<br>decoder = Gst.ElementFactory.make("decodebin3", "media-decoder")<br>...<br>source.set_property('location', args[1])<br>detect.set_property('batch-size', 1)<br>...<br>pipeline.add(source)<br>pipeline.add(decoder)<br>...<br>source.link(decoder)<br>...<br> |
+<table>
+<thead>
+<tr>
+<th>DeepStream Pipeline Creation in Python</th>
+<th>DLStreamer Pipeline Creation in Python</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>
+pipeline = Gst.Pipeline()
+
+source = Gst.ElementFactory.make("filesrc", "file-source")
+h264parser = Gst.ElementFactory.make("h264parse", "h264-parser")
+...
+source.set_property('location', args[1])
+streammux.set_property('batch-size', 1)
+...
+pipeline.add(source)
+pipeline.add(h264parser)
+...
+source.link(h264parser)
+</code></td>
+<td><code>pipeline = Gst.Pipeline()<br><br>source = Gst.ElementFactory.make("filesrc", "file-source")<br>decoder = Gst.ElementFactory.make("decodebin3", "media-decoder")<br>...<br>source.set_property('location', args[1])<br>detect.set_property('batch-size', 1)<br>...<br>pipeline.add(source)<br>pipeline.add(decoder)<br>...<br>source.link(decoder)<br>...<br></code></td>
+</tr>
+</tbody>
+</table>
 
 Once the pipeline is created, both samples register a custom probe handler and attach it to the sink pad of the overlay element. 
 
