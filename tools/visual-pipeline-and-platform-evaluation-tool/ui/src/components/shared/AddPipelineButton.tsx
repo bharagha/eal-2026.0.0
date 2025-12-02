@@ -15,6 +15,7 @@ import {
   useGetValidationJobStatusQuery,
 } from "@/api/api.generated";
 import { toast } from "sonner";
+import { isApiError } from "@/lib/apiUtils";
 
 const AddPipelineButton = () => {
   const navigate = useNavigate();
@@ -76,8 +77,11 @@ const AddPipelineButton = () => {
           navigate(`/pipelines/${response.id}`);
         }
       } catch (error) {
+        const errorMessage = isApiError(error)
+          ? error.data.message
+          : "Unknown error";
         toast.error("Failed to create pipeline", {
-          description: error instanceof Error ? error.message : "Unknown error",
+          description: errorMessage,
         });
         console.error("Failed to create pipeline:", error);
         setValidationJobId(null);
@@ -162,8 +166,11 @@ const AddPipelineButton = () => {
         });
       }
     } catch (error) {
+      const errorMessage = isApiError(error)
+        ? error.data.message
+        : "Unknown error";
       toast.error("Failed to process pipeline", {
-        description: error instanceof Error ? error.message : "Unknown error",
+        description: errorMessage,
       });
       console.error("Failed to process pipeline:", error);
       setValidationStatus("");

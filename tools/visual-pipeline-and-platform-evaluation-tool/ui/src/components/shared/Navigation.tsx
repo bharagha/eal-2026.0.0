@@ -35,7 +35,7 @@ const Navigation = () => {
         <div className="flex items-center gap-4 px-4 h-[46px]">
           <button
             onClick={() => navigate("/")}
-            className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-classic-blue dark:hover:text-energy-blue transition-colors"
+            className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-classic-blue dark:hover:text-energy-blue transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="text-sm font-medium">Back</span>

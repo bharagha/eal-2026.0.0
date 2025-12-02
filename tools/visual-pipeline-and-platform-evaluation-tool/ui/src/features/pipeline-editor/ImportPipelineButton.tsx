@@ -19,6 +19,7 @@ import {
   type Viewport,
 } from "@xyflow/react";
 import { createGraphLayout } from "./utils/graphLayout";
+import { isApiError } from "@/lib/apiUtils";
 
 interface ImportPipelineButtonProps {
   onImport: (
@@ -129,8 +130,11 @@ const ImportPipelineButton = ({ onImport }: ImportPipelineButtonProps) => {
       setDialogOpen(false);
       setPipelineDescription("");
     } catch (error) {
+      const errorMessage = isApiError(error)
+        ? error.data.message
+        : "Unknown error";
       toast.error("Failed to import pipeline", {
-        description: error instanceof Error ? error.message : "Unknown error",
+        description: errorMessage,
       });
       console.error("Failed to import pipeline:", error);
     }

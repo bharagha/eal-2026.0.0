@@ -44,9 +44,7 @@ function ParticipationSlider({
         step={1}
         className="flex-1"
       />
-      <span className="text-sm font-medium w-12 text-right">
-        {localValue}%
-      </span>
+      <span className="text-sm font-medium w-12 text-right">{localValue}%</span>
     </div>
   );
 }
@@ -164,7 +162,7 @@ export function PipelinesDensityDataTable({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border">
+      <div className="border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

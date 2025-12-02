@@ -28,12 +28,13 @@ const Home = () => {
         <div className="flex-1 overflow-auto">
           <div className="p-4 space-y-8">
             <div>
-              <h2 className="text-xl font-semibold mb-4">
-                Predefined Pipelines
-              </h2>
+              <h1 className="text-xl font-bold mb-4">Predefined Pipelines</h1>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {predefinedPipelines.map((pipeline) => (
-                  <Card key={pipeline.id} className="flex flex-col">
+                  <Card
+                    key={pipeline.id}
+                    className="flex flex-col transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+                  >
                     <CardHeader className="flex-1">
                       <CardTitle>{pipeline.name}</CardTitle>
                       <CardDescription className="line-clamp-4 min-h-[4.5rem]">
@@ -53,13 +54,14 @@ const Home = () => {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold mb-4">
-                User Defined Pipelines
-              </h2>
+              <h1 className="text-xl font-bold mb-4">User Defined Pipelines</h1>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <AddPipelineButton />
                 {userDefinedPipelines.map((pipeline) => (
-                  <Card key={pipeline.id} className="flex flex-col">
+                  <Card
+                    key={pipeline.id}
+                    className="flex flex-col transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+                  >
                     <CardHeader className="flex-1">
                       <CardTitle>{pipeline.name}</CardTitle>
                       <CardDescription className="line-clamp-4 min-h-[4.5rem]">

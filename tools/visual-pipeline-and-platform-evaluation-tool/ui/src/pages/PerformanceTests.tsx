@@ -11,9 +11,17 @@ import { TestProgressIndicator } from "@/components/shared/TestProgressIndicator
 import { PipelineName } from "@/components/shared/PipelineName.tsx";
 import { useAppSelector } from "@/store/hooks";
 import { selectPipelines } from "@/store/reducers/pipelines";
+import { selectDevices } from "@/store/reducers/devices";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const PerformanceTests = () => {
   const pipelines = useAppSelector(selectPipelines);
+  const devices = useAppSelector(selectDevices);
   const [runPerformanceTest, { isLoading: isRunning }] =
     useRunPerformanceTestMutation();
   const [selectedPipelines, setSelectedPipelines] = useState<
@@ -62,18 +70,24 @@ const PerformanceTests = () => {
     setTestResult(null);
     setErrorMessage(null);
     try {
+      const selectedDevice = devices.find(
+        (d) => d.device_name === encoderDevice,
+      );
+
       const result = await runPerformanceTest({
         performanceTestSpecInput: {
           video_output: {
             enabled: videoOutputEnabled,
-            encoder_device: videoOutputEnabled
-              ? {
-                  device_name: encoderDevice.startsWith("GPU") ? "GPU" : "CPU",
-                  gpu_id: encoderDevice.startsWith("GPU")
-                    ? parseInt(encoderDevice.split("/")[1])
-                    : undefined,
-                }
-              : undefined,
+            encoder_device:
+              videoOutputEnabled && selectedDevice
+                ? {
+                    device_name: selectedDevice.device_family,
+                    gpu_id:
+                      selectedDevice.device_family === "GPU"
+                        ? (selectedDevice.gpu_id ?? 0)
+                        : undefined,
+                  }
+                : undefined,
           },
           pipeline_performance_specs: selectedPipelines.map((pipeline) => ({
             id: pipeline.id,
@@ -111,34 +125,54 @@ const PerformanceTests = () => {
         />
 
         <div className="my-4 flex flex-col gap-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={videoOutputEnabled}
-              onChange={(e) => setVideoOutputEnabled(e.target.checked)}
-              className="w-4 h-4 cursor-pointer"
-            />
-            <span className="text-sm font-medium">Create Video</span>
-          </label>
+          <div className="flex items-center gap-3">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <label className="flex items-center gap-2 cursor-pointer h-[42px]">
+                  <Checkbox
+                    checked={videoOutputEnabled}
+                    onCheckedChange={(checked) =>
+                      setVideoOutputEnabled(checked === true)
+                    }
+                  />
+                  <span className="text-sm font-medium">Save output</span>
+                </label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>
+                  Selecting this option changes the last fakesink to filesink so
+                  it is possible to view generated output
+                </p>
+              </TooltipContent>
+            </Tooltip>
 
-          {videoOutputEnabled && (
-            <select
-              value={encoderDevice}
-              onChange={(e) => setEncoderDevice(e.target.value)}
-              className="w-fit px-3 py-2 border rounded-md text-sm cursor-pointer"
-            >
-              <option value="CPU">CPU</option>
-              <option value="GPU/0">GPU/0</option>
-              <option value="GPU/1">GPU/1</option>
-            </select>
-          )}
+            {videoOutputEnabled && (
+              <select
+                value={encoderDevice}
+                onChange={(e) => setEncoderDevice(e.target.value)}
+                className="w-fit px-3 py-2 border rounded-md text-sm cursor-pointer"
+              >
+                {devices.map((device) => (
+                  <option key={device.device_name} value={device.device_name}>
+                    {device.device_family === "GPU"
+                      ? `${device.device_name}/${device.gpu_id ?? 0}`
+                      : device.device_name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
 
           <button
             onClick={handleRunTest}
             disabled={isRunning || selectedPipelines.length === 0 || !!jobId}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-fit px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {jobId ? "Running..." : isRunning ? "Starting..." : "Run test"}
+            {jobId
+              ? "Running..."
+              : isRunning
+                ? "Starting..."
+                : "Run performance test"}
           </button>
         </div>
 

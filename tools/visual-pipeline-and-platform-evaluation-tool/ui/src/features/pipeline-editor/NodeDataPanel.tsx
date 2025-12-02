@@ -4,6 +4,7 @@ import { gvaMetaConvertConfig } from "./nodes/GVAMetaConvertNode.config.ts";
 import { gvaTrackConfig } from "@/features/pipeline-editor/nodes/GVATrackNode.config.ts";
 import { gvaClassifyConfig } from "@/features/pipeline-editor/nodes/GVAClassifyNode.config.ts";
 import { gvaDetectConfig } from "@/features/pipeline-editor/nodes/GVADetectNode.config.ts";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type NodePropertyConfig = {
   key: string;
@@ -41,7 +42,7 @@ const NodeDataPanel = ({
 
   if (!selectedNode) {
     return (
-      <div className="absolute bottom-8 right-4 w-80 bg-white border border-gray-300 rounded-lg shadow-lg p-4 z-10">
+      <div className="absolute bottom-8 right-4 w-80 bg-white border border-gray-300 shadow-lg p-4 z-10">
         <h3 className="text-sm font-semibold text-gray-700 mb-2">Node Data</h3>
         <p className="text-xs text-gray-500">Select a node to view its data</p>
       </div>
@@ -87,10 +88,10 @@ const NodeDataPanel = ({
   const hasAdditionalParams = dataEntries.length > 0;
 
   return (
-    <div className="absolute bottom-4 right-4 w-80 bg-white border border-gray-300 rounded-lg shadow-lg p-4 z-10 max-h-96 overflow-y-auto">
+    <div className="absolute bottom-4 right-4 w-80 bg-white border border-gray-300 shadow-lg p-4 z-10 max-h-96 overflow-y-auto">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-gray-700">Node Data</h3>
-        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1">
           {selectedNode.type}
         </span>
       </div>
@@ -129,7 +130,7 @@ const NodeDataPanel = ({
                   <select
                     value={String(value ?? "")}
                     onChange={(e) => handleInputChange(keyStr, e.target.value)}
-                    className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                    className="w-full text-xs border border-gray-300 px-2 py-1"
                   >
                     <option value="">Select {propConfig.label}</option>
                     {propConfig.options.map((option) => (
@@ -139,14 +140,12 @@ const NodeDataPanel = ({
                     ))}
                   </select>
                 ) : inputType === "boolean" ? (
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center gap-2">
+                    <Checkbox
                       checked={Boolean(value)}
-                      onChange={(e) =>
-                        handleInputChange(keyStr, e.target.checked)
+                      onCheckedChange={(checked) =>
+                        handleInputChange(keyStr, checked)
                       }
-                      className="mr-2"
                     />
                     <span className="text-xs">{value ? "True" : "False"}</span>
                   </div>
@@ -160,7 +159,7 @@ const NodeDataPanel = ({
                         e.target.value ? Number(e.target.value) : "",
                       )
                     }
-                    className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                    className="w-full text-xs border border-gray-300 px-2 py-1"
                     placeholder={`Enter ${propConfig?.label ?? keyStr}`}
                   />
                 ) : inputType === "textarea" ? (
@@ -182,7 +181,7 @@ const NodeDataPanel = ({
                         handleInputChange(keyStr, e.target.value);
                       }
                     }}
-                    className="w-full text-xs border border-gray-300 rounded px-2 py-1 font-mono resize-none"
+                    className="w-full text-xs border border-gray-300 px-2 py-1 font-mono resize-none"
                     rows={3}
                   />
                 ) : (
@@ -190,7 +189,7 @@ const NodeDataPanel = ({
                     type="text"
                     value={String(value ?? "")}
                     onChange={(e) => handleInputChange(keyStr, e.target.value)}
-                    className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                    className="w-full text-xs border border-gray-300 px-2 py-1"
                     placeholder={`Enter ${propConfig?.label ?? keyStr}`}
                   />
                 )}

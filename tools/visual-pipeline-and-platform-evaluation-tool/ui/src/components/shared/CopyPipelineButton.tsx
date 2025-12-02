@@ -13,6 +13,7 @@ import {
 } from "@/api/api.generated";
 import { toast } from "sonner";
 import type { Pipeline } from "@/api/api.generated";
+import { isApiError } from "@/lib/apiUtils";
 
 interface CopyPipelineButtonProps {
   pipeline: Pipeline;
@@ -63,8 +64,11 @@ const CopyPipelineButton = ({
         navigate(`/pipelines/${response.id}`);
       }
     } catch (error) {
+      const errorMessage = isApiError(error)
+        ? error.data.message
+        : "Unknown error";
       toast.error("Failed to copy pipeline", {
-        description: error instanceof Error ? error.message : "Unknown error",
+        description: errorMessage,
       });
       console.error("Failed to copy pipeline:", error);
     }
