@@ -66,7 +66,7 @@ def get_videos():
               }
             ]
     """
-    logger.info("Received request for all videos.")
+    logger.debug("Received request for all videos.")
     try:
         videos_manager = get_videos_manager()
         videos_dict = videos_manager.get_all_videos()
