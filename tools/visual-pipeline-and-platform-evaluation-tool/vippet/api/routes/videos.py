@@ -2,6 +2,7 @@ import logging
 from typing import List
 
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
 import api.api_schemas as schemas
 from videos import get_videos_manager
@@ -70,7 +71,7 @@ def get_videos():
     try:
         videos_manager = get_videos_manager()
         videos_dict = videos_manager.get_all_videos()
-        logger.info(f"Found {len(videos_dict)} videos.")
+        logger.debug(f"Found {len(videos_dict)} videos.")
         # Convert Video objects to schemas.Video
         return [
             schemas.Video(
@@ -86,3 +87,9 @@ def get_videos():
         ]
     except Exception:
         logger.error("Failed to list videos", exc_info=True)
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message="Unexpected error while listing videos"
+            ).model_dump(),
+            status_code=500,
+        )
