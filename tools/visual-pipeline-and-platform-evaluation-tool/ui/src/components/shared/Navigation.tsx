@@ -1,5 +1,5 @@
 import { NavLink } from "react-router";
-import { Home, Film, Cpu, Gauge, Grid3x3 } from "lucide-react";
+import { Home, Film, Cpu, Gauge, Grid3x3, ListTodo } from "lucide-react";
 
 const Navigation = () => {
   const navItems = [
@@ -8,6 +8,7 @@ const Navigation = () => {
     { to: "/videos", label: "Videos", icon: Film },
     { to: "/tests/performance", label: "Performance", icon: Gauge },
     { to: "/tests/density", label: "Density", icon: Grid3x3 },
+    { to: "/jobs", label: "Jobs", icon: ListTodo },
   ];
 
   return (

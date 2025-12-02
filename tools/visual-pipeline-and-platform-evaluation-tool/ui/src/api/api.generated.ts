@@ -258,7 +258,7 @@ export type ToDescriptionApiArg = {
   pipelineGraph: PipelineGraph;
 };
 export type GetDevicesApiResponse =
-  /** status 200 Successful Response */ Device[];
+  /** status 200 List of devices successfully retrieved. */ Device[];
 export type GetDevicesApiArg = void;
 export type GetPerformanceStatusesApiResponse =
   /** status 200 Successful Response */ PerformanceJobStatus[];
@@ -333,9 +333,9 @@ export type CreatePipelineApiResponse =
 export type CreatePipelineApiArg = {
   pipelineDefinition: PipelineDefinition;
 };
-export type ValidatePipelineApiResponse =
-  /** status 200 Successful Response */
-  any | /** status 202 Pipeline validation started */ ValidationJobResponse;
+export type ValidatePipelineApiResponse = /** status 200 Successful Response */
+  | any
+  | /** status 202 Pipeline validation started */ ValidationJobResponse;
 export type ValidatePipelineApiArg = {
   pipelineValidationInput: PipelineValidation2;
 };
@@ -355,20 +355,20 @@ export type DeletePipelineApiResponse =
 export type DeletePipelineApiArg = {
   pipelineId: string;
 };
-export type OptimizePipelineApiResponse =
-  /** status 200 Successful Response */
-  any | /** status 202 Pipeline optimization started */ OptimizationJobResponse;
+export type OptimizePipelineApiResponse = /** status 200 Successful Response */
+  | any
+  | /** status 202 Pipeline optimization started */ OptimizationJobResponse;
 export type OptimizePipelineApiArg = {
   pipelineId: string;
   pipelineRequestOptimize: PipelineRequestOptimize;
 };
 export type RunPerformanceTestApiResponse =
-  /** status 202 Successful Response */ TestJobResponse;
+  /** status 202 Performance test job created */ TestJobResponse;
 export type RunPerformanceTestApiArg = {
   performanceTestSpecInput: PerformanceTestSpec2;
 };
 export type RunDensityTestApiResponse =
-  /** status 202 Successful Response */ TestJobResponse;
+  /** status 202 Density test job created */ TestJobResponse;
 export type RunDensityTestApiArg = {
   densityTestSpecInput: DensityTestSpec2;
 };
@@ -388,10 +388,13 @@ export type Edge = {
   target: string;
 };
 export type PipelineGraph = {
+  /** List of pipeline nodes. */
   nodes: Node[];
+  /** List of directed edges between nodes. */
   edges: Edge[];
 };
 export type MessageResponse = {
+  /** Human-readable error or status message. */
   message: string;
 };
 export type ValidationError = {
@@ -403,6 +406,7 @@ export type HttpValidationError = {
   detail?: ValidationError[];
 };
 export type PipelineDescription = {
+  /** GStreamer-like pipeline string. */
   pipeline_description: string;
 };
 export type DeviceType = "DISCRETE" | "INTEGRATED";
@@ -416,7 +420,9 @@ export type Device = {
 };
 export type TestJobState = "RUNNING" | "COMPLETED" | "ERROR" | "ABORTED";
 export type PipelinePerformanceSpec = {
+  /** ID of the pipeline to test. */
   id: string;
+  /** Number of parallel streams for this pipeline. */
   streams?: number;
 };
 export type PerformanceJobStatus = {
@@ -446,6 +452,7 @@ export type VideoOutputConfig = {
   encoder_device?: EncoderDeviceConfig;
 };
 export type PerformanceTestSpec = {
+  /** List of pipelines with number of streams for each. */
   pipeline_performance_specs: PipelinePerformanceSpec[];
   /** Video output configuration. */
   video_output?: VideoOutputConfig;
@@ -469,11 +476,15 @@ export type DensityJobStatus = {
   error_message: string | null;
 };
 export type PipelineDensitySpec = {
+  /** ID of the pipeline used in density test. */
   id: string;
+  /** Relative share of total streams for this pipeline (percentage). */
   stream_rate?: number;
 };
 export type DensityTestSpec = {
+  /** Minimum acceptable FPS per stream. */
   fps_floor: number;
+  /** List of pipelines with relative stream_rate percentages that must sum to 100. */
   pipeline_density_specs: PipelineDensitySpec[];
   /** Video output configuration. */
   video_output?: VideoOutputConfig;
@@ -572,6 +583,7 @@ export type PipelineDefinition = {
   parameters: PipelineParameters | null;
 };
 export type ValidationJobResponse = {
+  /** Identifier of the created validation job. */
   job_id: string;
 };
 export type PipelineValidation2 = {
@@ -588,18 +600,23 @@ export type PipelineUpdate = {
   parameters?: PipelineParameters | null;
 };
 export type OptimizationJobResponse = {
+  /** Identifier of the created optimization job. */
   job_id: string;
 };
 export type TestJobResponse = {
+  /** Identifier of the created test job. */
   job_id: string;
 };
 export type PerformanceTestSpec2 = {
+  /** List of pipelines with number of streams for each. */
   pipeline_performance_specs: PipelinePerformanceSpec[];
   /** Video output configuration. */
   video_output?: VideoOutputConfig;
 };
 export type DensityTestSpec2 = {
+  /** Minimum acceptable FPS per stream. */
   fps_floor: number;
+  /** List of pipelines with relative stream_rate percentages that must sum to 100. */
   pipeline_density_specs: PipelineDensitySpec[];
   /** Video output configuration. */
   video_output?: VideoOutputConfig;
