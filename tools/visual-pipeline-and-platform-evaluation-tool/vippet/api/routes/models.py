@@ -83,11 +83,11 @@ def get_models():
             )
             for m in models
         ]
-    except Exception as exc:
+    except Exception:
         logger.error("Failed to list models", exc_info=True)
         return JSONResponse(
             content=schemas.MessageResponse(
-                message=f"Unexpected error while listing models"
+                message="Unexpected error while listing models"
             ).model_dump(),
             status_code=500,
         )

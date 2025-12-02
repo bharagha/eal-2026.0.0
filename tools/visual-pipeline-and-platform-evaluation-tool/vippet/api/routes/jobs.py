@@ -235,9 +235,7 @@ def get_performance_job_summary(job_id: str):
     """
     summary = tests_manager.get_job_summary(job_id)
     if summary is None:
-        logger.warning(
-            "Performance job summary requested for unknown job %s", job_id
-        )
+        logger.warning("Performance job summary requested for unknown job %s", job_id)
         return JSONResponse(
             content=schemas.MessageResponse(
                 message=f"Job {job_id} not found"

@@ -437,9 +437,7 @@ def update_pipeline(pipeline_id: str, body: schemas.PipelineUpdate):
         and body.parameters is None
         and body.pipeline_graph is None
     ):
-        message = (
-            "At least one of 'name', 'description', 'parameters' or 'pipeline_graph' must be provided."
-        )
+        message = "At least one of 'name', 'description', 'parameters' or 'pipeline_graph' must be provided."
         logger.error(
             "Invalid update request for pipeline %s: %s",
             pipeline_id,
@@ -477,7 +475,9 @@ def update_pipeline(pipeline_id: str, body: schemas.PipelineUpdate):
 
     if body.pipeline_graph is not None:
         if not body.pipeline_graph.nodes or not body.pipeline_graph.edges:
-            message = "Field 'pipeline_graph' must contain at least one node and one edge."
+            message = (
+                "Field 'pipeline_graph' must contain at least one node and one edge."
+            )
             logger.error(
                 "Invalid update request for pipeline %s: %s",
                 pipeline_id,

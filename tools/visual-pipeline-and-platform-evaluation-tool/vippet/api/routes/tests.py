@@ -107,9 +107,7 @@ def run_performance_test(body: schemas.PerformanceTestSpec):
             status_code=400,
         )
     except Exception as e:
-        logger.error(
-            "Unexpected error while starting performance test", exc_info=True
-        )
+        logger.error("Unexpected error while starting performance test", exc_info=True)
         return JSONResponse(
             content=schemas.MessageResponse(
                 message=f"Unexpected error while starting performance test: {str(e)}"
@@ -217,9 +215,7 @@ def run_density_test(body: schemas.DensityTestSpec):
             status_code=400,
         )
     except Exception as e:
-        logger.error(
-            "Unexpected error while starting density test", exc_info=True
-        )
+        logger.error("Unexpected error while starting density test", exc_info=True)
         return JSONResponse(
             content=schemas.MessageResponse(
                 message=f"Unexpected error while starting density test: {str(e)}"

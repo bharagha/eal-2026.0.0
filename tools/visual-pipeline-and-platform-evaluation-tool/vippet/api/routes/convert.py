@@ -90,9 +90,7 @@ def to_graph(request: PipelineDescription):
             status_code=400,
         )
     except Exception as e:
-        logger.error(
-            "Failed to convert pipeline description to graph", exc_info=True
-        )
+        logger.error("Failed to convert pipeline description to graph", exc_info=True)
         return JSONResponse(
             content=MessageResponse(message=str(e)).model_dump(),
             status_code=500,
@@ -176,9 +174,7 @@ def to_description(request: PipelineGraph):
             status_code=400,
         )
     except Exception as e:
-        logger.error(
-            "Failed to convert pipeline graph to description", exc_info=True
-        )
+        logger.error("Failed to convert pipeline graph to description", exc_info=True)
         return JSONResponse(
             content=MessageResponse(message=str(e)).model_dump(), status_code=500
         )

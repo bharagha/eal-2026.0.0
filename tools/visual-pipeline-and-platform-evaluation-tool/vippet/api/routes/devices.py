@@ -86,11 +86,11 @@ def get_devices():
             )
             for device in device_list
         ]
-    except Exception as exc:
+    except Exception:
         logger.error("Failed to discover devices", exc_info=True)
         return JSONResponse(
             content=schemas.MessageResponse(
-                message=f"Unexpected error when discovering devices"
+                message="Unexpected error when discovering devices"
             ).model_dump(),
             status_code=500,
         )
