@@ -86,4 +86,3 @@ def get_videos():
         ]
     except Exception:
         logger.error("Failed to list videos", exc_info=True)
-        raise
