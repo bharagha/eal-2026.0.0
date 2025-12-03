@@ -1,6 +1,6 @@
 %define debug_package %{nil}
 Name:           opencv
-Version:        4.10.0
+Version:        4.12.0
 Release:        1%{?dist}
 Summary:        OpenCV build
 
@@ -84,3 +84,5 @@ rm -rf %{buildroot}
 %changelog
 * Thu Aug 25 2025 OpenCV build - 4.10.0-1
 - Initial OpenCV build
+* Wed Dec 02 2025 OpenCV build - 4.12.0-1
+- Update OpenCV version
