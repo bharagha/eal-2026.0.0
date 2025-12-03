@@ -176,8 +176,8 @@ class Graph:
                 node_id += 1
                 continue
 
-            # 2) Fallback: treat the segment as a sequence of tokens
-            #    describing a regular element and its properties.
+            # 2) If caps parsing failed, treat the segment as a regular element
+            #    and tokenize it into TYPE/PROPERTY/TEE_END tokens.
             for token in _tokenize(element):
                 match token.kind:
                     case "TYPE":
@@ -421,7 +421,9 @@ def _parse_caps_segment(segment: str) -> tuple[str, dict[str, str]] | None:
         return None
 
     parts = [p.strip() for p in text.split(",")]
-    if not parts or not parts[0]:
+    # parts is guaranteed to be non-empty for a non-empty string, but we still
+    # validate that the first part (caps base) is not empty.
+    if not parts[0]:
         # Something like ",width=320" – treat as invalid caps.
         raise ValueError(f"Invalid caps segment (empty base): '{segment}'")
 
@@ -540,8 +542,10 @@ def _add_caps_node(
     # Inject the internal node kind discriminator into the data dictionary.
     # This lets us distinguish caps nodes during serialization without
     # extending the public Node schema.
-    data_with_kind: dict[str, str] = {NODE_KIND_KEY: NODE_KIND_CAPS}
-    data_with_kind.update(caps_props)
+    data_with_kind: dict[str, str] = {
+        NODE_KIND_KEY: NODE_KIND_CAPS,
+        **caps_props,
+    }
 
     nodes.append(Node(id=node_id_str, type=caps_base, data=data_with_kind))
 
