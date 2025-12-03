@@ -417,7 +417,7 @@ parse_test_cases = [
                 Node(
                     id="20",
                     type="video/x-raw\\(memory:VAMemory\\)",
-                    data={"width": "320", "height": "240"},
+                    data={"__node_kind": "caps", "width": "320", "height": "240"},
                 ),
                 Node(id="21", type="fakesink", data={}),
             ],
@@ -473,7 +473,7 @@ parse_test_cases = [
                 Node(
                     id="11",
                     type="video/x-raw\\(memory:VAMemory\\)",
-                    data={"width": "320", "height": "240"},
+                    data={"__node_kind": "caps", "width": "320", "height": "240"},
                 ),
                 Node(id="12", type="fakesink", data={}),
             ],
@@ -1037,7 +1037,7 @@ parse_test_cases = [
                 Node(
                     id="7",
                     type="video/x-raw\\(memory:VAMemory\\)",
-                    data={"width": "320", "height": "240"},
+                    data={"__node_kind": "caps", "width": "320", "height": "240"},
                 ),
                 Node(id="8", type="fakesink", data={}),
             ],
@@ -1050,6 +1050,100 @@ parse_test_cases = [
                 Edge(id="5", source="5", target="6"),
                 Edge(id="6", source="6", target="7"),
                 Edge(id="7", source="7", target="8"),
+            ],
+        ),
+    ),
+    # Caps without parentheses, width/height
+    ParseTestCase(
+        r"filesrc ! video/x-raw,width=320,height=240 ! fakesink",
+        Graph(
+            nodes=[
+                Node(id="0", type="filesrc", data={}),
+                Node(
+                    id="1",
+                    type="video/x-raw",
+                    data={"__node_kind": "caps", "width": "320", "height": "240"},
+                ),
+                Node(id="2", type="fakesink", data={}),
+            ],
+            edges=[
+                Edge(id="0", source="0", target="1"),
+                Edge(id="1", source="1", target="2"),
+            ],
+        ),
+    ),
+    # Caps with memory feature, simple numeric props
+    ParseTestCase(
+        r"filesrc ! video/x-raw(memory:NVMM),format=UYVY,width=2592,height=1944,framerate=28/1 ! fakesink",
+        Graph(
+            nodes=[
+                Node(id="0", type="filesrc", data={}),
+                Node(
+                    id="1",
+                    type="video/x-raw(memory:NVMM)",
+                    data={
+                        "__node_kind": "caps",
+                        "format": "UYVY",
+                        "width": "2592",
+                        "height": "1944",
+                        "framerate": "28/1",
+                    },
+                ),
+                Node(id="2", type="fakesink", data={}),
+            ],
+            edges=[
+                Edge(id="0", source="0", target="1"),
+                Edge(id="1", source="1", target="2"),
+            ],
+        ),
+    ),
+    # Caps without memory, with explicit types in values
+    ParseTestCase(
+        r"filesrc ! video/x-raw,format=(string)UYVY,width=(int)2592,height=(int)1944,framerate=(fraction)28/1 ! fakesink",
+        Graph(
+            nodes=[
+                Node(id="0", type="filesrc", data={}),
+                Node(
+                    id="1",
+                    type="video/x-raw",
+                    data={
+                        "__node_kind": "caps",
+                        "format": "(string)UYVY",
+                        "width": "(int)2592",
+                        "height": "(int)1944",
+                        "framerate": "(fraction)28/1",
+                    },
+                ),
+                Node(id="2", type="fakesink", data={}),
+            ],
+            edges=[
+                Edge(id="0", source="0", target="1"),
+                Edge(id="1", source="1", target="2"),
+            ],
+        ),
+    ),
+    # Caps with memory and explicit types in values
+    ParseTestCase(
+        r"filesrc ! video/x-raw(memory:NVMM),format=(string)UYVY,width=(int)2592,height=(int)1944,framerate=(fraction)28/1 ! fakesink",
+        Graph(
+            nodes=[
+                Node(id="0", type="filesrc", data={}),
+                Node(
+                    id="1",
+                    type="video/x-raw(memory:NVMM)",
+                    data={
+                        "__node_kind": "caps",
+                        "format": "(string)UYVY",
+                        "width": "(int)2592",
+                        "height": "(int)1944",
+                        "framerate": "(fraction)28/1",
+                    },
+                ),
+                Node(id="2", type="fakesink", data={}),
+            ],
+            edges=[
+                Edge(id="0", source="0", target="1"),
+                Edge(id="1", source="1", target="2"),
             ],
         ),
     ),
