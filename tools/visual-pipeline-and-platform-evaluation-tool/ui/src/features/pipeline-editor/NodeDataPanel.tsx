@@ -5,6 +5,9 @@ import { gvaTrackConfig } from "@/features/pipeline-editor/nodes/GVATrackNode.co
 import { gvaClassifyConfig } from "@/features/pipeline-editor/nodes/GVAClassifyNode.config.ts";
 import { gvaDetectConfig } from "@/features/pipeline-editor/nodes/GVADetectNode.config.ts";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAppSelector } from "@/store/hooks";
+import { selectModels } from "@/store/reducers/models";
+import { selectDevices } from "@/store/reducers/devices";
 
 type NodePropertyConfig = {
   key: string;
@@ -33,6 +36,8 @@ const NodeDataPanel = ({
   onNodeDataUpdate,
 }: NodeDataPanelProps) => {
   const [editableData, setEditableData] = useState<Record<string, unknown>>({});
+  const models = useAppSelector(selectModels);
+  const devices = useAppSelector(selectDevices);
 
   useEffect(() => {
     if (selectedNode) {
@@ -82,7 +87,7 @@ const NodeDataPanel = ({
         editableData[prop.key] ?? prop.defaultValue,
       ])
     : Object.entries(editableData ?? {}).filter(
-        ([key]) => !["label"].includes(key),
+        ([key]) => !["label"].includes(key) && !key.startsWith("__"),
       );
 
   const hasAdditionalParams = dataEntries.length > 0;
@@ -126,18 +131,39 @@ const NodeDataPanel = ({
                   </div>
                 )}
 
-                {inputType === "select" && propConfig?.options ? (
+                {inputType === "select" &&
+                (propConfig?.options ||
+                  keyStr === "model" ||
+                  keyStr === "device") ? (
                   <select
                     value={String(value ?? "")}
                     onChange={(e) => handleInputChange(keyStr, e.target.value)}
                     className="w-full text-xs border border-gray-300 px-2 py-1"
                   >
-                    <option value="">Select {propConfig.label}</option>
-                    {propConfig.options.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
+                    <option value="">Select {propConfig?.label}</option>
+                    {keyStr === "model"
+                      ? models.map((model) => (
+                          <option
+                            key={model.name}
+                            value={model.display_name ?? model.name}
+                          >
+                            {model.display_name ?? model.name}
+                          </option>
+                        ))
+                      : keyStr === "device"
+                        ? devices.map((device) => (
+                            <option
+                              key={device.device_name}
+                              value={device.device_name}
+                            >
+                              {device.device_name}
+                            </option>
+                          ))
+                        : propConfig?.options?.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
                   </select>
                 ) : inputType === "boolean" ? (
                   <div className="flex items-center gap-2">

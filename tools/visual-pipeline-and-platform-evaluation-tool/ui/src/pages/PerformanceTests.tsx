@@ -192,7 +192,8 @@ const PerformanceTests = () => {
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Performance Tests</h1>
           <p className="text-muted-foreground mt-2">
-            Select pipelines to run performance tests on
+            Performance test measures total and per-stream frame rate (FPS) for
+            the specified pipelines with given number of streams
           </p>
         </div>
 
@@ -265,7 +266,7 @@ const PerformanceTests = () => {
           <button
             onClick={handleAddPipeline}
             disabled={pipelineSelections.length >= pipelines.length}
-            className="w-fit px-4 py-2 border-2 bg-white hover:bg-carbon border border-classic-blue text-primary hover:text-white transition-colors flex items-center gap-2 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-fit px-4 py-2 bg-white hover:bg-carbon border border-classic-blue text-primary hover:text-white transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-5 h-5" />
             <span>Add Pipeline</span>
@@ -302,9 +303,7 @@ const PerformanceTests = () => {
               >
                 {devices.map((device) => (
                   <option key={device.device_name} value={device.device_name}>
-                    {device.device_family === "GPU"
-                      ? `${device.device_name}/${device.gpu_id ?? 0}`
-                      : device.device_name}
+                    {device.device_name}
                   </option>
                 ))}
               </select>

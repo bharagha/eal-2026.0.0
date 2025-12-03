@@ -82,7 +82,7 @@ const Home = () => {
             </div>
           </div>
         </div>
-        <div className="w-[25%] border-l p-4 flex flex-col gap-4 bg-carbon-tint-2">
+        <div className="w-[25%] border-l p-4 flex flex-col gap-4 bg-[#F9F9F9]">
           <h1 className="font-medium text-2xl">Resource utilization</h1>
           <CpuUsageProgress />
           <GpuUsageProgress />

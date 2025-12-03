@@ -198,7 +198,8 @@ const DensityTests = () => {
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Density Tests</h1>
           <p className="text-muted-foreground mt-2">
-            Select pipelines and set participation rate for density testing
+            Density test finds the maximum number of streams per pipeline for
+            the specified minimum FPS per stream
           </p>
         </div>
 
@@ -271,7 +272,7 @@ const DensityTests = () => {
           <button
             onClick={handleAddPipeline}
             disabled={pipelineSelections.length >= pipelines.length}
-            className="w-fit px-4 py-2 border-2 bg-white hover:bg-carbon border border-classic-blue text-primary hover:text-white transition-colors flex items-center gap-2 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-fit px-4 py-2 bg-white hover:bg-carbon border border-classic-blue text-primary hover:text-white transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-5 h-5" />
             <span>Add Pipeline</span>
@@ -324,9 +325,7 @@ const DensityTests = () => {
                 >
                   {devices.map((device) => (
                     <option key={device.device_name} value={device.device_name}>
-                      {device.device_family === "GPU"
-                        ? `${device.device_name}/${device.gpu_id ?? 0}`
-                        : device.device_name}
+                      {device.device_name}
                     </option>
                   ))}
                 </select>

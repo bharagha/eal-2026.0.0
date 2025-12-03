@@ -17,7 +17,12 @@ const Models = () => {
     return (
       <div className="h-full overflow-auto">
         <div className="container mx-auto py-10">
-          <h1 className="text-3xl font-bold mb-6">Models</h1>
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold">Models</h1>
+            <p className="text-muted-foreground mt-2">
+              Monitor and manage pipeline jobs
+            </p>
+          </div>
           <Table>
             <TableCaption>A list of loaded models.</TableCaption>
             <TableHeader>

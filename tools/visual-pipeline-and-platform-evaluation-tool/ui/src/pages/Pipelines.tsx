@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import RunPerformanceTestButton from "@/features/pipeline-editor/RunPerformanceTestButton.tsx";
 import StopPerformanceTestButton from "@/features/pipeline-editor/StopPerformanceTestButton.tsx";
 import ExportPipelineButton from "@/features/pipeline-editor/ExportPipelineButton.tsx";
+import DeletePipelineButton from "@/features/pipeline-editor/DeletePipelineButton.tsx";
 import ImportPipelineButton from "@/features/pipeline-editor/ImportPipelineButton.tsx";
 import { Zap } from "lucide-react";
 import { isApiError } from "@/lib/apiUtils";
@@ -589,6 +590,10 @@ const Pipelines = () => {
               viewport={currentViewport}
               pipelineName={data.name}
             />
+
+            {id && (
+              <DeletePipelineButton pipelineId={id} pipelineName={data.name} />
+            )}
           </div>
 
           <div className="flex gap-2">
@@ -619,9 +624,7 @@ const Pipelines = () => {
               >
                 {devices.map((device) => (
                   <option key={device.device_name} value={device.device_name}>
-                    {device.device_family === "GPU"
-                      ? `${device.device_name}/${device.gpu_id ?? 0}`
-                      : device.device_name}
+                    {device.device_name}
                   </option>
                 ))}
               </select>
