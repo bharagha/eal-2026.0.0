@@ -159,27 +159,36 @@ class TestPipelineManager(unittest.TestCase):
         self.assertIsInstance(pipelines, list)
         self.assertGreaterEqual(len(pipelines), 3)
 
-        # Define expected pipelines (name, version, description)
+        # Define expected pipelines (name, version)
         expected = [
             (
-                "Simple Video Structurization (D-T-C)",
+                "Simple Video Structurization (D-T-C) [CPU]",
                 1,
-                "Test Pipeline Description",
             ),
             (
-                "Smart Network Video Recorder (NVR) Proxy Pipeline - Analytics Branch",
+                "Simple Video Structurization (D-T-C) [GPU]",
                 1,
-                "Test Pipeline Description",
             ),
             (
-                "Smart Network Video Recorder (NVR) Proxy Pipeline - Media Only Branch",
+                "Smart Network Video Recorder (NVR) Proxy Pipeline - Analytics Branch [CPU/NPU]",
                 1,
-                "Test Pipeline Description",
+            ),
+            (
+                "Smart Network Video Recorder (NVR) Proxy Pipeline - Analytics Branch [GPU]",
+                1,
+            ),
+            (
+                "Smart Network Video Recorder (NVR) Proxy Pipeline - Media Only Branch [CPU/NPU]",
+                1,
+            ),
+            (
+                "Smart Network Video Recorder (NVR) Proxy Pipeline - Media Only Branch [GPU]",
+                1,
             ),
         ]
 
         # Check that each expected pipeline is present in the loaded pipelines
-        for exp_name, exp_version, exp_desc in expected:
+        for exp_name, exp_version in expected:
             found = [
                 p for p in pipelines if p.name == exp_name and p.version == exp_version
             ]
