@@ -1,4 +1,4 @@
-# Get Help
+# Troubleshooting
 
 This page provides troubleshooting steps, FAQs, and resources to assist in resolving common issues.
 

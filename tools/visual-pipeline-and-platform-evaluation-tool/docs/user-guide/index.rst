@@ -62,6 +62,6 @@ Learn More
    release-notes
    how-to-build-source
    how-to-use-video-generator
-   GitHub <https://github.com/open-edge-platform/edge-ai-libraries/tree/main/tools/visual-pipeline-and-platform-evaluation-tool>
    disclaimers
    support
+   GitHub <https://github.com/open-edge-platform/edge-ai-libraries/tree/main/tools/visual-pipeline-and-platform-evaluation-tool>
