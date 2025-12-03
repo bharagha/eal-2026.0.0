@@ -1362,6 +1362,56 @@ class TestParseDescription(unittest.TestCase):
         self.assertEqual(result.edges[0].id, "0")
         self.assertEqual(result.edges[1].id, "1")
 
+    def test_edge_ids_unique_for_consecutive_caps_nodes(self):
+        """
+        When multiple caps segments appear in sequence, edge IDs must remain
+        unique across all edges in the graph.
+
+        Example:
+            filesrc ! video/x-raw,width=320,height=240 ! video/x-raw,format=NV12 ! fakesink
+        """
+        pipeline = (
+            "filesrc ! "
+            "video/x-raw,width=320,height=240 ! "
+            "video/x-raw,format=NV12 ! "
+            "fakesink"
+        )
+        result = Graph.from_pipeline_description(pipeline)
+
+        # We expect 4 nodes: filesrc, caps1, caps2, fakesink
+        self.assertEqual(len(result.nodes), 4)
+        # And 3 edges: 0->1, 1->2, 2->3
+        self.assertEqual(len(result.edges), 3)
+
+        # Edge IDs must be unique strings
+        edge_ids = [e.id for e in result.edges]
+        self.assertEqual(len(edge_ids), len(set(edge_ids)))
+
+        # Sanity-check the connectivity: ids should form a simple chain.
+        sources_targets = [(e.source, e.target) for e in result.edges]
+        self.assertIn(("0", "1"), sources_targets)
+        self.assertIn(("1", "2"), sources_targets)
+        self.assertIn(("2", "3"), sources_targets)
+
+    def test_edge_ids_unique_with_single_caps_segment(self):
+        """
+        Basic sanity check that even with a single caps segment the edge IDs
+        remain unique and correctly represent the chain.
+        """
+        pipeline = "filesrc ! video/x-raw,width=320,height=240 ! fakesink"
+        result = Graph.from_pipeline_description(pipeline)
+
+        # filesrc, caps, fakesink
+        self.assertEqual(len(result.nodes), 3)
+        self.assertEqual(len(result.edges), 2)
+
+        edge_ids = [e.id for e in result.edges]
+        self.assertEqual(len(edge_ids), len(set(edge_ids)))
+
+        sources_targets = [(e.source, e.target) for e in result.edges]
+        self.assertIn(("0", "1"), sources_targets)
+        self.assertIn(("1", "2"), sources_targets)
+
 
 class TestNegativeCases(unittest.TestCase):
     @patch("graph.videos_manager", mock_videos_manager)

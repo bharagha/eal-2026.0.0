@@ -109,12 +109,14 @@ class Graph:
                 (base, key=value, key2=value2, ...).
                 - If successful, create a Node with __node_kind="caps" in data.
              b) If not caps, tokenize the segment into TYPE/PROPERTY/TEE_END
-                tokens and build regular element nodes".
+                tokens and build regular element nodes.
           3. After parsing all segments, post-process models and video paths.
 
         Important invariants:
           * Node IDs are sequential per segment (0, 1, 2, ...).
-          * Edge IDs are also sequential and follow the position between nodes.
+          * Edge IDs are sequential and unique across the graph and are stored
+            as strings. Their numeric value is derived from the insertion
+            order of edges, not from node indices.
           * Caps nodes are created only when the segment uses comma-separated
             properties (at least one comma and all trailing parts are key=value
             with non-empty values).
@@ -143,7 +145,12 @@ class Graph:
         # Split the pipeline into segments by '!' which separates elements/caps
         raw_elements = pipeline_description.split("!")
 
+        # node_id is derived from the position of segments/elements
         node_id = 0
+        # edge_id is a monotonically increasing counter across the whole graph
+        # and is always serialized as a string.
+        edge_id = 0
+
         for raw_element in raw_elements:
             element = raw_element.strip()
             if not element:
@@ -155,7 +162,7 @@ class Graph:
             caps_parsed = _parse_caps_segment(element)
             if caps_parsed is not None:
                 caps_base, caps_props = caps_parsed
-                _add_caps_node(
+                edge_id = _add_caps_node(
                     nodes=nodes,
                     edges=edges,
                     node_id=node_id,
@@ -163,6 +170,7 @@ class Graph:
                     caps_props=caps_props,
                     tee_stack=tee_stack,
                     prev_token_kind=prev_token_kind,
+                    edge_id=edge_id,
                 )
                 prev_token_kind = "CAPS"
                 node_id += 1
@@ -173,8 +181,14 @@ class Graph:
             for token in _tokenize(element):
                 match token.kind:
                     case "TYPE":
-                        _add_node(
-                            nodes, edges, node_id, token, prev_token_kind, tee_stack
+                        edge_id = _add_node(
+                            nodes=nodes,
+                            edges=edges,
+                            node_id=node_id,
+                            token=token,
+                            prev_token_kind=prev_token_kind,
+                            tee_stack=tee_stack,
+                            edge_id=edge_id,
                         )
                     case "PROPERTY":
                         _add_property_to_last_node(nodes, token)
@@ -487,7 +501,8 @@ def _add_caps_node(
     caps_props: dict[str, str],
     tee_stack: list[str],
     prev_token_kind: str | None,
-) -> None:
+    edge_id: int,
+) -> int:
     """
     Append a caps node to the graph and connect it with the previous node.
 
@@ -509,8 +524,11 @@ def _add_caps_node(
         - Otherwise:
             * If the previous token kind was TEE_END, we pop the last tee
               node id from the stack and connect from that node.
-            * Otherwise we create a linear edge from the previous node
-              (node_id - 1).
+            * Otherwise we create a linear edge from the previous node.
+        - Edge IDs are assigned from a separate monotonically increasing
+          integer counter (edge_id) and stored as strings. This guarantees
+          that edge IDs are unique even when multiple caps nodes appear
+          in sequence, while preserving the representation as strings.
     """
     node_id_str = str(node_id)
     logger.debug(
@@ -529,8 +547,11 @@ def _add_caps_node(
         source_id = (
             tee_stack.pop() if prev_token_kind == "TEE_END" else str(node_id - 1)
         )
-        edges.append(Edge(id=str(node_id - 1), source=source_id, target=node_id_str))
-        logger.debug(f"Adding edge: {source_id} -> {node_id_str}")
+        edges.append(Edge(id=str(edge_id), source=source_id, target=node_id_str))
+        logger.debug(f"Adding edge: {source_id} -> {node_id_str} (id={edge_id})")
+        edge_id += 1
+
+    return edge_id
 
 
 def _add_node(
@@ -540,7 +561,8 @@ def _add_node(
     token: _Token,
     prev_token_kind: str | None,
     tee_stack: list[str],
-) -> None:
+    edge_id: int,
+) -> int:
     """
     Append a regular element node to the graph.
 
@@ -552,8 +574,10 @@ def _add_node(
         - Otherwise:
             * If the previous token kind was TEE_END, we pop the last tee
               node id from the stack and connect from that node.
-            * Otherwise we create a linear edge from the previous node
-              (node_id - 1).
+            * Otherwise we create a linear edge from the previous node.
+        - Edge IDs are assigned from a separate monotonically increasing
+          integer counter (edge_id) and stored as strings. This keeps edge
+          IDs unique across the whole graph.
 
     Tee handling:
         - If the new node is a "tee" element, we push its id onto tee_stack
@@ -569,12 +593,15 @@ def _add_node(
         source_id = (
             tee_stack.pop() if prev_token_kind == "TEE_END" else str(node_id - 1)
         )
-        edges.append(Edge(id=str(node_id - 1), source=source_id, target=node_id_str))
-        logger.debug(f"Adding edge: {source_id} -> {node_id_str}")
+        edges.append(Edge(id=str(edge_id), source=source_id, target=node_id_str))
+        logger.debug(f"Adding edge: {source_id} -> {node_id_str} (id={edge_id})")
+        edge_id += 1
 
     if token.value == "tee":
         tee_stack.append(node_id_str)
         logger.debug(f"Tee node added to stack: {node_id_str}")
+
+    return edge_id
 
 
 def _add_property_to_last_node(nodes: list[Node], token: _Token) -> None:
