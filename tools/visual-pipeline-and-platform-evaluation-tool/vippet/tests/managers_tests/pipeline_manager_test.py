@@ -170,7 +170,11 @@ class TestPipelineManager(unittest.TestCase):
                 1,
             ),
             (
-                "Smart Network Video Recorder (NVR) Proxy Pipeline - Analytics Branch [CPU/NPU]",
+                "Smart Network Video Recorder (NVR) Proxy Pipeline - Analytics Branch [CPU]",
+                1,
+            ),
+            (
+                "Smart Network Video Recorder (NVR) Proxy Pipeline - Analytics Branch [NPU]",
                 1,
             ),
             (
@@ -178,7 +182,11 @@ class TestPipelineManager(unittest.TestCase):
                 1,
             ),
             (
-                "Smart Network Video Recorder (NVR) Proxy Pipeline - Media Only Branch [CPU/NPU]",
+                "Smart Network Video Recorder (NVR) Proxy Pipeline - Media Only Branch [CPU]",
+                1,
+            ),
+            (
+                "Smart Network Video Recorder (NVR) Proxy Pipeline - Media Only Branch [NPU]",
                 1,
             ),
             (
