@@ -5,14 +5,12 @@
 # ==============================================================================
 
 import sys
-import ctypes
-
 import gi
 gi.require_version("GstVideo", "1.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gst", "1.0")
 gi.require_version("GstAnalytics", "1.0")
-from gi.repository import GstVideo, GLib, GObject, Gst, GstAnalytics
+from gi.repository import GLib, Gst, GstAnalytics
 
 def watermark_sink_pad_buffer_probe(pad,info,u_data):
     obj_counter = {}
@@ -27,11 +25,11 @@ def watermark_sink_pad_buffer_probe(pad,info,u_data):
     print(f"Objects detected in frame: {obj_counter}")
     rmeta.add_one_cls_mtd(1.0, GLib.quark_from_string("Objects detected in frame: {obj_counter}"))
 
-    return Gst.PadProbeReturn.OK    
+    return Gst.PadProbeReturn.OK
 
 
 def main(args):
-    # STEP 0 - Initialize GStreamer and check input arguments. 
+    # STEP 0 - Initialize GStreamer and check input arguments.
     Gst.init(None)
     if len(args) != 3:
         sys.stderr.write("usage: %s <LOCAL_VIDEO_FILE> <LOCAL_MODEL_FILE>\n" % args[0])
@@ -42,14 +40,14 @@ def main(args):
     print("Creating Pipeline.\n")
     pipeline = watermark = None
     method = "SIMPLE"
-    if method == "SIMPLE": 
+    if method == "SIMPLE":
        # SIMPLE method - from gst-launch equivalent
         pipeline = Gst.parse_launch(
             f"filesrc location={args[1]} ! decodebin3 ! "
             f"gvadetect model={args[2]} device=GPU batch-size=1 ! queue ! "
             f"gvawatermark name=watermark ! videoconvertscale ! autovideosink"
         )
-        watermark = pipeline.get_by_name("watermark")  
+        watermark = pipeline.get_by_name("watermark")
     else:
         # FULL method instantiating and linking individual elements
         pipeline = Gst.Pipeline()
@@ -107,8 +105,7 @@ def main(args):
         pipeline.add(videoconvertscale)
         pipeline.add(sink)
 
-        # Link elements: source -> decoder -> detect -> queue -> watermark -> videoconvert -> videosink
-        # (late binding for decoder -> detect)
+        # Link elements, late binding for decode->detect
         print("Linking elements in the Pipeline \n")
         source.link(decoder)
         decoder.connect("pad-added",
@@ -134,8 +131,7 @@ def main(args):
         msg = bus.timed_pop_filtered(Gst.CLOCK_TIME_NONE, Gst.MessageType.EOS | Gst.MessageType.ERROR)
         if msg:
             if msg.type == Gst.MessageType.ERROR:
-                err, debug_info = msg.parse_error()
-                # print(f"Error received from element {msg.src.get_name()}: {err.message}")
+                _, debug_info = msg.parse_error()
                 print(f"Error received from element {msg.src.get_name()}")
                 print(f"Debug info: {debug_info}")
                 terminate = True                
