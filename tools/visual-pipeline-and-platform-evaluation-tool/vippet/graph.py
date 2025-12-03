@@ -113,7 +113,7 @@ class Graph:
           3. After parsing all segments, post-process models and video paths.
 
         Important invariants:
-          * Node IDs are sequential per segment (0, 1, 2, ...).
+          * Node IDs are assigned sequentially starting from 0 as segments are processed.
           * Edge IDs are sequential and unique across the graph and are stored
             as strings. Their numeric value is derived from the insertion
             order of edges, not from node indices.
@@ -524,6 +524,8 @@ def _add_caps_node(
         - Otherwise:
             * If the previous token kind was TEE_END, we pop the last tee
               node id from the stack and connect from that node.
+              If the tee stack is empty in this situation, the pipeline
+              syntax is inconsistent and a clear error is raised.
             * Otherwise we create a linear edge from the previous node.
         - Edge IDs are assigned from a separate monotonically increasing
           integer counter (edge_id) and stored as strings. This guarantees
@@ -544,9 +546,19 @@ def _add_caps_node(
     nodes.append(Node(id=node_id_str, type=caps_base, data=data_with_kind))
 
     if node_id > 0:
-        source_id = (
-            tee_stack.pop() if prev_token_kind == "TEE_END" else str(node_id - 1)
-        )
+        if prev_token_kind == "TEE_END":
+            # A tee endpoint ("t.") was seen before this caps node, so we must
+            # have a corresponding tee node on the stack. If the stack is
+            # empty here, the pipeline description is malformed and should
+            # be reported with a clear error instead of raising IndexError.
+            if not tee_stack:
+                raise ValueError(
+                    "TEE_END without corresponding tee element in pipeline description"
+                )
+            source_id = tee_stack.pop()
+        else:
+            source_id = str(node_id - 1)
+
         edges.append(Edge(id=str(edge_id), source=source_id, target=node_id_str))
         logger.debug(f"Adding edge: {source_id} -> {node_id_str} (id={edge_id})")
         edge_id += 1
@@ -574,6 +586,8 @@ def _add_node(
         - Otherwise:
             * If the previous token kind was TEE_END, we pop the last tee
               node id from the stack and connect from that node.
+              If the tee stack is empty in this situation, the pipeline
+              syntax is inconsistent and a clear error is raised.
             * Otherwise we create a linear edge from the previous node.
         - Edge IDs are assigned from a separate monotonically increasing
           integer counter (edge_id) and stored as strings. This keeps edge
@@ -590,9 +604,19 @@ def _add_node(
     nodes.append(Node(id=node_id_str, type=token.value, data={}))
 
     if node_id > 0:
-        source_id = (
-            tee_stack.pop() if prev_token_kind == "TEE_END" else str(node_id - 1)
-        )
+        if prev_token_kind == "TEE_END":
+            # A tee endpoint ("t.") was seen before this element, so we must
+            # have a corresponding tee node on the stack. If the stack is
+            # empty here, the pipeline description is malformed and should
+            # be reported with a clear error instead of raising IndexError.
+            if not tee_stack:
+                raise ValueError(
+                    "TEE_END without corresponding tee element in pipeline description"
+                )
+            source_id = tee_stack.pop()
+        else:
+            source_id = str(node_id - 1)
+
         edges.append(Edge(id=str(edge_id), source=source_id, target=node_id_str))
         logger.debug(f"Adding edge: {source_id} -> {node_id_str} (id={edge_id})")
         edge_id += 1

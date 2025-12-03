@@ -1412,6 +1412,35 @@ class TestParseDescription(unittest.TestCase):
         self.assertIn(("0", "1"), sources_targets)
         self.assertIn(("1", "2"), sources_targets)
 
+    def test_tee_end_without_tee_element_raises_error_for_regular_node(self):
+        """
+        Using a tee endpoint (e.g. 't.') without a corresponding tee element
+        should raise a clear ValueError instead of an IndexError.
+
+        This test covers the case where TEE_END is followed by a regular
+        element segment.
+        """
+        # There is no 'tee name=t0' element, but 't0.' is used.
+        pipeline = "filesrc ! t0. ! queue ! fakesink"
+
+        with self.assertRaises(ValueError) as cm:
+            Graph.from_pipeline_description(pipeline)
+
+        self.assertIn("TEE_END without corresponding tee element", str(cm.exception))
+
+    def test_tee_end_without_tee_element_raises_error_for_caps_node(self):
+        """
+        Using a tee endpoint (e.g. 't.') without a corresponding tee element
+        should also raise a clear ValueError when the next segment is a caps
+        node.
+        """
+        pipeline = "filesrc ! t0. ! video/x-raw,width=320,height=240 ! fakesink"
+
+        with self.assertRaises(ValueError) as cm:
+            Graph.from_pipeline_description(pipeline)
+
+        self.assertIn("TEE_END without corresponding tee element", str(cm.exception))
+
 
 class TestNegativeCases(unittest.TestCase):
     @patch("graph.videos_manager", mock_videos_manager)
