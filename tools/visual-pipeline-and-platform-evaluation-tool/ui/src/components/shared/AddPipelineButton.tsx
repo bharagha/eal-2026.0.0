@@ -46,6 +46,9 @@ const AddPipelineButton = () => {
   );
 
   useEffect(() => {
+    if (!validationJobStatus || validationJobStatus.id !== validationJobId)
+      return;
+
     const handleCreatePipeline = async () => {
       if (!pendingPipelineData) return;
 
@@ -116,7 +119,13 @@ const AddPipelineButton = () => {
       setValidationStatus("");
       setPendingPipelineData(null);
     }
-  }, [validationJobStatus, createPipeline, navigate, pendingPipelineData]);
+  }, [
+    validationJobStatus,
+    createPipeline,
+    navigate,
+    pendingPipelineData,
+    validationJobId,
+  ]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -135,6 +144,11 @@ const AddPipelineButton = () => {
       toast.error("Name and pipeline description are required");
       return;
     }
+
+    // Reset any previous validation state
+    setValidationJobId(null);
+    setValidationStatus("");
+    setPendingPipelineData(null);
 
     try {
       // Step 1: Convert description to graph
@@ -164,6 +178,11 @@ const AddPipelineButton = () => {
           description: description.trim(),
           pipelineDescription: pipelineDescription,
         });
+      } else {
+        // Immediate validation response
+        setValidationStatus("");
+        setValidationJobId(null);
+        setPendingPipelineData(null);
       }
     } catch (error) {
       const errorMessage = isApiError(error)
@@ -172,8 +191,9 @@ const AddPipelineButton = () => {
       toast.error("Failed to process pipeline", {
         description: errorMessage,
       });
-      console.error("Failed to process pipeline:", error);
       setValidationStatus("");
+      setValidationJobId(null);
+      setPendingPipelineData(null);
     }
   };
 
@@ -203,7 +223,7 @@ const AddPipelineButton = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter pipeline name..."
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border"
             />
           </div>
 
@@ -220,7 +240,7 @@ const AddPipelineButton = () => {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Enter pipeline description..."
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border"
             />
           </div>
 
@@ -236,7 +256,7 @@ const AddPipelineButton = () => {
               type="file"
               accept=".txt"
               onChange={handleFileUpload}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
             />
           </div>
 
@@ -252,13 +272,13 @@ const AddPipelineButton = () => {
               value={pipelineDescription}
               onChange={(e) => setPipelineDescription(e.target.value)}
               placeholder="Paste or upload your pipeline description here..."
-              className="w-full h-64 p-3 border rounded-md resize-none font-mono text-sm"
+              className="w-full h-64 p-3 border resize-none font-mono text-sm"
             />
           </div>
 
           <div className="flex justify-end gap-2">
             <button
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
               onClick={() => {
                 setOpen(false);
                 setName("");
