@@ -4,10 +4,6 @@ import {
   useGetDensityJobStatusQuery,
   useRunDensityTestMutation,
 } from "@/api/api.generated.ts";
-import {
-  PipelinesDensityDataTable,
-  type PipelineWithParticipation,
-} from "@/components/shared/PipelinesDensityDataTable.tsx";
 import { TestProgressIndicator } from "@/components/shared/TestProgressIndicator.tsx";
 import { PipelineStreamsSummary } from "@/components/shared/PipelineStreamsSummary.tsx";
 import { PipelineName } from "@/components/shared/PipelineName.tsx";
@@ -20,14 +16,23 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Plus, X } from "lucide-react";
+import { ParticipationSlider } from "@/components/shared/ParticipationSlider";
+
+interface PipelineSelection {
+  pipelineId: string;
+  stream_rate: number;
+  isRemoving?: boolean;
+  isNew?: boolean;
+}
 
 const DensityTests = () => {
   const pipelines = useAppSelector(selectPipelines);
   const devices = useAppSelector(selectDevices);
   const [runDensityTest, { isLoading: isRunning }] =
     useRunDensityTestMutation();
-  const [selectedPipelines, setSelectedPipelines] = useState<
-    PipelineWithParticipation[]
+  const [pipelineSelections, setPipelineSelections] = useState<
+    PipelineSelection[]
   >([]);
   const [fpsFloor, setFpsFloor] = useState<number>(30);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -67,8 +72,82 @@ const DensityTests = () => {
     }
   }, [jobStatus]);
 
+  useEffect(() => {
+    if (pipelines.length > 0 && pipelineSelections.length === 0) {
+      setPipelineSelections([
+        {
+          pipelineId: pipelines[0].id,
+          stream_rate: 50,
+          isNew: false,
+        },
+      ]);
+    }
+  }, [pipelines, pipelineSelections.length]);
+
+  const handleAddPipeline = () => {
+    const usedPipelineIds = pipelineSelections.map((sel) => sel.pipelineId);
+    const availablePipeline = pipelines.find(
+      (pipeline) => !usedPipelineIds.includes(pipeline.id),
+    );
+    if (availablePipeline) {
+      setPipelineSelections((prev) => [
+        ...prev,
+        {
+          pipelineId: availablePipeline.id,
+          stream_rate: 50,
+          isNew: true,
+        },
+      ]);
+      setTimeout(() => {
+        setPipelineSelections((prev) =>
+          prev.map((sel) =>
+            sel.pipelineId === availablePipeline.id
+              ? { ...sel, isNew: false }
+              : sel,
+          ),
+        );
+      }, 300);
+    }
+  };
+
+  const handleRemovePipeline = (pipelineId: string) => {
+    if (pipelineSelections.length > 1) {
+      setPipelineSelections((prev) =>
+        prev.map((sel) =>
+          sel.pipelineId === pipelineId ? { ...sel, isRemoving: true } : sel,
+        ),
+      );
+      setTimeout(() => {
+        setPipelineSelections((prev) =>
+          prev.filter((sel) => sel.pipelineId !== pipelineId),
+        );
+      }, 300);
+    }
+  };
+
+  const handlePipelineChange = (
+    oldPipelineId: string,
+    newPipelineId: string,
+  ) => {
+    setPipelineSelections((prev) =>
+      prev.map((sel) =>
+        sel.pipelineId === oldPipelineId
+          ? { ...sel, pipelineId: newPipelineId }
+          : sel,
+      ),
+    );
+  };
+
+  const handleStreamRateChange = (pipelineId: string, stream_rate: number) => {
+    setPipelineSelections((prev) =>
+      prev.map((sel) =>
+        sel.pipelineId === pipelineId ? { ...sel, stream_rate } : sel,
+      ),
+    );
+  };
+
   const handleRunTest = async () => {
-    if (selectedPipelines.length === 0) return;
+    if (pipelineSelections.length === 0) return;
 
     setTestResult(null);
     setErrorMessage(null);
@@ -93,9 +172,9 @@ const DensityTests = () => {
                 : undefined,
           },
           fps_floor: fpsFloor,
-          pipeline_density_specs: selectedPipelines.map((pipeline) => ({
-            id: pipeline.id,
-            stream_rate: pipeline.stream_rate,
+          pipeline_density_specs: pipelineSelections.map((selection) => ({
+            id: selection.pipelineId,
+            stream_rate: selection.stream_rate,
           })),
         },
       }).unwrap();
@@ -123,10 +202,81 @@ const DensityTests = () => {
           </p>
         </div>
 
-        <PipelinesDensityDataTable
-          data={pipelines ?? []}
-          onSelectionChange={setSelectedPipelines}
-        />
+        <div className="space-y-3 mb-6">
+          {pipelineSelections.map((selection) => (
+            <div
+              key={selection.pipelineId}
+              className={`flex items-center gap-3 p-2 border bg-white transition-all duration-300 ${
+                selection.isRemoving
+                  ? "opacity-0 -translate-y-2"
+                  : selection.isNew
+                    ? "animate-in fade-in slide-in-from-top-2"
+                    : ""
+              }`}
+            >
+              <div className="flex-1 flex items-center gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-1">
+                    Pipeline
+                  </label>
+                  <select
+                    value={selection.pipelineId}
+                    onChange={(e) =>
+                      handlePipelineChange(selection.pipelineId, e.target.value)
+                    }
+                    className="w-full px-3 py-2 border text-sm cursor-pointer"
+                  >
+                    {pipelines
+                      .filter(
+                        (pipeline) =>
+                          pipeline.id === selection.pipelineId ||
+                          !pipelineSelections.some(
+                            (sel) => sel.pipelineId === pipeline.id,
+                          ),
+                      )
+                      .map((pipeline) => (
+                        <option key={pipeline.id} value={pipeline.id}>
+                          {pipeline.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-1">
+                    Participation Rate
+                  </label>
+                  <ParticipationSlider
+                    value={selection.stream_rate}
+                    onChange={(val) =>
+                      handleStreamRateChange(selection.pipelineId, val)
+                    }
+                    min={0}
+                    max={100}
+                  />
+                </div>
+              </div>
+
+              {pipelineSelections.length > 1 && (
+                <button
+                  onClick={() => handleRemovePipeline(selection.pipelineId)}
+                  className="text-red-500 hover:text-red-700 p-2"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          ))}
+
+          <button
+            onClick={handleAddPipeline}
+            disabled={pipelineSelections.length >= pipelines.length}
+            className="w-fit px-4 py-2 border-2 bg-white hover:bg-carbon border border-classic-blue text-primary hover:text-white transition-colors flex items-center gap-2 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Add Pipeline</span>
+          </button>
+        </div>
 
         <div className="my-4">
           <label className="block text-sm font-medium mb-2">
@@ -139,7 +289,7 @@ const DensityTests = () => {
               onChange={(e) => setFpsFloor(Number(e.target.value))}
               min={1}
               max={120}
-              className="w-24 px-3 py-2 border rounded-md"
+              className="w-24 px-3 py-2 border"
             />
             <span className="text-sm text-muted-foreground">FPS</span>
           </div>
@@ -170,7 +320,7 @@ const DensityTests = () => {
                 <select
                   value={encoderDevice}
                   onChange={(e) => setEncoderDevice(e.target.value)}
-                  className="w-fit px-3 py-2 border rounded-md text-sm cursor-pointer"
+                  className="w-fit px-3 py-2 border text-sm cursor-pointer"
                 >
                   {devices.map((device) => (
                     <option key={device.device_name} value={device.device_name}>
@@ -185,7 +335,7 @@ const DensityTests = () => {
 
             <button
               onClick={handleRunTest}
-              disabled={isRunning || selectedPipelines.length === 0 || !!jobId}
+              disabled={isRunning || pipelineSelections.length === 0 || !!jobId}
               className="w-fit px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {jobId
@@ -197,14 +347,14 @@ const DensityTests = () => {
           </div>
 
           {jobId && jobStatus && (
-            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
               <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
                 Test Status: {jobStatus.state}
               </p>
               {jobStatus.state === "RUNNING" && (
                 <div className="mt-2">
                   <div className="animate-pulse flex items-center gap-2">
-                    <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                    <div className="h-2 w-2 bg-blue-500"></div>
                     <span className="text-xs text-blue-700 dark:text-blue-300">
                       Running density test...
                     </span>
@@ -216,7 +366,7 @@ const DensityTests = () => {
           )}
 
           {errorMessage && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md">
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800">
               <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-2">
                 Test Failed
               </p>
@@ -227,7 +377,7 @@ const DensityTests = () => {
           )}
 
           {testResult && (
-            <div className="mb-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
+            <div className="mb-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800">
               <p className="text-sm font-medium text-green-900 dark:text-green-100 mb-2">
                 Test Completed Successfully
               </p>
@@ -269,7 +419,7 @@ const DensityTests = () => {
                           return (
                             <div
                               key={pipelineId}
-                              className="border border-green-300 dark:border-green-700 rounded-md overflow-hidden"
+                              className="border border-green-300 dark:border-green-700 overflow-hidden"
                             >
                               <div className="bg-green-100 dark:bg-green-900 px-3 py-2">
                                 <p className="text-xs font-medium text-green-900 dark:text-green-100">

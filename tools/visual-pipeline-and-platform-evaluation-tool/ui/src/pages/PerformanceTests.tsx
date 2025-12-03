@@ -18,10 +18,10 @@ import { Plus, X } from "lucide-react";
 import { StreamsSlider } from "@/components/shared/StreamsSlider";
 
 interface PipelineSelection {
-  id: string;
   pipelineId: string;
   streams: number;
   isRemoving?: boolean;
+  isNew?: boolean;
 }
 
 const PerformanceTests = () => {
@@ -31,13 +31,7 @@ const PerformanceTests = () => {
     useRunPerformanceTestMutation();
   const [pipelineSelections, setPipelineSelections] = useState<
     PipelineSelection[]
-  >([
-    {
-      id: crypto.randomUUID(),
-      pipelineId: pipelines[0]?.id || "",
-      streams: 8,
-    },
-  ]);
+  >([]);
   const [jobId, setJobId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{
     total_fps: number | null;
@@ -75,37 +69,77 @@ const PerformanceTests = () => {
     }
   }, [jobStatus]);
 
-  const handleAddPipeline = () => {
-    setPipelineSelections((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        pipelineId: pipelines[0]?.id || "",
-        streams: 8,
-      },
-    ]);
-  };
+  useEffect(() => {
+    if (pipelines.length > 0 && pipelineSelections.length === 0) {
+      setPipelineSelections([
+        {
+          pipelineId: pipelines[0].id,
+          streams: 8,
+          isNew: false,
+        },
+      ]);
+    }
+  }, [pipelines, pipelineSelections.length]);
 
-  const handleRemovePipeline = (id: string) => {
-    if (pipelineSelections.length > 1) {
-      setPipelineSelections((prev) =>
-        prev.map((sel) => (sel.id === id ? { ...sel, isRemoving: true } : sel)),
-      );
+  const handleAddPipeline = () => {
+    const usedPipelineIds = pipelineSelections.map((sel) => sel.pipelineId);
+    const availablePipeline = pipelines.find(
+      (pipeline) => !usedPipelineIds.includes(pipeline.id),
+    );
+    if (availablePipeline) {
+      setPipelineSelections((prev) => [
+        ...prev,
+        {
+          pipelineId: availablePipeline.id,
+          streams: 8,
+          isNew: true,
+        },
+      ]);
       setTimeout(() => {
-        setPipelineSelections((prev) => prev.filter((sel) => sel.id !== id));
+        setPipelineSelections((prev) =>
+          prev.map((sel) =>
+            sel.pipelineId === availablePipeline.id
+              ? { ...sel, isNew: false }
+              : sel,
+          ),
+        );
       }, 300);
     }
   };
 
-  const handlePipelineChange = (id: string, pipelineId: string) => {
+  const handleRemovePipeline = (pipelineId: string) => {
+    if (pipelineSelections.length > 1) {
+      setPipelineSelections((prev) =>
+        prev.map((sel) =>
+          sel.pipelineId === pipelineId ? { ...sel, isRemoving: true } : sel,
+        ),
+      );
+      setTimeout(() => {
+        setPipelineSelections((prev) =>
+          prev.filter((sel) => sel.pipelineId !== pipelineId),
+        );
+      }, 300);
+    }
+  };
+
+  const handlePipelineChange = (
+    oldPipelineId: string,
+    newPipelineId: string,
+  ) => {
     setPipelineSelections((prev) =>
-      prev.map((sel) => (sel.id === id ? { ...sel, pipelineId } : sel)),
+      prev.map((sel) =>
+        sel.pipelineId === oldPipelineId
+          ? { ...sel, pipelineId: newPipelineId }
+          : sel,
+      ),
     );
   };
 
-  const handleStreamsChange = (id: string, streams: number) => {
+  const handleStreamsChange = (pipelineId: string, streams: number) => {
     setPipelineSelections((prev) =>
-      prev.map((sel) => (sel.id === id ? { ...sel, streams } : sel)),
+      prev.map((sel) =>
+        sel.pipelineId === pipelineId ? { ...sel, streams } : sel,
+      ),
     );
   };
 
@@ -165,11 +199,13 @@ const PerformanceTests = () => {
         <div className="space-y-3 mb-6">
           {pipelineSelections.map((selection) => (
             <div
-              key={selection.id}
+              key={selection.pipelineId}
               className={`flex items-center gap-3 p-2 border bg-white transition-all duration-300 ${
                 selection.isRemoving
                   ? "opacity-0 -translate-y-2"
-                  : "opacity-100 translate-y-0 animate-in fade-in slide-in-from-top-2"
+                  : selection.isNew
+                    ? "animate-in fade-in slide-in-from-top-2"
+                    : ""
               }`}
             >
               <div className="flex-1 flex items-center gap-4">
@@ -180,15 +216,23 @@ const PerformanceTests = () => {
                   <select
                     value={selection.pipelineId}
                     onChange={(e) =>
-                      handlePipelineChange(selection.id, e.target.value)
+                      handlePipelineChange(selection.pipelineId, e.target.value)
                     }
                     className="w-full px-3 py-2 border text-sm cursor-pointer"
                   >
-                    {pipelines.map((pipeline) => (
-                      <option key={pipeline.id} value={pipeline.id}>
-                        {pipeline.name}
-                      </option>
-                    ))}
+                    {pipelines
+                      .filter(
+                        (pipeline) =>
+                          pipeline.id === selection.pipelineId ||
+                          !pipelineSelections.some(
+                            (sel) => sel.pipelineId === pipeline.id,
+                          ),
+                      )
+                      .map((pipeline) => (
+                        <option key={pipeline.id} value={pipeline.id}>
+                          {pipeline.name}
+                        </option>
+                      ))}
                   </select>
                 </div>
 
@@ -198,7 +242,9 @@ const PerformanceTests = () => {
                   </label>
                   <StreamsSlider
                     value={selection.streams}
-                    onChange={(val) => handleStreamsChange(selection.id, val)}
+                    onChange={(val) =>
+                      handleStreamsChange(selection.pipelineId, val)
+                    }
                     min={1}
                     max={64}
                   />
@@ -207,7 +253,7 @@ const PerformanceTests = () => {
 
               {pipelineSelections.length > 1 && (
                 <button
-                  onClick={() => handleRemovePipeline(selection.id)}
+                  onClick={() => handleRemovePipeline(selection.pipelineId)}
                   className="text-red-500 hover:text-red-700 p-2"
                 >
                   <X className="w-5 h-5" />
@@ -218,7 +264,8 @@ const PerformanceTests = () => {
 
           <button
             onClick={handleAddPipeline}
-            className="w-fit px-4 py-2 bg-white hover:bg-carbon border border-classic-blue hover:text-white transition-colors flex items-center gap-2 text-gray-600"
+            disabled={pipelineSelections.length >= pipelines.length}
+            className="w-fit px-4 py-2 border-2 bg-white hover:bg-carbon border border-classic-blue text-primary hover:text-white transition-colors flex items-center gap-2 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-5 h-5" />
             <span>Add Pipeline</span>

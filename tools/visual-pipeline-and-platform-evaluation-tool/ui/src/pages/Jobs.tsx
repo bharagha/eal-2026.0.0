@@ -98,7 +98,7 @@ const Jobs = () => {
                   No performance jobs found
                 </p>
               ) : (
-                <div className="border rounded-md">
+                <div className="border">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -137,7 +137,7 @@ const Jobs = () => {
                           </TableCell>
                           <TableCell>
                             <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              className={`px-2 py-1 text-xs font-medium ${
                                 job.state === "COMPLETED"
                                   ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                                   : job.state === "RUNNING"
@@ -184,7 +184,7 @@ const Jobs = () => {
               ) : !densityJobs || densityJobs.length === 0 ? (
                 <p className="text-muted-foreground">No density jobs found</p>
               ) : (
-                <div className="border rounded-md">
+                <div className="border">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -210,7 +210,7 @@ const Jobs = () => {
                           </TableCell>
                           <TableCell>
                             <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              className={`px-2 py-1 text-xs font-medium ${
                                 job.state === "COMPLETED"
                                   ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                                   : job.state === "RUNNING"
@@ -270,7 +270,7 @@ const Jobs = () => {
                   No optimization jobs found
                 </p>
               ) : (
-                <div className="border rounded-md">
+                <div className="border">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -294,13 +294,13 @@ const Jobs = () => {
                             </Link>
                           </TableCell>
                           <TableCell>
-                            <span className="px-2 py-1 rounded-md bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 text-xs font-medium">
+                            <span className="px-2 py-1 bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 text-xs font-medium">
                               {job.type ?? "-"}
                             </span>
                           </TableCell>
                           <TableCell>
                             <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              className={`px-2 py-1 text-xs font-medium ${
                                 job.state === "COMPLETED"
                                   ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                                   : job.state === "RUNNING"

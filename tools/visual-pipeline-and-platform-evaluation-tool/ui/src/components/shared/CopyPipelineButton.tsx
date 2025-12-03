@@ -94,7 +94,7 @@ const CopyPipelineButton = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter pipeline name..."
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border"
             />
           </div>
 
@@ -110,13 +110,13 @@ const CopyPipelineButton = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Enter pipeline description..."
-              className="w-full h-24 px-3 py-2 border rounded-md resize-none"
+              className="w-full h-24 px-3 py-2 border resize-none"
             />
           </div>
 
           <div className="flex justify-end gap-2">
             <button
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
               onClick={() => {
                 setOpen(false);
                 setName(`${pipeline.name} (copy)`);
@@ -126,7 +126,7 @@ const CopyPipelineButton = ({
               Cancel
             </button>
             <button
-              className="px-4 py-2 text-sm font-medium text-white bg-classic-blue rounded-md hover:bg-classic-blue-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm font-medium text-white bg-classic-blue hover:bg-classic-blue-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleCopy}
               disabled={isLoading || !name.trim()}
             >
