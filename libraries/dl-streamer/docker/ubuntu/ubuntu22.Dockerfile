@@ -306,8 +306,8 @@ FROM builder AS kafka-builder
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 # Build librdkafka
-RUN curl -sSL https://github.com/edenhill/librdkafka/archive/v2.3.0.tar.gz | tar -xz
-WORKDIR /librdkafka-2.3.0
+RUN curl -sSL https://github.com/edenhill/librdkafka/archive/v2.12.1.tar.gz | tar -xz
+WORKDIR /librdkafka-2.12.1
 RUN ./configure &&\
     make && make install
 
