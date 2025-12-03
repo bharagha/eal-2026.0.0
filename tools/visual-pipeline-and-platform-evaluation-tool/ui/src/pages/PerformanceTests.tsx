@@ -3,10 +3,6 @@ import {
   useGetPerformanceJobStatusQuery,
   useRunPerformanceTestMutation,
 } from "@/api/api.generated";
-import {
-  PipelinesDataTable,
-  type PipelineWithStreams,
-} from "@/components/shared/PipelinesDataTable";
 import { TestProgressIndicator } from "@/components/shared/TestProgressIndicator.tsx";
 import { PipelineName } from "@/components/shared/PipelineName.tsx";
 import { useAppSelector } from "@/store/hooks";
@@ -18,15 +14,30 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Plus, X } from "lucide-react";
+import { StreamsSlider } from "@/components/shared/StreamsSlider";
+
+interface PipelineSelection {
+  id: string;
+  pipelineId: string;
+  streams: number;
+  isRemoving?: boolean;
+}
 
 const PerformanceTests = () => {
   const pipelines = useAppSelector(selectPipelines);
   const devices = useAppSelector(selectDevices);
   const [runPerformanceTest, { isLoading: isRunning }] =
     useRunPerformanceTestMutation();
-  const [selectedPipelines, setSelectedPipelines] = useState<
-    PipelineWithStreams[]
-  >([]);
+  const [pipelineSelections, setPipelineSelections] = useState<
+    PipelineSelection[]
+  >([
+    {
+      id: crypto.randomUUID(),
+      pipelineId: pipelines[0]?.id || "",
+      streams: 8,
+    },
+  ]);
   const [jobId, setJobId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{
     total_fps: number | null;
@@ -64,9 +75,41 @@ const PerformanceTests = () => {
     }
   }, [jobStatus]);
 
-  const handleRunTest = async () => {
-    if (selectedPipelines.length === 0) return;
+  const handleAddPipeline = () => {
+    setPipelineSelections((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        pipelineId: pipelines[0]?.id || "",
+        streams: 8,
+      },
+    ]);
+  };
 
+  const handleRemovePipeline = (id: string) => {
+    if (pipelineSelections.length > 1) {
+      setPipelineSelections((prev) =>
+        prev.map((sel) => (sel.id === id ? { ...sel, isRemoving: true } : sel)),
+      );
+      setTimeout(() => {
+        setPipelineSelections((prev) => prev.filter((sel) => sel.id !== id));
+      }, 300);
+    }
+  };
+
+  const handlePipelineChange = (id: string, pipelineId: string) => {
+    setPipelineSelections((prev) =>
+      prev.map((sel) => (sel.id === id ? { ...sel, pipelineId } : sel)),
+    );
+  };
+
+  const handleStreamsChange = (id: string, streams: number) => {
+    setPipelineSelections((prev) =>
+      prev.map((sel) => (sel.id === id ? { ...sel, streams } : sel)),
+    );
+  };
+
+  const handleRunTest = async () => {
     setTestResult(null);
     setErrorMessage(null);
     try {
@@ -89,9 +132,9 @@ const PerformanceTests = () => {
                   }
                 : undefined,
           },
-          pipeline_performance_specs: selectedPipelines.map((pipeline) => ({
-            id: pipeline.id,
-            streams: pipeline.streams,
+          pipeline_performance_specs: pipelineSelections.map((selection) => ({
+            id: selection.pipelineId,
+            streams: selection.streams,
           })),
         },
       }).unwrap();
@@ -119,10 +162,68 @@ const PerformanceTests = () => {
           </p>
         </div>
 
-        <PipelinesDataTable
-          data={pipelines ?? []}
-          onSelectionChange={setSelectedPipelines}
-        />
+        <div className="space-y-3 mb-6">
+          {pipelineSelections.map((selection) => (
+            <div
+              key={selection.id}
+              className={`flex items-center gap-3 p-2 border bg-white transition-all duration-300 ${
+                selection.isRemoving
+                  ? "opacity-0 -translate-y-2"
+                  : "opacity-100 translate-y-0 animate-in fade-in slide-in-from-top-2"
+              }`}
+            >
+              <div className="flex-1 flex items-center gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-1">
+                    Pipeline
+                  </label>
+                  <select
+                    value={selection.pipelineId}
+                    onChange={(e) =>
+                      handlePipelineChange(selection.id, e.target.value)
+                    }
+                    className="w-full px-3 py-2 border text-sm cursor-pointer"
+                  >
+                    {pipelines.map((pipeline) => (
+                      <option key={pipeline.id} value={pipeline.id}>
+                        {pipeline.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-1">
+                    Streams
+                  </label>
+                  <StreamsSlider
+                    value={selection.streams}
+                    onChange={(val) => handleStreamsChange(selection.id, val)}
+                    min={1}
+                    max={64}
+                  />
+                </div>
+              </div>
+
+              {pipelineSelections.length > 1 && (
+                <button
+                  onClick={() => handleRemovePipeline(selection.id)}
+                  className="text-red-500 hover:text-red-700 p-2"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          ))}
+
+          <button
+            onClick={handleAddPipeline}
+            className="w-fit px-4 py-2 bg-white hover:bg-carbon border border-classic-blue hover:text-white transition-colors flex items-center gap-2 text-gray-600"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Add Pipeline</span>
+          </button>
+        </div>
 
         <div className="my-4 flex flex-col gap-3">
           <div className="flex items-center gap-3">
@@ -150,7 +251,7 @@ const PerformanceTests = () => {
               <select
                 value={encoderDevice}
                 onChange={(e) => setEncoderDevice(e.target.value)}
-                className="w-fit px-3 py-2 border rounded-md text-sm cursor-pointer"
+                className="w-fit px-3 py-2 border text-sm cursor-pointer"
               >
                 {devices.map((device) => (
                   <option key={device.device_name} value={device.device_name}>
@@ -165,7 +266,7 @@ const PerformanceTests = () => {
 
           <button
             onClick={handleRunTest}
-            disabled={isRunning || selectedPipelines.length === 0 || !!jobId}
+            disabled={isRunning || pipelineSelections.length === 0 || !!jobId}
             className="w-fit px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {jobId
@@ -177,14 +278,14 @@ const PerformanceTests = () => {
         </div>
 
         {jobId && jobStatus && (
-          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
             <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
               Test Status: {jobStatus.state}
             </p>
             {jobStatus.state === "RUNNING" && (
               <div className="mt-2">
                 <div className="animate-pulse flex items-center gap-2">
-                  <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                  <div className="h-2 w-2 bg-blue-500"></div>
                   <span className="text-xs text-blue-700 dark:text-blue-300">
                     Running performance test...
                   </span>
@@ -196,7 +297,7 @@ const PerformanceTests = () => {
         )}
 
         {errorMessage && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md">
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800">
             <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-2">
               Test Failed
             </p>
@@ -207,7 +308,7 @@ const PerformanceTests = () => {
         )}
 
         {testResult && (
-          <div className="mb-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
+          <div className="mb-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800">
             <p className="text-sm font-medium text-green-900 dark:text-green-100 mb-2">
               Test Completed Successfully
             </p>
@@ -238,7 +339,7 @@ const PerformanceTests = () => {
                         return (
                           <div
                             key={pipelineId}
-                            className="border border-green-300 dark:border-green-700 rounded-md overflow-hidden"
+                            className="border border-green-300 dark:border-green-700 overflow-hidden"
                           >
                             <div className="bg-green-100 dark:bg-green-900 px-3 py-2">
                               <p className="text-xs font-medium text-green-900 dark:text-green-100">
