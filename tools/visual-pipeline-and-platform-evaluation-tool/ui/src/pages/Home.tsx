@@ -16,6 +16,7 @@ import { BookOpen, Sparkles, Code } from "lucide-react";
 import pipeline0 from "@/assets/pipeline_0.png";
 import pipeline1 from "@/assets/pipeline_1.png";
 import pipeline2 from "@/assets/pipeline_2.png";
+import type { Pipeline } from "@/api/api.generated";
 
 const pipelineImages = [pipeline0, pipeline1, pipeline2];
 
@@ -27,6 +28,36 @@ const Home = () => {
   const userDefinedPipelines =
     pipelines?.filter((p) => p.source === "USER_CREATED") ?? [];
 
+  const groupedPredefinedPipelines = predefinedPipelines.reduce(
+    (acc, pipeline) => {
+      const match = pipeline.name.match(/^(.+?)\s*(\[.+?])?$/);
+      const baseName = match ? match[1].trim() : pipeline.name;
+      const tag = match && match[2] ? match[2].replace(/[[\]]/g, "") : null;
+
+      const existing = acc.find((group) => group.baseName === baseName);
+      if (existing) {
+        if (tag) {
+          existing.pipelines[tag] = pipeline;
+        }
+      } else {
+        acc.push({
+          baseName,
+          pipelines: tag ? { [tag]: pipeline } : {},
+          // Use the first pipeline's data for display
+          id: pipeline.id, // this is only used for react key/id purposes
+          description: pipeline.description,
+        });
+      }
+      return acc;
+    },
+    [] as Array<{
+      baseName: string;
+      pipelines: Record<string, Pipeline>;
+      id: string;
+      description: string;
+    }>,
+  );
+
   if (pipelines.length > 0) {
     return (
       <div className="flex h-full">
@@ -37,28 +68,32 @@ const Home = () => {
                 Predefined Pipelines
               </h1>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {predefinedPipelines.map((pipeline, idx) => (
+                {groupedPredefinedPipelines.map((group, idx) => (
                   <Card
-                    key={pipeline.id}
+                    key={group.id}
                     className="flex flex-col transition-all duration-200 hover:-translate-y-1 hover:shadow-lg overflow-hidden"
                   >
                     <CardHeader className="flex-1">
-                      <CardTitle className="min-h-[2rem]">
-                        {pipeline.name}
+                      <CardTitle className="min-h-8">
+                        {group.baseName}
                       </CardTitle>
                       <div className="w-full h-32 overflow-hidden bg-gray-100 my-2">
                         <img
                           src={pipelineImages[idx]}
-                          alt={pipeline.name}
+                          alt={group.baseName}
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <CardDescription className="line-clamp-4 min-h-[4.5rem]">
-                        {pipeline.description}
+                      <CardDescription className="line-clamp-4 min-h-18">
+                        {group.description}
                       </CardDescription>
                     </CardHeader>
                     <CardFooter>
-                      <CopyPipelineButton pipeline={pipeline}>
+                      <CopyPipelineButton
+                        pipelines={group.pipelines}
+                        baseName={group.baseName}
+                        description={group.description}
+                      >
                         <button className="text-white bg-classic-blue hover:bg-classic-blue-hover px-4 py-2 transition-colors">
                           Copy pipeline
                         </button>

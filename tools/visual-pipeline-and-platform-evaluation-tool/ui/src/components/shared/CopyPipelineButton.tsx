@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   Dialog,
@@ -16,23 +16,43 @@ import type { Pipeline } from "@/api/api.generated";
 import { isApiError } from "@/lib/apiUtils";
 
 interface CopyPipelineButtonProps {
-  pipeline: Pipeline;
+  pipelines: Record<string, Pipeline>;
+  baseName: string;
+  description: string;
   children: React.ReactNode;
 }
 
 const CopyPipelineButton = ({
-  pipeline,
+  pipelines,
+  baseName,
+  description: pipelineDescription,
   children,
 }: CopyPipelineButtonProps) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState(`${pipeline.name} (copy)`);
-  const [description, setDescription] = useState(pipeline.description);
+
+  const tags = Object.keys(pipelines);
+  const [selectedTag, setSelectedTag] = useState(tags[0] || "");
+  const selectedPipeline = pipelines[selectedTag];
+
+  const [name, setName] = useState(`Copy of ${baseName} [${tags[0] || ""}]`);
+  const [description, setDescription] = useState(pipelineDescription);
+  const [isNameManuallyEdited, setIsNameManuallyEdited] = useState(false);
 
   const [createPipeline, { isLoading: isCreating }] =
     useCreatePipelineMutation();
   const [toDescription, { isLoading: isConverting }] =
     useToDescriptionMutation();
+
+  useEffect(() => {
+    if (open) {
+      setSelectedTag(tags[0] || "");
+      setName(`Copy of ${baseName} [${tags[0] || ""}]`);
+      setDescription(pipelineDescription);
+      setIsNameManuallyEdited(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, baseName, pipelineDescription]);
 
   const handleCopy = async () => {
     if (!name.trim()) {
@@ -40,10 +60,15 @@ const CopyPipelineButton = ({
       return;
     }
 
+    if (!selectedPipeline) {
+      toast.error("No pipeline variant selected");
+      return;
+    }
+
     try {
       // Step 1: Convert pipeline graph to description
       const descriptionResponse = await toDescription({
-        pipelineGraph: pipeline.pipeline_graph,
+        pipelineGraph: selectedPipeline.pipeline_graph,
       }).unwrap();
 
       // Step 2: Create new pipeline with the description
@@ -52,9 +77,9 @@ const CopyPipelineButton = ({
           name: name.trim(),
           description: description.trim(),
           source: "USER_CREATED",
-          type: pipeline.type,
+          type: selectedPipeline.type,
           pipeline_description: descriptionResponse.pipeline_description,
-          parameters: pipeline.parameters,
+          parameters: selectedPipeline.parameters,
         },
       }).unwrap();
 
@@ -84,6 +109,31 @@ const CopyPipelineButton = ({
           <DialogTitle>Copy Pipeline</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {tags.length > 1 && (
+            <div>
+              <label htmlFor="tag" className="block text-sm font-medium mb-2">
+                Variant
+              </label>
+              <select
+                id="tag"
+                value={selectedTag}
+                onChange={(e) => {
+                  setSelectedTag(e.target.value);
+                  if (!isNameManuallyEdited) {
+                    setName(`Copy of ${baseName} [${e.target.value}]`);
+                  }
+                }}
+                className="w-full px-3 py-2 border"
+              >
+                {tags.map((tag) => (
+                  <option key={tag} value={tag}>
+                    {tag}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label htmlFor="name" className="block text-sm font-medium mb-2">
               Name
@@ -92,7 +142,10 @@ const CopyPipelineButton = ({
               id="name"
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                setIsNameManuallyEdited(true);
+              }}
               placeholder="Enter pipeline name..."
               className="w-full px-3 py-2 border"
             />
@@ -117,18 +170,14 @@ const CopyPipelineButton = ({
           <div className="flex justify-end gap-2">
             <button
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
-              onClick={() => {
-                setOpen(false);
-                setName(`${pipeline.name} (copy)`);
-                setDescription(pipeline.description);
-              }}
+              onClick={() => setOpen(false)}
             >
               Cancel
             </button>
             <button
               className="px-4 py-2 text-sm font-medium text-white bg-classic-blue hover:bg-classic-blue-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleCopy}
-              disabled={isLoading || !name.trim()}
+              disabled={isLoading || !name.trim() || !selectedPipeline}
             >
               {isLoading ? "Copying..." : "Copy Pipeline"}
             </button>
