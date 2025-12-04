@@ -86,6 +86,7 @@ const NodeDataPanel = ({
         editableData[prop.key] ?? prop.defaultValue,
       ])
     : Object.entries(editableData ?? {}).filter(
+        // Keys starting with '__' are internal/private properties and should not be displayed to users.
         ([key]) => !["label"].includes(key) && !key.startsWith("__"),
       );
 
