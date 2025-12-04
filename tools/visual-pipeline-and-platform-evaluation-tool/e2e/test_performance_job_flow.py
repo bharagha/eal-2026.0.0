@@ -116,6 +116,12 @@ def http_client() -> requests.Session:
     session.close()
 
 
+@pytest.fixture(autouse=True)
+def _inter_test_pause():
+    yield
+    time.sleep(0.5)
+
+
 def _fetch_pipeline_id(session: requests.Session, pipeline_name: str) -> str:
     logger.info("Fetching pipeline id for '%s'", pipeline_name)
     response = session.get(f"{BASE_URL}/pipelines", timeout=30)
