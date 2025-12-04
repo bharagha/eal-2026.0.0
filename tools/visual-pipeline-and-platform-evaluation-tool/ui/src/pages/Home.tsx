@@ -13,6 +13,11 @@ import CopyPipelineButton from "@/components/shared/CopyPipelineButton.tsx";
 import { useAppSelector } from "@/store/hooks";
 import { selectPipelines } from "@/store/reducers/pipelines";
 import { BookOpen, Sparkles, Code } from "lucide-react";
+import pipeline0 from "@/assets/pipeline_0.png";
+import pipeline1 from "@/assets/pipeline_1.png";
+import pipeline2 from "@/assets/pipeline_2.png";
+
+const pipelineImages = [pipeline0, pipeline1, pipeline2];
 
 const Home = () => {
   const pipelines = useAppSelector(selectPipelines);
@@ -43,7 +48,7 @@ const Home = () => {
                       </CardTitle>
                       <div className="w-full h-32 overflow-hidden bg-gray-100 my-2">
                         <img
-                          src={`/src/assets/pipeline_${idx}.png`}
+                          src={pipelineImages[idx]}
                           alt={pipeline.name}
                           className="w-full h-full object-cover"
                         />
