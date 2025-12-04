@@ -11,7 +11,7 @@ const DeviceSelect = ({ value, onChange, className }: DeviceSelectProps) => {
   const devices = useAppSelector(selectDevices);
 
   const formatDeviceName = (deviceName: string): string => {
-    // Remove .0 suffix if present
+    // Remove .0 suffix for cleaner display in UI
     return deviceName.replace(/\.0$/, "");
   };
 
