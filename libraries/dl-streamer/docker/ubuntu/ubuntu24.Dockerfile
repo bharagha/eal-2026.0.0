@@ -363,7 +363,7 @@ RUN \
     rm -rf /var/lib/apt/lists/*
 
 # OpenVINO Gen AI
-ARG OPENVINO_GENAI_VER=openvino_genai_ubuntu24_${OPENVINO_VERSION}.0_x86_64
+ARG OPENVINO_GENAI_VER=openvino_genai_ubuntu24_${OPENVINO_VERSION}.0.0_x86_64
 ARG OPENVINO_GENAI_PKG=https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/${OPENVINO_VERSION}/linux/${OPENVINO_GENAI_VER}.tar.gz
 
 RUN curl -L ${OPENVINO_GENAI_PKG} | tar -xz && \
