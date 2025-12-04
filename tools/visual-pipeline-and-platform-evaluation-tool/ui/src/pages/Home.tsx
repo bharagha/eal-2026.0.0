@@ -28,15 +28,26 @@ const Home = () => {
         <div className="flex-1 overflow-auto">
           <div className="p-4 space-y-8">
             <div>
-              <h1 className="text-xl font-bold mb-4">Predefined Pipelines</h1>
+              <h1 className="font-medium text-2xl mb-4">
+                Predefined Pipelines
+              </h1>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {predefinedPipelines.map((pipeline) => (
+                {predefinedPipelines.map((pipeline, idx) => (
                   <Card
                     key={pipeline.id}
-                    className="flex flex-col transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+                    className="flex flex-col transition-all duration-200 hover:-translate-y-1 hover:shadow-lg overflow-hidden"
                   >
                     <CardHeader className="flex-1">
-                      <CardTitle>{pipeline.name}</CardTitle>
+                      <CardTitle className="min-h-[2rem]">
+                        {pipeline.name}
+                      </CardTitle>
+                      <div className="w-full h-32 overflow-hidden bg-gray-100 my-2">
+                        <img
+                          src={`/src/assets/pipeline_${idx}.png`}
+                          alt={pipeline.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                       <CardDescription className="line-clamp-4 min-h-[4.5rem]">
                         {pipeline.description}
                       </CardDescription>
@@ -54,7 +65,9 @@ const Home = () => {
             </div>
 
             <div>
-              <h1 className="text-xl font-bold mb-4">User Defined Pipelines</h1>
+              <h1 className="font-medium text-2xl mb-4">
+                User Defined Pipelines
+              </h1>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <AddPipelineButton />
                 {userDefinedPipelines.map((pipeline) => (
@@ -99,8 +112,7 @@ const Home = () => {
             >
               <h3 className="font-semibold text-base mb-1">Getting Started</h3>
               <p className="text-sm text-muted-foreground">
-                Learn the fundamentals to get the most out of the Visual
-                Pipeline and Platform Evaluation Tool (ViPPET)
+                Learn the fundamentals to get the most out of the ViPPET
               </p>
             </a>
           </div>
