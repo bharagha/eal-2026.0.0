@@ -320,6 +320,6 @@ RUN apt update && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
     
-RUN pip3 install --no-cache-dir --upgrade openvino==2025.2.0 openvino-telemetry==2025.2.0
+RUN pip3 install --no-cache-dir --upgrade openvino==2025.4.0 openvino-telemetry==2025.4.0
 
 USER ${USER}
