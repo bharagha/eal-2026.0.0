@@ -141,8 +141,8 @@ const AddPipelineButton = () => {
   };
 
   const handleAdd = async () => {
-    if (!name.trim() || !pipelineDescription.trim()) {
-      toast.error("Name and pipeline description are required");
+    if (!name.trim() || !description.trim() || !pipelineDescription.trim()) {
+      toast.error("Name, description and pipeline description are required");
       return;
     }
 
