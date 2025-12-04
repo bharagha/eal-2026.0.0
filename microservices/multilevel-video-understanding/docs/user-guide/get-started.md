@@ -29,8 +29,6 @@ cd GenAIComps
 
 ### Start model serving for VLM
 
-Following the tutorial in [LVM Microservice with vLLM on Intel XPU](https://opea-project.github.io/latest/GenAIComps/comps/lvms/src/README_vllm_ipex.html)
-
 **Key Configuration**
 
 - `MAX_MODEL_LEN`: max model length, constraints to GPU memory.
@@ -40,15 +38,39 @@ Following the tutorial in [LVM Microservice with vLLM on Intel XPU](https://opea
 - `ONEAPI_DEVICE_SELECTOR`: device id, use `export ONEAPI_DEVICE_SELECTOR=level_zero:[gpu_id];level_zero:[gpu_id]` to select device before excuting your command.
 - `TENSOR_PARALLEL_SIZE`: tensor parallel size.
 
-Override with below specific environment variables that has been verified by this microservice:
+**Deployment Steps**
+
+1. Pull the official docker image first.
 
 ```bash
+docker pull intel/llm-scaler-vllm:0.10.0-b4
+```
+
+2. Export the required environment variables.
+
+```bash
+# Use image: intel/llm-scaler-vllm:0.10.0-b4
+export REGISTRY=intel
+export TAG=0.10.0-b4
+
+export VIDEO_GROUP_ID=$(getent group video | awk -F: '{printf "%s\n", $3}')
+export RENDER_GROUP_ID=$(getent group render | awk -F: '{printf "%s\n", $3}')
+
+HF_HOME=${HF_HOME:=~/.cache/huggingface}
+export HF_HOME
+
 export MAX_MODEL_LEN=20000
 export LLM_MODEL_ID=Qwen/Qwen2.5-VL-7B-Instruct
 export LOAD_QUANTIZATION=fp8
 export VLLM_PORT=41091
 export ONEAPI_DEVICE_SELECTOR="level_zero:0;level_zero:1"
 export TENSOR_PARALLEL_SIZE=2
+```
+
+3. Navigate to the Docker Compose directory and start the services:
+```bash
+cd comps/lvms/deployment/docker_compose/
+docker compose up lvm-vllm-ipex-service -d
 ```
 
 Then, check existence of serving:
@@ -62,10 +84,11 @@ INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 
 ```
+> Note: Please wait for a while since it takes some time to load models, especially for the first time deploying a new model. Resources will be downloaded from huggingface endpoint.
+
+More details can be found in [LVM Microservice with vLLM on Intel XPU](https://opea-project.github.io/latest/GenAIComps/comps/lvms/src/README_vllm_ipex.html)
 
 ### Start model serving for LLM
-
-Following the tutorial in [LLM Microservice with vLLM on Intel XPU](https://opea-project.github.io/latest/GenAIComps/comps/llms/src/text-generation/README_vllm_ipex.html)
 
 **Key Configuration**
 
@@ -76,15 +99,39 @@ Following the tutorial in [LLM Microservice with vLLM on Intel XPU](https://opea
 - `ONEAPI_DEVICE_SELECTOR`: device id, use `export ONEAPI_DEVICE_SELECTOR=level_zero:[gpu_id];level_zero:[gpu_id]` to select device before excuting your command.
 - `TENSOR_PARALLEL_SIZE`: tensor parallel size.
 
-Override with below specific environment variables that has been verified by this microservice:
+**Deployment Steps**
+
+1. Pull the official docker image first.
 
 ```bash
+docker pull intel/llm-scaler-vllm:0.10.0-b4
+```
+
+2. Export the required environment variables.
+
+```bash
+# Use image: intel/llm-scaler-vllm:0.10.0-b4
+export REGISTRY=intel
+export TAG=0.10.0-b4
+
+export VIDEO_GROUP_ID=$(getent group video | awk -F: '{printf "%s\n", $3}')
+export RENDER_GROUP_ID=$(getent group render | awk -F: '{printf "%s\n", $3}')
+
+HF_HOME=${HF_HOME:=~/.cache/huggingface}
+export HF_HOME
+
 export MAX_MODEL_LEN=20000
 export LLM_MODEL_ID=Qwen/Qwen3-32B-AWQ
 export LOAD_QUANTIZATION=awq
 export VLLM_PORT=41090
 export ONEAPI_DEVICE_SELECTOR="level_zero:2;level_zero:3"
 export TENSOR_PARALLEL_SIZE=2
+```
+
+3. Navigate to the Docker Compose directory and start the services:
+```bash
+cd comps/llms/deployment/docker_compose/
+docker compose -f compose_text-generation.yaml up textgen-vllm-ipex-service -d
 ```
 
 Then, check existence of serving:
@@ -100,6 +147,8 @@ INFO:     Application startup complete.
 
 > Note: Please refer to [validated models](./Overview.md#validated-models) for the list of models that can has been verified in video summarization.
 
+More details can be found in  [LLM Microservice with vLLM on Intel XPU](https://opea-project.github.io/latest/GenAIComps/comps/llms/src/text-generation/README_vllm_ipex.html)
+
 ## Quick Start with Docker
 
 **step1.** Prepare docker image
@@ -107,6 +156,9 @@ Before lauching the service as documented below, users need to prepare the docke
 
 - **Option1.** [Build the docker images](./how-to-build-from-source.md#steps-to-build)
 - **Option2.** Download the prebuilt images from Docker Hub ([intel/multilevel-video-understanding](https://hub.docker.com/r/intel/multilevel-video-understanding))
+   ```bash
+   docker pull intel/multilevel-video-understanding:2025.2.0
+   ```
 
 Then, use the following commands to set up the `multilevel-video-understanding` microservice.
 
@@ -133,7 +185,7 @@ The following environment variables can be configured:
 
 ```bash
 export REGISTRY_URL=intel/
-export TAG=latest
+export TAG=2025.2.0
 export VLM_BASE_URL="http://<model-serving-ip-address>:41091/v1"
 export LLM_BASE_URL="http://<model-serving-ip-address>:41090/v1"
 export VLM_MODEL_NAME=Qwen/Qwen2.5-VL-7B-Instruct
@@ -164,7 +216,7 @@ Once the service is up, you can check the log:
 $ docker ps
 
 CONTAINER ID   IMAGE                                         PORTS                                         NAMES
-6f00712bf4b6   intel/multilevel-video-understanding:latest   0.0.0.0:8192->8000/tcp, [::]:8192->8000/tcp   docker-multilevel-video-understanding-1
+6f00712bf4b6   intel/multilevel-video-understanding:2025.2.0   0.0.0.0:8192->8000/tcp, [::]:8192->8000/tcp   docker-multilevel-video-understanding-1
 
 # the container name may change depend to your runtime
 $ docker logs -f docker-multilevel-video-understanding-1
@@ -237,7 +289,7 @@ http://localhost:8192/docs
 
 ## Manual Host Setup using Poetry
 
-1. Clone the repository and change directory to the audio-analyzer microservice:
+1. Clone the repository and change directory to the `multilevel-video-understanding` microservice:
 
    ```bash
    git clone https://github.com/open-edge-platform/edge-ai-libraries.git edge-ai-libraries
@@ -247,32 +299,30 @@ http://localhost:8192/docs
 2. Install Poetry if not already installed.
 
    ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
    pip install poetry==1.8.3
    ```
 
-3. Configure poetry to create a local virtual environment.
-
-   ```bash
-   poetry config virtualenvs.create true
-   poetry config virtualenvs.in-project true
-   ```
-
-4. Install dependencies:
+3. Install dependencies:
 
    ```bash
    poetry lock --no-update
    poetry install
    ```
+   > Note: sometimes the `poetry install` may take long time, in this case, another option to install packages could be:
+   > ```bash
+   > poetry export -f requirements.txt > requirements.txt
+   > pip install -r requirements.txt
+   > ```
 
-5. Install video-chunking-utils from OEP/EAL source
+4. Install video-chunking-utils from OEP/EAL source
 
    ```bash
-   git clone https://github.com/open-edge-platform/edge-ai-libraries.git edge-ai-libraries
-   cd edge-ai-libraries/libraries/video-chunking-utils
-   pip install .
+   pip install ../../libraries/video-chunking-utils/
    ```
 
-6. Set the environment variables as needed:
+5. Set the environment variables as needed:
 
    ```bash
    export VLM_BASE_URL="http://<model-serving-ip-address>:41091/v1"
@@ -286,7 +336,7 @@ http://localhost:8192/docs
 > - Make sure `VLM_MODEL_NAME` is consistent with the model used in sec. [Start model serving for VLM](#start-model-serving-for-vlm)
 > - Make sure `LLM_MODEL_NAME` is consistent with the model used in sec. [Start model serving for LLM](#start-model-serving-for-llm)
 
-7. Run the service:
+6. Run the service:
 
 ```bash
 DEBUG=True poetry run uvicorn video_analyzer.main:app --host 0.0.0.0 --port ${SERVICE_PORT} --reload
