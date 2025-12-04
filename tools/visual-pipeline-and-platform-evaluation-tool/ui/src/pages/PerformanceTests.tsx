@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Plus, X } from "lucide-react";
 import { StreamsSlider } from "@/components/shared/StreamsSlider";
+import DeviceSelect from "@/components/shared/DeviceSelect";
 
 interface PipelineSelection {
   pipelineId: string;
@@ -296,17 +297,11 @@ const PerformanceTests = () => {
             </Tooltip>
 
             {videoOutputEnabled && (
-              <select
+              <DeviceSelect
                 value={encoderDevice}
-                onChange={(e) => setEncoderDevice(e.target.value)}
+                onChange={setEncoderDevice}
                 className="w-fit px-3 py-2 border text-sm cursor-pointer"
-              >
-                {devices.map((device) => (
-                  <option key={device.device_name} value={device.device_name}>
-                    {device.device_name}
-                  </option>
-                ))}
-              </select>
+              />
             )}
           </div>
 

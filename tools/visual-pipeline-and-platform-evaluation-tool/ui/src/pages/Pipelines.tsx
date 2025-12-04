@@ -24,6 +24,7 @@ import StopPerformanceTestButton from "@/features/pipeline-editor/StopPerformanc
 import ExportPipelineButton from "@/features/pipeline-editor/ExportPipelineButton.tsx";
 import DeletePipelineButton from "@/features/pipeline-editor/DeletePipelineButton.tsx";
 import ImportPipelineButton from "@/features/pipeline-editor/ImportPipelineButton.tsx";
+import DeviceSelect from "@/components/shared/DeviceSelect";
 import { Zap } from "lucide-react";
 import { isApiError } from "@/lib/apiUtils";
 import {
@@ -617,17 +618,11 @@ const Pipelines = () => {
               </TooltipContent>
             </Tooltip>
             {videoOutputEnabled && (
-              <select
+              <DeviceSelect
                 value={encoderDevice}
-                onChange={(e) => setEncoderDevice(e.target.value)}
+                onChange={setEncoderDevice}
                 className="bg-white p-2 text-sm font-medium cursor-pointer border-none outline-none"
-              >
-                {devices.map((device) => (
-                  <option key={device.device_name} value={device.device_name}>
-                    {device.device_name}
-                  </option>
-                ))}
-              </select>
+              />
             )}
           </div>
         </div>
