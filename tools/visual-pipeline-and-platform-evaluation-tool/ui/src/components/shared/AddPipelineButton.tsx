@@ -46,8 +46,9 @@ const AddPipelineButton = () => {
   );
 
   useEffect(() => {
-    if (!validationJobStatus || validationJobStatus.id !== validationJobId)
-      return;
+    if (!validationJobStatus) return;
+
+    if (validationJobStatus.id !== validationJobId) return;
 
     const handleCreatePipeline = async () => {
       if (!pendingPipelineData) return;
