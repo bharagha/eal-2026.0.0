@@ -102,6 +102,9 @@ test: env-setup ## Run tests and generate coverage report
 		python -m coverage run --source=./ --data-file=/tmp/.vippet-coverage -m unittest discover -v -s ./tests -p '*_test.py' && \
 		python -m coverage report --data-file=/tmp/.vippet-coverage --omit=*/config-3.py,*/config.py,*_test.py"
 
+test-e2e:
+	VIPPET_DEVICE_FILTERS=CPU,GPU,NPU python3.12 -m pytest -vv e2e/*.py
+
 install-models-once: env-setup ## Handle models download and installation (once)
 	. .env && MODEL_INSTALLATION=once docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml run --rm -it models
 
