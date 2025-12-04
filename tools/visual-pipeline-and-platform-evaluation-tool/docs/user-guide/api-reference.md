@@ -1,5 +1,5 @@
 # API Reference
 
 <!--hide_directive```{eval-rst}
-.. swagger-plugin:: ../../vippet/api/vippet.json
+.. swagger-plugin:: ./_assets/vippet.json
 ```hide_directive-->
