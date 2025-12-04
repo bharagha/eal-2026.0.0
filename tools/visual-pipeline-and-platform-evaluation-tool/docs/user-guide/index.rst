@@ -31,7 +31,7 @@ How It Works
 
 The Visual Pipeline and Platform Evaluation Tool integrates with AI-based video processing pipelines to support hardware performance evaluation.
 
-.. image:: ./_images/architecture.png
+.. image:: ./_assets/architecture.png
    :alt: System Architecture Diagram
 
 ### **Workflow Overview**

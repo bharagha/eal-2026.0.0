@@ -62,7 +62,7 @@ controlled conditions.
 The Visual Pipeline and Platform Evaluation Tool integrates with AI-based video processing pipelines to support
 hardware performance evaluation.
 
-![System Architecture Diagram](_images/architecture.png)
+![System Architecture Diagram](_assets/architecture.png)
 
 ### **Workflow Overview**
 
