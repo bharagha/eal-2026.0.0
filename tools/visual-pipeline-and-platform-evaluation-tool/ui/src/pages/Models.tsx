@@ -20,7 +20,7 @@ const Models = () => {
           <div className="mb-6">
             <h1 className="text-3xl font-bold">Models</h1>
             <p className="text-muted-foreground mt-2">
-              Monitor and manage pipeline jobs
+              Ready-to-use models available in the platform
             </p>
           </div>
           <Table>
