@@ -157,16 +157,9 @@ def validate_url(url: str) -> Optional[str]:
         if not is_public_ip(resolved_ip):
             return None
 
-         # Build netloc with resolved IP and keep original port
-        port = parsed_url.port
-        if port:
-            netloc = f"{resolved_ip}:{port}"
-        else:
-            netloc = resolved_ip
-
         # Reconstruct the URL with resolved IP as netloc (for connection), preserving scheme, path, query, etc.
-        pinned_url = construct_pinned_url(parsed_url, resolved_ip)
-        return pinned_url
+        validated_pinned_url = construct_pinned_url(parsed_url, resolved_ip)
+        return validated_pinned_url
 
     except Exception as e:
         logger.error(f"URL validation failed: {e}")
