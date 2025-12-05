@@ -37,7 +37,7 @@ VALIDATION_PAYLOAD: Dict[str, Any] = {
         "nodes": [
             {"id": "0", "type": "videotestsrc", "data": {}},
             {"id": "1", "type": "videoconvert", "data": {}},
-            {"id": "2", "type": "autovideosink", "data": {}},
+            {"id": "2", "type": "fakesink", "data": {}},
         ],
         "edges": [
             {"id": "0", "source": "0", "target": "1"},
