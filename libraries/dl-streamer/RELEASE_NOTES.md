@@ -13,57 +13,65 @@ The complete solution leverages:
 
   | Element | Description |
   |---|---|
-  | [gvadetect](./docs/source/elements/gvadetect.md) | Performs object detection on a full-frame or region of interest (ROI)   using object detection models such as YOLOv4-v11, MobileNet SSD, Faster-RCNN etc. Outputs the ROI for detected   objects. |
-  | [gvaclassify](./docs/source/elements/gvaclassify.md) | Performs object classification. Accepts the ROI as an input and   outputs classification results with the ROI metadata. |
-  | [gvainference](./docs/source/elements/gvainference.md) | Runs deep learning inference on a full-frame or ROI using any model   with an RGB or BGR input. |
-  | [gvatrack](./docs/source/elements/gvatrack.md) | Performs object tracking using zero-term, or imageless tracking algorithms.   Assigns unique object IDs to the tracked objects. |
-  | [gvaaudiodetect](./docs/source/elements/gvaaudiodetect.md) | Performs audio event detection using AclNet model. |
-  | [gvagenai](./docs/source/elements/gvagenai.md) | Performs inference with Vision Language Models using OpenVINO™ GenAI, accepts video and text prompt as an input, and outputs text description. It can be used to generate text summarization from video. |
   | [gvaattachroi](./docs/source/elements/gvaattachroi.md) | Adds user-defined regions of interest to perform inference on,   instead of full frame. |
+  | [gvaaudiodetect](./docs/source/elements/gvaaudiodetect.md) | Performs audio event detection using AclNet model. |
+  | [gvaaudiotranscribe](./docs/source/elements/gvaaudiotranscribe.md) | Performs audio transcription using OpenVino GenAI Whisper model. |
+  | [gvaclassify](./docs/source/elements/gvaclassify.md) | Performs object classification. Accepts the ROI as an input and   outputs classification results with the ROI metadata. |
+  | [gvadetect](./docs/source/elements/gvadetect.md) | Performs object detection on a full-frame or region of interest (ROI)   using object detection models such as YOLOv4-v11, MobileNet SSD, Faster-RCNN etc. Outputs the ROI for detected   objects. |
   | [gvafpscounter](./docs/source/elements/gvafpscounter.md) | Measures frames per second across multiple streams in a single   process. |
-  | [gvametaaggregate](./docs/source/elements/gvametaaggregate.md) | Aggregates inference results from multiple pipeline   branches |
+  | [gvagenai](./docs/source/elements/gvagenai.md) | Performs inference with Vision Language Models using OpenVINO™ GenAI, accepts video and text prompt as an input, and outputs text description. It can be used to generate text summarization from video. |
+  | [gvainference](./docs/source/elements/gvainference.md) | Runs deep learning inference on a full-frame or ROI using any model with an RGB or BGR input. |
+  | [gvametaaggregate](./docs/source/elements/gvametaaggregate.md) | Aggregates inference results from multiple pipeline branches |
   | [gvametaconvert](./docs/source/elements/gvametaconvert.md) | Converts the metadata structure to the JSON format. |
   | [gvametapublish](./docs/source/elements/gvametapublish.md) | Publishes the JSON metadata to MQTT or Kafka message brokers or   files. |
+  | [gvamotiondetect](./docs/source/elements/gvamotiondetect.md) | Performs lightweight motion detection on NV12 video frames and emits motion regions of interest (ROIs) as analytics metadata. |
   | [gvapython](./docs/source/elements/gvapython.md) | Provides a callback to execute user-defined Python functions on every   frame. Can be used for metadata conversion, inference post-processing, and other tasks. |
   | [gvarealsense](./docs/source/elements/gvarealsense.md) | Provides integration with Intel RealSense cameras, enabling video and depth stream capture for use in GStreamer pipelines. |
+  | [gvatrack](./docs/source/elements/gvatrack.md) | Performs object tracking using zero-term, or imageless tracking algorithms.   Assigns unique object IDs to the tracked objects. | 
   | [gvawatermark](./docs/source/elements/gvawatermark.md) | Overlays the metadata on the video frame to visualize the inference   results. |
 
 For the details on supported platforms, please refer to [System Requirements](./get_started/system_requirements.md).
 For installing Pipeline Framework with the prebuilt binaries or Docker\* or to build the binaries from the open source, refer to [Intel® DL Streamer Pipeline Framework installation guide](./get_started/install/install_guide_index.md).
 
 ### New in this Release
-  | Element | Description |
+  | Title | High-level description |
   |---|---|
-  | CPU/GPU configurations  | Fixed issue with segmentation fault and early exit for  testing scenarios with  mixed GPU/CPU device combinations. |
-  | Documentation | Updated documentation for latency tracer. | 
-  | DeepSort | Fixed DeepSORT feature performance issue |
-  | Motion detection | Fixed issue low performance of motion detection feature |
-  | NPU/CPU | Fixed issue where NPU inference required inefficient CPU color processing |
-  | gvawatermark/gvametaconvert/gvaclassify | Fixed memory leaks on Windows OS |
-  | License Plate Recognition| Fixed sporadic hang on license-plate-recognition sample on GPU on LNL |
-  | Model-proc | Improved model proc check logic for va backend |
-  | Video Analytics | Fixed issue with service crashes |
-  | gvagenai | Enabled memory mapper and add support for prompt-path |
-  |  gvawatermark | Fixed keypoints metadata processing issue |
-  | gvarealsense | Fixed issue with missed element  in dlstreamer image |
-  |Arc B580 and Flex 170 | Enabled License Plate Recognition Sample on Arc B580 and Flex 170|
-  | General| Fixed issue for scenario when vacompositor scale-method option didn't take affect|
-  | Documentation | Fixed bug in the installation guide |
-  | Models  | Fixed warning message "Model quantization runtime does not match." for older models |
-  | MQTT  | Fixed connection to MQTT |
-  | BMG/NPU | Fixed support for iGPU, BMG and NPU |
-  | BMG/latency | Fixed issue with scheduling-policy=latency for BMG NX2 |
-  | gvapython | Fixed issue with same name for many python modules used by gvapython |
-  | Sample| Fixed issue with draw_face_attributes sample (cpp) on TGL Ubuntu 24|
-  | Pose estimation | Fixed wrong pose estimation on ARL GPU with yolo11s-pose |
-  | ARL| Fixed inconsistent timestamp for vehicle_pedestrian_tracking sample on ARL |
-  | va-surface | Verified if 2nd and 3rd dGPUs (B580) are paired and working on va-surface sharing|
-  | License Plate Recognition | Fixed application  crash |
-  | ARL | Enabled YoloV11 INT8 for ARL platform |
-  | model-instance-id | Fixed hangs for pipelines with model-instance-id configured |
-  | qsvh264dec | Fixed missing element 'qsvh264dec' in Ubuntu24 docker images |
-  | GETI2.7 | Enabled support for GETI2.7 detection models on LNL |
-  | GETI2.7 | Enabled support for GETI2.7 va-surface-sharing on GPU on MTL |
+  |  Motion detection (gvamotiondetect) | Performs lightweight motion detection on NV12 video frames and emits motion regions of interest (ROIs) as analytics metadata. |
+  | Audio transcription (gvaaudiotranscribe)  |  Transcribes audio content with OpenVino GenAI Whisper model. |
+  | Gvagenai element added | Performs inference with Vision Language Models using OpenVINO™ GenAI, accepts video and text prompt as an input, and outputs text description. <br>Models supported: MiniCPM-V, Gemma3, Phi-4-multimodal-instruct. |
+  | Deep SORT | Preview version of Deep SORT tracking algorithm in gvatrack element. |
+  | gvawatermark element support on GPU | Gvawatermark implementation extended about GPU support (CPU default). |
+  | Pipeline optimizer support | 1st version of DLStreamer optimizer implementation added allowing end user finding the most FPS optimized pipeline. |
+  | GstAnalytics metadata support | Enabled GstAnalytics metadata support. |
+  | OpenVINO custom operations | Add support for OpenVINO custom operations. |
+  | D3D11 preprocessing enabled | Windows support extended about D3D11 preprocessing implementation. |
+  | UX, Stability && Performance fixes | • memory leaks fixes <br> • automatically select pre-process-backend=va-surface-sharing for GPU <br>• adjust caps negotiations and preproc backend selection <br>• removing deleted element from all shared reference lists. <br> • useOpenCV preproc to convert sparse tensors to contiguous tensors <br>• creation of new VADisplay ctx per each inference instance <br>• remove need for dual va+opencv image pre-processing |
+  | Intel Core Ultra Panther Lake CPU/GPU support | Readiness for supporting Intel Core Ultra Panther Lake CPU/GPU. |
+  | OpenVINO update | Update to 2025.3 version. |
+  | GStreamer update | Update to 1.26.6 version. |
+  | GPU drivers update | Update to 25.40 version (for Ubuntu24) |
+  | NPU drivers update | Update to 1.23 version. |
+
+
+
+### Fixed Issues
+
+| **#**   | **Issue Description**  |
+|----------------|------------------------|
+  | <center>1</center> |Fixed issue with segmentation fault and early exit for testing scenarios with mixed GPU/CPU device combinations. |
+  | <center>2</center> | Updated documentation for latency tracer. |
+  | <center>3</center> | Fixed issue where NPU inference required inefficient CPU color processing. |
+  | <center>4</center> | Fixed memory management for elements: gvawatermark, gvametaconvert, gvaclassify. |
+  | <center>5</center> | Improved model-proc check logic for va backend. |
+  | <center>6</center> | Fixed keypoints metadata processing issue for gvawatermark. |
+  | <center>7</center> | Fixed issue with missed gvarealsense element in dlstreamer image. |
+  | <center>8</center> | Fixed issue for scenario when vacompositor scale-method option didn't take affect. |
+  | <center>9</center> | Fixed documentation bug in the installation guide. |
+  | <center>10</center> | Fixed issue with same name for many python modules used by gvapython. |
+  | <center>11</center> | Fixed issue with draw_face_attributes sample (cpp) on TGL Ubuntu 24. |
+  | <center>12</center> | Fixed wrong pose estimation on ARL GPU with yolo11s-pose. |
+  | <center>13</center> | Fixed inconsistent timestamp for vehicle_pedestrian_tracking sample on ARL. |
+  | <center>14</center> | Fixed missing element 'qsvh264dec' in Ubuntu24 docker images. |
 
 
 
@@ -71,13 +79,8 @@ For installing Pipeline Framework with the prebuilt binaries or Docker\* or to b
 
 | Issue | Issue Description |
 |---|---|
-| VAAPI memory with `decodebin` | If you are using `decodebin` in conjunction with `vaapi-surface-sharing` preprocessing backend you should set caps filter using `""video/x-raw(memory:VASurface)""` after `decodebin` to avoid issues with pipeline initialization |
-| Artifacts on `sycl_meta_overlay` | Running inference results visualization on GPU via `sycl_meta_overlay` may produce some partially drawn bounding boxes and labels |
-| Preview Architecture 2.0 Samples | Preview Arch 2.0 samples have known issues with inference results. |
-| Sporadic hang on `vehicle_pedestrian_tracking_20_cpu` sample | Using Tiger Lake CPU to run this sample may lead to sporadic hang at 99.9% of video processing. Rerun the sample as W/A or use GPU instead. |
-| Simplified installation process for option 2 via script | In certain configurations, users may encounter visible errors |
-| Error when using legacy YoloV5 models: Dynamic resize: Model width dimension shall be static | To avoid the issue, modify `samples/download_public_models.sh` by inserting the following snippet at lines 273 and 280: |
-| | python3 - <<EOF ""${MODEL_NAME}""<br>import sys, os<br>from openvino.runtime import Core<br>from openvino.runtime import save_model<br>model_name = sys.argv[1]<br>core = Core()<br>os.rename(f""{model_name}_openvino_model"", f""{model_name}_openvino_modelD"")<br>model = core.read_model(f""{model_name}_openvino_modelD/{model_name}.xml"")<br>model.reshape([-1, 3, 640, 640]) |
+| Preview Architecture 2.0 Samples | Preview Arch 2.0 samples have known issues with inference results. |
+| Sporadic hang on vehicle_pedestrian_tracking_20_cpu sample | Using Tiger Lake CPU to run this sample may lead to sporadic hang at 99.9% of video processing. Rerun the sample as W/A or use GPU instead. |
 
 
 
