@@ -6,7 +6,7 @@ import psycopg
 import ipaddress
 import socket
 import os
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 from http import HTTPStatus
 from fastapi import HTTPException
 from typing import List, Optional
@@ -17,6 +17,7 @@ from .logger import logger
 from .config import Settings
 from .db_config import pool_execution
 from .utils import get_separators, parse_html
+import idna
 
 config = Settings()
 
@@ -71,6 +72,34 @@ def is_public_ip(ip: str) -> bool:
     except ValueError:
         return False
 
+def construct_pinned_url(parsed_url, resolved_ip):
+    """
+    Constructs a pinned URL using the resolved IP address and the original parsed URL components.
+
+    Args:
+        parsed_url (ParseResult): The parsed URL object.
+        resolved_ip (str): The resolved IP address to use in the netloc.
+
+    Returns:
+        str: The reconstructed URL with the resolved IP as the netloc.
+    """
+    # Build netloc with resolved IP and keep original port
+    port = parsed_url.port
+    if port:
+        netloc = f"{resolved_ip}:{port}"
+    else:
+        netloc = resolved_ip
+
+    # Reconstruct the URL with resolved IP as netloc (for connection), preserving scheme, path, query, etc.
+    return urlunparse((
+        parsed_url.scheme,
+        netloc,
+        parsed_url.path,
+        parsed_url.params,
+        parsed_url.query,
+        parsed_url.fragment
+    ))
+
 def validate_url(url: str) -> Optional[str]:
     """
     Validates a given URL based on scheme, canonical hostname, IP resolution, and allowed hosts, and prevents DNS rebinding attacks and encoding tricks.
@@ -82,16 +111,25 @@ def validate_url(url: str) -> Optional[str]:
         Optional[str]: The validated and pinned URL, or None if invalid.
     """
     try:
-        parsed_url = urlparse(url)
+        # Remove leading/trailing whitespace and control chars from the URL
+        url_cleaned = url.strip().replace('\r', '').replace('\n', '')
+
+        # Parse the cleaned URL
+        parsed_url = urlparse(url_cleaned)
         if parsed_url.scheme not in ["http", "https"]:
             return None
-        
+
         hostname = parsed_url.hostname
         if not hostname:
             return None 
-        
-        # Normalize the hostname: lower-case and strip trailing dot
-        normalized_hostname = hostname.lower().rstrip('.')
+
+        # Normalize the hostname: lower-case, strip trailing dot, and apply IDNA encoding
+        normalized_hostname = hostname.lower().rstrip('.').strip()
+        try:
+            normalized_hostname = idna.encode(normalized_hostname).decode("utf-8")
+        except idna.IDNAError:
+            logger.error(f"Invalid IDNA encoding for hostname: {hostname}")
+            return None
 
         # Check against the allowed hosts domains
         allowed_domains = [d.lower().rstrip('.') for d in config.ALLOWED_DOMAINS] if config.ALLOWED_DOMAINS else []
@@ -119,9 +157,16 @@ def validate_url(url: str) -> Optional[str]:
         if not is_public_ip(resolved_ip):
             return None
 
-        # Return validated URL with pinned IP address
-        validated_pinned_url = url.replace(hostname, resolved_ip, 1)
-        return validated_pinned_url
+         # Build netloc with resolved IP and keep original port
+        port = parsed_url.port
+        if port:
+            netloc = f"{resolved_ip}:{port}"
+        else:
+            netloc = resolved_ip
+
+        # Reconstruct the URL with resolved IP as netloc (for connection), preserving scheme, path, query, etc.
+        pinned_url = construct_pinned_url(parsed_url, resolved_ip)
+        return pinned_url
 
     except Exception as e:
         logger.error(f"URL validation failed: {e}")
