@@ -38,4 +38,15 @@ export const selectDevicesMap = createSelector([selectDevices], (devices) => {
 export const selectDeviceByName = (state: RootState, deviceName: string) =>
   selectDevicesMap(state).get(deviceName);
 
+export const selectDeviceByFamily = (state: RootState, deviceFamily: string) =>
+  selectDevices(state).find((device) => device.device_family === deviceFamily);
+
+export const selectHasGPU1 = createSelector([selectDevices], (devices) =>
+  devices.some((device) => device.device_name === "GPU.1"),
+);
+
+export const selectHasNPU = createSelector([selectDevices], (devices) =>
+  devices.some((device) => device.device_family === "NPU"),
+);
+
 export default devicesSlice.reducer;
