@@ -50,6 +50,6 @@ This guide assumes basic familiarity with Git commands and terminal usage. For m
 2. **Access the application API documentation**:
    - Open a browser and navigate to `http://localhost:7860/docs` to access the Swagger UI.
 
-## Troubleshooting
+## Known issues and Troubleshooting
 
-- Refer to [Troubleshooting Common Issues](./support.md#troubleshooting-common-issues).
+- Refer to [Known issues and Troubleshooting](known-issues.md).
