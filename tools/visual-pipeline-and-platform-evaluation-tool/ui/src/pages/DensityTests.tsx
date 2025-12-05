@@ -296,8 +296,8 @@ const DensityTests = () => {
             <span className="text-sm text-muted-foreground">FPS</span>
           </div>
 
-          <div className="my-4 flex flex-col gap-3">
-            <div className="flex items-center gap-3">
+          <div className="my-4 flex flex-col">
+            <div className="flex items-center">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <label className="flex items-center gap-2 cursor-pointer h-[42px]">
@@ -317,28 +317,36 @@ const DensityTests = () => {
                   </p>
                 </TooltipContent>
               </Tooltip>
-
-              {videoOutputEnabled && (
+            </div>
+            {videoOutputEnabled && (
+              <div>
+                <span>Select device for encoding: </span>
                 <DeviceSelect
                   value={encoderDevice}
                   onChange={setEncoderDevice}
                   className="w-fit px-3 py-2 border text-sm cursor-pointer"
                 />
-              )}
-            </div>
-
-            <button
-              onClick={handleRunTest}
-              disabled={isRunning || pipelineSelections.length === 0 || !!jobId}
-              className="w-fit px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {jobId
-                ? "Running..."
-                : isRunning
-                  ? "Starting..."
-                  : "Run density test"}
-            </button>
+              </div>
+            )}
+            {videoOutputEnabled && (
+              <div className="text-muted-foreground">
+                Note: Select the device that is used in other blocks in your
+                pipeline.
+              </div>
+            )}
           </div>
+
+          <button
+            onClick={handleRunTest}
+            disabled={isRunning || pipelineSelections.length === 0 || !!jobId}
+            className="w-fit px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {jobId
+              ? "Running..."
+              : isRunning
+                ? "Starting..."
+                : "Run density test"}
+          </button>
 
           {jobId && jobStatus && (
             <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
