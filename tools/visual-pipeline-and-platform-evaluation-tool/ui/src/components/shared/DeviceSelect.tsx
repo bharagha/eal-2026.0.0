@@ -1,5 +1,6 @@
 import { useAppSelector } from "@/store/hooks";
 import { selectDevices } from "@/store/reducers/devices";
+import type { Device } from "@/api/api.generated.ts";
 
 interface DeviceSelectProps {
   value: string;
@@ -15,6 +16,9 @@ const DeviceSelect = ({ value, onChange, className }: DeviceSelectProps) => {
     return deviceName.replace(/\.0$/, "");
   };
 
+  const formatDeviceDisplayName = (device: Device): string =>
+    `${device.device_name}: ${device.full_device_name}`;
+
   return (
     <select
       value={formatDeviceName(value)}
@@ -25,7 +29,7 @@ const DeviceSelect = ({ value, onChange, className }: DeviceSelectProps) => {
         const formattedName = formatDeviceName(device.device_name);
         return (
           <option key={device.device_name} value={formattedName}>
-            {formattedName}
+            {formatDeviceDisplayName(device)}
           </option>
         );
       })}

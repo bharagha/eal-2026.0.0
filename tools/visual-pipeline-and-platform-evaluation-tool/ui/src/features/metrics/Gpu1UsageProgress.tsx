@@ -8,16 +8,16 @@ import {
 } from "@/components/ui/progress";
 import { Gpu } from "lucide-react";
 import { useAppSelector } from "@/store/hooks.ts";
-import { selectDeviceByFamily } from "@/store/reducers/devices.ts";
+import { selectDeviceByName } from "@/store/reducers/devices.ts";
 
-export const GpuUsageProgress = () => {
-  const { gpu } = useMetrics();
+export const Gpu1UsageProgress = () => {
+  const { gpu1 } = useMetrics();
   const deviceName = useAppSelector((state) =>
-    selectDeviceByFamily(state, "GPU"),
+    selectDeviceByName(state, "GPU.1"),
   );
 
   return (
-    <Progress value={gpu} max={100}>
+    <Progress value={gpu1} max={100}>
       <>
         <div className="flex items-center justify-between">
           <ProgressLabel>
