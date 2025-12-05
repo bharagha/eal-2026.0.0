@@ -5,7 +5,7 @@ const VideoScaleNode = () => (
     <div className="flex flex-col">
       {/* Node Header */}
       <div className="flex items-center justify-between mb-2">
-        <div className="text-lg font-bold text-amber-700">Videoscale</div>
+        <div className="text-lg font-bold text-amber-700">VideoScale</div>
         <div className="text-xs text-gray-500 px-2 py-1 bg-amber-100 rounded">
           PostProc
         </div>
