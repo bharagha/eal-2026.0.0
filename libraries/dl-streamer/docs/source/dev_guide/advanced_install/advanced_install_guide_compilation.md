@@ -95,7 +95,7 @@ pip install meson==1.4.1 ninja==1.11.1.1
 
 ```bash
 cd ~
-git clone https://github.com/open-edge-platform/edge-ai-libraries.git
+git clone https://github.com/open-edge-platform/edge-ai-libraries.git -b release-2025.2.0
 cd edge-ai-libraries
 git submodule update --init libraries/dl-streamer/thirdparty/spdlog
 ```

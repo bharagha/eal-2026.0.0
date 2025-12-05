@@ -28,6 +28,7 @@ import TeeNode, { TeeNodeWidth } from "./TeeNode.tsx";
 import SplitmuxsinkNode, {
   SplitmuxsinkNodeWidth,
 } from "./SplitmuxsinkNode.tsx";
+import VideoScaleNode from "./VideoScaleNode.tsx";
 
 export const nodeTypes = {
   filesrc: FileSrcNode,
@@ -54,6 +55,7 @@ export const nodeTypes = {
   vaapidecodebin: VaapiDecodebinNode,
   tee: TeeNode,
   splitmuxsink: SplitmuxsinkNode,
+  videoscale: VideoScaleNode,
 };
 
 export const nodeWidths: Record<string, number> = {
