@@ -8,7 +8,7 @@ elements for multi‑GPU or mixed‑device pipelines.
 
 This means that:
 
-- You can change the `device` property on AI elements (for example, to run detection on another GPU),  
+- You can change the `device` property on AI elements (for example, to run detection on another GPU),
 - But the corresponding DLStreamer elements for **decoding**, **post‑processing**, and **encoding** may remain bound
   to a different GPU or to a default device.
 
@@ -143,10 +143,10 @@ DLStreamer maps logical GPU devices (`GPU.0`, `GPU.1`, `GPU.2`, …) to specific
 When selecting the encoding device in the **“Save output”** dialog:
 
 - If your pipeline uses **`vah264dec` / `vapostproc` / `vah264enc` / `vah264lpenc`** near the end of the pipeline,
-  it is typically running on **`GPU.0`** (or just `GPU` on a single-GPU system).  
+  it is typically running on **`GPU.0`** (or just `GPU` on a single-GPU system).
   → In this case, choose **`GPU.0`** (or `GPU`) for encoding.
 - If your pipeline uses elements like **`varenderD129*`**, **`varenderD130*`**, etc. near the end of the pipeline,
-  those typically correspond to **`GPU.1`**, **`GPU.2`**, and so on.  
+  those typically correspond to **`GPU.1`**, **`GPU.2`**, and so on.
   → In this case, choose the `GPU.X` device that matches the `varenderDXXX*` elements used by the final encoder or
   post‑processing stage.
 
