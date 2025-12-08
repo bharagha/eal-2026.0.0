@@ -192,8 +192,8 @@ lost, and you need to recreate or reimport your custom pipelines and rerun the j
 
 ViPPET currently supports only pipelines and models that are supported by **DLStreamer 2025.2.0**.
 
-For the full list of supported models, elements, and other details, see the DLStreamer 2025.2.0 release notes:  
-[DLStreamer 2025.2.0 release notes](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2025.2.0/libraries/dl-streamer/RELEASE_NOTES.md)
+For the full list of supported models, elements, and other details, see the DLStreamer release notes:  
+[DLStreamer release notes](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2025.2.0/libraries/dl-streamer/RELEASE_NOTES.md)
 
 If a custom pipeline works correctly with DLStreamer 2025.2.0, it is expected to also work in ViPPET (see also the
 “Limited validation scope” limitation below).
@@ -250,6 +250,52 @@ In this release:
 - This can significantly **distort performance results** (for example, CPU/GPU utilization and FPS).
 
 For accurate and repeatable measurements, run these operations **one by one**.
+
+---
+
+### 7. Some GStreamer / DLStreamer elements may not be displayed correctly in the UI
+
+Some GStreamer or DLStreamer elements used in a pipeline may **not be displayed correctly** by the ViPPET UI.
+
+Even if some elements are not shown as expected in the UI, the underlying **pipeline is still expected to run**.
+
+---
+
+### 8. Supported models list is limited and extending it is not guaranteed to work
+
+ViPPET currently supports only models defined in:
+
+- [supported_models.yaml](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2025.2.0/tools/visual-pipeline-and-platform-evaluation-tool/shared/models/supported_models.yaml)
+
+A user can try to extend this file with new models whose `source` is either `public` or `pipeline-zoo-models`, but
+there is **no guarantee** that such models will work out of the box.
+
+- Models with `source: public` must be supported by the following script:  
+  [download_public_models.sh](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2025.2.0/libraries/dl-streamer/samples/download_public_models.sh)
+- Models with `source: pipeline-zoo-models` must already exist in this repository:  
+  [pipeline-zoo-models](https://github.com/dlstreamer/pipeline-zoo-models)
+
+After adding new models to `supported_models.yaml`, you must:
+
+```bash
+make stop
+make install-models-force
+make run
+```
+
+Only then will ViPPET rescan and manage the updated model set.
+
+---
+
+### 9. Pipelines cannot depend on files other than models or videos
+
+Currently, ViPPET does **not** support pipelines that require additional files beyond:
+
+- **Model files**, and
+- **Video files**.
+
+Pipelines that depend on other external artifacts (for example, configuration files, custom resources, etc.)
+are not supported in this release.
 
 ---
 
