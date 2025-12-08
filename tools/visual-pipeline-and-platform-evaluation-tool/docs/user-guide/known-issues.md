@@ -1,6 +1,10 @@
-# Known issues and Troubleshooting
+# Known issues, limitations and troubleshooting
 
-## 1. Pipelines failing or missing bounding boxes when multiple devices/codecs are involved
+---
+
+## Known issues
+
+### 1. Pipelines failing or missing bounding boxes when multiple devices/codecs are involved
 
 ViPPET lets you select the `device` for inference elements such as `gvadetect` and `gvaclassify`. However, in
 the current implementation there is no integrated mechanism to also update the DLStreamer codec and post‑processing
@@ -37,7 +41,7 @@ The relevant DLStreamer elements include:
 > (`vah264dec`, `vapostproc`, `vah264enc`, `vah264lpenc`).
 > Only on multi-GPU systems will elements for `GPU.1`, `GPU.2` etc. (`varenderD129*`, `varenderD130*`, etc.) appear.
 
-### Workaround
+#### Workaround
 
 If you see that the pipeline fails or runs without expected bounding boxes:
 
@@ -55,7 +59,7 @@ how to choose the correct elements for each GPU, see the DLStreamer documentatio
 
 ---
 
-## 2. DLSOptimizer takes a long time or causes the application to restart
+### 2. DLSOptimizer takes a long time or causes the application to restart
 
 When using DLSOptimizer from within ViPPET, optimization runs can be **long‑running**:
 
@@ -64,6 +68,19 @@ When using DLSOptimizer from within ViPPET, optimization runs can be **long‑ru
 
 In the current implementation, it can also happen that while DLSOptimizer is searching for an optimized pipeline,
 the ViPPET application is **restarted**.
+
+For more information about DLSOptimizer behavior and limitations, see the DLSOptimizer limitations section in the
+DLStreamer repository:  
+[DLSOptimizer limitations](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2025.2.0/libraries/dl-streamer/scripts/optimizer/README.md#limitations).
+
+#### Risks related to application restart during optimization
+
+If ViPPET is restarted while DLSOptimizer is running:
+
+- Any **in‑progress optimization job** is interrupted and its results are lost.
+- In the current release, an application restart **removes all user‑created pipelines and all types of jobs**  
+  (tests, optimization runs, validation runs). Only predefined pipelines remain available after restart.
+- You may need to **recreate or reimport** your custom pipelines and re‑run your jobs after the application comes back.
 
 ### Recommendations
 
@@ -74,7 +91,7 @@ the ViPPET application is **restarted**.
 
 ---
 
-## 3. NPU metrics are not visible in the UI
+### 3. NPU metrics are not visible in the UI
 
 ViPPET currently does **not** support displaying NPU‑related metrics:
 
@@ -85,24 +102,24 @@ As a result, even if pipelines use an NPU, you will not see NPU‑specific telem
 
 ---
 
-## 4. Occasional “Connection lost” message in the UI
+### 4. Occasional “Connection lost” message in the UI
 
 The ViPPET UI is a web application that communicates with backend services. Under transient network
 interruptions or short service unavailability, the UI may show a **“Connection lost”** message.
 
-### Characteristics
+#### Characteristics
 
 - It typically appears **sporadically**.
 - It is often related to short‑lived connectivity issues between the browser and the backend.
 
-### Workaround
+#### Workaround
 
 - If the **“Connection lost”** message appears occasionally:
   - **Refresh the browser page** to re‑establish the connection to the backend.
 
 ---
 
-## 5. Choosing the encoding device for “Save output” and mapping devices to GPU indices
+### 5. Choosing the encoding device for “Save output” and mapping devices to GPU indices
 
 When you enable the **“Save output”** option in ViPPET:
 
@@ -112,7 +129,7 @@ When you enable the **“Save output”** option in ViPPET:
 The current implementation does not automatically infer the best encoding device from the existing pipeline. To avoid
 confusion and potential issues, use the following guidelines.
 
-### How to choose the encoding device
+#### How to choose the encoding device
 
 - Prefer the **same device that is already used by the downstream video elements** in your pipeline.
 - In most cases, the most reliable choice is:
@@ -122,7 +139,7 @@ confusion and potential issues, use the following guidelines.
   - Introduce unnecessary copies between devices,
   - Or, in some environments, cause pipeline negotiation or stability issues.
 
-**Mapping devices (`GPU.X`) to DLStreamer elements**
+#### Mapping devices (`GPU.X`) to DLStreamer elements
 
 DLStreamer maps logical GPU devices (`GPU.0`, `GPU.1`, `GPU.2`, …) to specific element variants as follows:
 
@@ -138,7 +155,7 @@ DLStreamer maps logical GPU devices (`GPU.0`, `GPU.1`, `GPU.2`, …) to specific
 > **Note:** On systems with only one GPU, the device will be listed as simply `GPU` (not `GPU.0`) and you should always
 > use the generic elements above (`vah264dec`, `vapostproc`, `vah264enc`, `vah264lpenc`).
 
-### Practical guidance
+#### Practical guidance
 
 When selecting the encoding device in the **“Save output”** dialog:
 
@@ -156,11 +173,93 @@ as well as additional examples, see the DLStreamer GPU device selection guide:
 
 ---
 
-## 6. Application containers fail to start
+## Limitations
+
+### 1. Application restart removes user-created pipelines and jobs
+
+In the current release, restarting the ViPPET application removes:
+
+- All **pipelines created by the user**, and
+- All types of **jobs** (tests, optimization runs, validation runs, and similar).
+
+After a restart, only **predefined pipelines** remain available.  
+If a restart happens during a long‑running operation (for example, during DLSOptimizer runs), the in‑progress job is
+lost, and you need to recreate or reimport your custom pipelines and rerun the jobs.
+
+---
+
+### 2. Support limited to DLStreamer 2025.2.0 pipelines and models
+
+ViPPET currently supports only pipelines and models that are supported by **DLStreamer 2025.2.0**.
+
+For the full list of supported models, elements, and other details, see the DLStreamer 2025.2.0 release notes:  
+[DLStreamer 2025.2.0 release notes](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2025.2.0/libraries/dl-streamer/RELEASE_NOTES.md)
+
+If a custom pipeline works correctly with DLStreamer 2025.2.0, it is expected to also work in ViPPET (see also the
+“Limited validation scope” limitation below).
+
+---
+
+### 3. Limited metrics in the ViPPET UI
+
+At this stage, the ViPPET UI shows only a **limited set of metrics**:
+
+- Current **CPU utilization**,
+- Current **utilization of a single GPU**, and
+- The **most recently measured FPS**.
+
+More metrics (including timeline‑based charts) are planned for future releases.
+
+---
+
+### 4. Limited validation scope
+
+Validation and testing in this release focused mainly on **sanity checks for predefined pipelines**.
+
+For **custom pipelines**:
+
+- Their behavior in ViPPET is less explored and may vary.
+- However, if a custom pipeline is supported and works correctly with **DLStreamer 2025.2.0**, it is expected to behave
+  similarly when run via ViPPET (see also “Support limited to DLStreamer 2025.2.0 pipelines and models” above).
+
+---
+
+### 5. No live preview video for running pipelines
+
+Live preview of the video from a running pipeline is **not supported** in this release.
+
+As a workaround, you can:
+
+- Enable the **“Save output”** option.
+- After the pipeline finishes, inspect the generated **output video file**.
+
+---
+
+### 6. Recommended to run only one operation at a time
+
+Currently, it is recommended to run **a single operation at a time** from the following set:
+
+- Tests,
+- Optimization,
+- Validation.
+
+In this release:
+
+- New jobs are **not rejected or queued** when another job is already running.
+- Starting more than one job at the same time launches **multiple GStreamer instances**.
+- This can significantly **distort performance results** (for example, CPU/GPU utilization and FPS).
+
+For accurate and repeatable measurements, run these operations **one by one**.
+
+---
+
+## Troubleshooting
+
+### 1. Application containers fail to start
 
 In some environments, ViPPET services may fail to start correctly and the UI may not be reachable.
 
-### Troubleshooting
+#### Troubleshooting steps
 
 - Check container logs:
 
@@ -178,11 +277,11 @@ This stops currently running containers and starts them again with the default c
 
 ---
 
-## 7. Port conflicts for `vippet-ui`
+### 2. Port conflicts for `vippet-ui`
 
 If the `vippet-ui` service cannot be accessed in the browser, it may be caused by a port conflict on the host.
 
-### Troubleshooting
+#### Troubleshooting steps
 
 - In the Compose file (`compose.yml`), find the `vippet-ui` service and its `ports` section:
 
