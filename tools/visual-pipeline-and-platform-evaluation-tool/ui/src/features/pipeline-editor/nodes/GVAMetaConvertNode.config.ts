@@ -37,7 +37,7 @@ export const gvaMetaConvertConfig = {
     {
       key: "json-indent",
       label: "JSON Indent",
-      type: "string" as const,
+      type: "text" as const,
       defaultValue: "4",
       description: "JSON indentation level",
     },
