@@ -1,7 +1,5 @@
 # Known issues, limitations and troubleshooting
 
----
-
 ## Known issues
 
 ### 1. Pipelines failing or missing bounding boxes when multiple devices/codecs are involved
