@@ -6,7 +6,7 @@ Summary:        Intel Deep Learning Streamer framework
 
 License:        Apache License 2.0
 Source0:        %{name}-%{version}.tar.gz
-URL:            https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer
+URL:            https://github.com/open-edge-platform/edge-ai-libraries/tree/release-2025.2.0/libraries/dl-streamer
 Packager:       DL Streamer Team <dlstreamer@intel.com>
 ExclusiveArch:  x86_64
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root
