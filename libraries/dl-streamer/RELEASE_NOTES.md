@@ -30,8 +30,8 @@ The complete solution leverages:
   | [gvatrack](./docs/source/elements/gvatrack.md) | Performs object tracking using zero-term, or imageless tracking algorithms.   Assigns unique object IDs to the tracked objects. | 
   | [gvawatermark](./docs/source/elements/gvawatermark.md) | Overlays the metadata on the video frame to visualize the inference   results. |
 
-For the details on supported platforms, please refer to [System Requirements](./get_started/system_requirements.md).
-For installing Pipeline Framework with the prebuilt binaries or Docker\* or to build the binaries from the open source, refer to [Intel® DL Streamer Pipeline Framework installation guide](./get_started/install/install_guide_index.md).
+For the details on supported platforms, please refer to [System Requirements](./docs/source/get_started/system_requirements.md).
+For installing Pipeline Framework with the prebuilt binaries or Docker\* or to build the binaries from the open source, refer to [Intel® DL Streamer Pipeline Framework installation guide](./docs/source/get_started/install/install_guide_index.md).
 
 ### New in this Release
   | Title | High-level description |
@@ -41,11 +41,11 @@ For installing Pipeline Framework with the prebuilt binaries or Docker\* or to b
   | Gvagenai element added | Performs inference with Vision Language Models using OpenVINO™ GenAI, accepts video and text prompt as an input, and outputs text description. <br>Models supported: MiniCPM-V, Gemma3, Phi-4-multimodal-instruct. |
   | Deep SORT | Preview version of Deep SORT tracking algorithm in gvatrack element. |
   | gvawatermark element support on GPU | Gvawatermark implementation extended about GPU support (CPU default). |
-  | Pipeline optimizer support | 1st version of DLStreamer optimizer implementation added allowing end user finding the most FPS optimized pipeline. |
+  | Pipeline optimizer support | 1st version of DL Streamer optimizer implementation added allowing end user finding the most FPS optimized pipeline. |
   | GstAnalytics metadata support | Enabled GstAnalytics metadata support. |
   | OpenVINO custom operations | Add support for OpenVINO custom operations. |
   | D3D11 preprocessing enabled | Windows support extended about D3D11 preprocessing implementation. |
-  | UX, Stability && Performance fixes | • memory leaks fixes <br> • automatically select pre-process-backend=va-surface-sharing for GPU <br>• adjust caps negotiations and preproc backend selection <br>• removing deleted element from all shared reference lists. <br> • useOpenCV preproc to convert sparse tensors to contiguous tensors <br>• creation of new VADisplay ctx per each inference instance <br>• remove need for dual va+opencv image pre-processing |
+  | UX, Stability && Performance fixes | • memory management fixes <br> • automatically select pre-process-backend=va-surface-sharing for GPU <br>• adjusting caps negotiations and preproc backend selection <br>• removing deleted element from all shared reference lists. <br> • using OpenCV preproc to convert sparse tensors to contiguous tensors <br>• creation of new VADisplay ctx per each inference instance <br>• remove need for dual va+opencv image pre-processing |
   | Intel Core Ultra Panther Lake CPU/GPU support | Readiness for supporting Intel Core Ultra Panther Lake CPU/GPU. |
   | OpenVINO update | Update to 2025.3 version. |
   | GStreamer update | Update to 1.26.6 version. |
