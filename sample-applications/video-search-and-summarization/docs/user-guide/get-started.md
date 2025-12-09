@@ -147,6 +147,15 @@ Before running the application, you need to set several environment variables:
     > For a complete list of OpenVINO configuration options, refer to the [OpenVINO Documentation](https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes.html).
     > **Note**: If OV_CONFIG is not set, the default configuration `{"PERFORMANCE_HINT": "LATENCY"}` will be used.
 
+7. **Control the multi frame count**:
+
+    The below environment variable allows to change multiframe count
+
+    ```bash
+    export PM_MULTI_FRAME_COUNT=12
+    ```
+
+
 **🔐 Work with Gated Models**
 
    To run a **GATED MODEL** like Llama models, you will need to pass your [huggingface token](https://huggingface.co/docs/hub/security-tokens#user-access-tokens). You will need to request for an access to a specific model by going to the respective model page on Hugging Face website.
