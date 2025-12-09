@@ -57,17 +57,17 @@ This script will:
 
 ## Building and Installing Packages (Developer Testing)
 
-### 1. Install OpenVINO 2025.2
+### 1. Install OpenVINO 2025.3
 
 ```sh
 sudo rm -rf /opt/intel/openvino*
-wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.2/linux/openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64.tgz
-tar -xvzf openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64.tgz 
-sudo mv openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64 /opt/intel/openvino_2025.2.0
-cd /opt/intel/openvino_2025.2.0/
+wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.3/linux/openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64.tgz
+tar -xvzf openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64.tgz
+sudo mv openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64.tgz
+cd /opt/intel/openvino_2025.3.0/
 sudo -E python3 -m pip install -r ./python/requirements.txt
 cd /opt/intel
-sudo ln -s openvino_2025.2.0 openvino_2025
+sudo ln -s openvino_2025.3.0 openvino_2025
 ```
 
 ### 2. Uninstall Existing DL Streamer
