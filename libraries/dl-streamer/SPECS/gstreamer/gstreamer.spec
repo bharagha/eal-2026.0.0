@@ -1,6 +1,6 @@
 %define debug_package %{nil}
 Name:           gstreamer
-Version:        1.26.1
+Version:        1.26.6
 Release:        1%{?dist}
 Summary:        Intel optimized GStreamer build with VAAPI support
 
@@ -89,3 +89,5 @@ rm -rf %{buildroot}
 %changelog
 * Thu Aug 25 2025 Gstreamer build - 1.26.1-1
 - Initial GStreamer build
+* Thu Dec 09 2025 Gstreamer build - 1.26.6-1
+- Update gstremer verison
