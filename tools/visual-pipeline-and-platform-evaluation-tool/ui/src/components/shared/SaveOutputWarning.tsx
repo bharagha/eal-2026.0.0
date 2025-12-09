@@ -6,7 +6,7 @@ const SaveOutputWarning = () => {
       that is already used by other blocks in your pipeline. To learn more,
       refer to our documentation:{" "}
       <a
-        href="https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/visual-pipeline-and-platform-evaluation-tool/known-issues.html#choosing-the-encoding-device-for-save-output-and-mapping-devices-to-gpu-indices"
+        href="https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/visual-pipeline-and-platform-evaluation-tool/index.html"
         target="_blank"
         rel="noopener noreferrer"
         className="hover:text-classic-blue transition-colors underline"
