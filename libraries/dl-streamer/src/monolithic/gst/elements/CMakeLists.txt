@@ -109,3 +109,5 @@ endif()
 if(ENABLE_GENAI)
     add_subdirectory(gvagenai)
 endif()
+# Add gstradarparse element
+add_subdirectory(gstradarparse)
