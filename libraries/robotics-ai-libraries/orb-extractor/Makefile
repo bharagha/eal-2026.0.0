@@ -123,7 +123,7 @@ lint-json:
 source-package:
 	@# Help: Create source package tarball
 	git archive --format=zip -o orb-extractor-$(VERSION).zip HEAD \
-		Makefile README.md README-external.md REUSE.toml \
+		Makefile README.md REUSE.toml \
 		CMakeLists.txt orblzeConfig.cmake.in orblze.pc.in \
 		.github/linters cmake images include LICENSES samples src tests \
 		humble jazzy
