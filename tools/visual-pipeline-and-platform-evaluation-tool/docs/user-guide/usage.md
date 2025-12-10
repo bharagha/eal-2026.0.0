@@ -17,9 +17,9 @@ reproducible pipeline setups.
 
 ### Device Selection for Inference Elements
 
-ViPPET lets you select the `device` for inference elements such as `gvadetect` and `gvaclassify`. However, in the
-current implementation there is no integrated mechanism to also update the DLStreamer codec and post-processing elements
-for multi-GPU or mixed-device pipelines.
+The Visual Pipeline and Platform Evaluation Tool (ViPPET) lets you select the `device` for inference elements such as
+`gvadetect` and `gvaclassify`. However, in the current implementation there is no integrated mechanism to also update
+the DLStreamer codec and post-processing elements for multi-GPU or mixed-device pipelines.
 
 This means that:
 
@@ -71,7 +71,7 @@ DLStreamer](https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/dl-
 
 ### Using DLSOptimizer
 
-When using DLSOptimizer from within ViPPET, optimization runs can be **long-running**:
+When using the DLStreamer Optimizer (DLSOptimizer) from within ViPPET, optimization runs can be **long-running**:
 
 - It may take **5-6 minutes** (or more, depending on pipeline complexity and hardware) for DLSOptimizer to explore
   variants and return an optimized pipeline.

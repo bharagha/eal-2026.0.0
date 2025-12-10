@@ -19,7 +19,7 @@ For GPU and/or NPU usage, appropriate drivers must be installed. The recommended
 script, which detects available devices and installs the required drivers. Follow the **Prerequisites** section in:
 
 - [Install Guide Ubuntu –
-  Prerequisites](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-1.2.0/libraries/dl-streamer/docs/source/get_started/install/install_guide_ubuntu.md#prerequisites)
+  Prerequisites](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2025.2.0/libraries/dl-streamer/docs/source/get_started/install/install_guide_ubuntu.md#prerequisites)
 
 This guide assumes basic familiarity with Git commands and terminal usage. For more information, see:
 
@@ -46,7 +46,7 @@ This guide assumes basic familiarity with Git commands and terminal usage. For m
 - For GPU and/or NPU usage, appropriate drivers must be installed. The recommended method is to use the DLS
   installation script, which detects available devices and installs the required drivers. Follow the
   **Prerequisites** section in: [Install Guide Ubuntu –
-  Prerequisites](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-1.2.0/libraries/dl-streamer/docs/source/get_started/install/install_guide_ubuntu.md#prerequisites)
+  Prerequisites](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2025.2.0/libraries/dl-streamer/docs/source/get_started/install/install_guide_ubuntu.md#prerequisites)
 
 ### Compatibility Notes
 
