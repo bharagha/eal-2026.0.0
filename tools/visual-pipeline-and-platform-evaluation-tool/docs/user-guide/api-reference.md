@@ -7,7 +7,7 @@ or through the UI. The API documentation is available via Swagger UI.
 
 Once the application is running, access the API documentation at:
 
-- `http://localhost:7860/docs`
+- `http://localhost/api/v1/docs`
 
 The Swagger UI provides an interactive interface for exploring and testing the API endpoints.
 

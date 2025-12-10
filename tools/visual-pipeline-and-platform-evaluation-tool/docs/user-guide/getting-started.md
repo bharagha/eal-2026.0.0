@@ -86,11 +86,11 @@ and Platform Evaluation tool.
 
 Details about the changes, improvements, and known issues in this release of the application.
 
-### Current Release: Version 2025.2
+### Current Release: Version 2025.2.0
 
 **Release Date**: 2025-12-10
 
-#### New Features (v2025.2)
+#### New Features (2025.2.0)
 
 - **New graphical user interface (GUI)**: A visual representation of the underlying `gst-launch` pipeline graph is
   provided, presenting elements, links, and branches in an interactive view. Pipeline parameters (such as sources,
@@ -110,13 +110,13 @@ Details about the changes, improvements, and known issues in this release of the
   configuration of GStreamer-based pipelines. Optimized elements and parameters can be applied automatically, improving
   performance and reducing manual tuning.
 
-#### Improvements (v2025.2)
+#### Improvements (2025.2.0)
 
 - **Model management enhancements**: Supported models can now be added and removed directly through the application.
   The model manager updates available models in a centralized configuration, ensuring that only selected models are
   downloaded, stored, and exposed in the UI and API.
 
-#### Known Issues and Limitations (v2025.2)
+#### Known Issues and Limitations (2025.2.0)
 
 - **Pipelines failing or missing bounding boxes when multiple devices/codecs are involved**: ViPPET lets you select the
   `device` for inference elements such as `gvadetect` and `gvaclassify`. However, in the current implementation there
@@ -212,3 +212,9 @@ Details about the changes, improvements, and known issues in this release of the
 - **Issue**: The Visual Pipeline and Platform Evaluation Tool container fails to start the analysis when the "Run"
   button is clicked in the UI, specifically for systems without GPU.
   - **Workaround**: Consider upgrading the hardware to meet the required specifications for optimal performance.
+
+## Learn More
+
+- [Installation](installation.md)
+- [Usage](usage.md)
+- [API Reference](api-reference.md)

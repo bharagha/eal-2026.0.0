@@ -97,13 +97,13 @@ Release Notes
 
 Details about the changes, improvements, and known issues in this release of the application.
 
-Current Release: Version 2025.2
-********************************
+Current Release: Version 2025.2.0
+*********************************
 
 **Release Date**: 2025-12-10
 
-New Features (v2025.2)
-^^^^^^^^^^^^^^^^^^^^^^
+New Features (v2025.2.0)
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 - **New graphical user interface (GUI)**: A visual representation of the underlying ``gst-launch`` pipeline graph is
   provided, presenting elements, links, and branches in an interactive view. Pipeline parameters (such as sources,
@@ -123,15 +123,15 @@ New Features (v2025.2)
   configuration of GStreamer-based pipelines. Optimized elements and parameters can be applied automatically, improving
   performance and reducing manual tuning.
 
-Improvements (v2025.2)
-^^^^^^^^^^^^^^^^^^^^^^
+Improvements (v2025.2.0)
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 - **Model management enhancements**: Supported models can now be added and removed directly through the application.
   The model manager updates available models in a centralized configuration, ensuring that only selected models are
   downloaded, stored, and exposed in the UI and API.
 
-Known Issues and Limitations (v2025.2)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Known Issues and Limitations (v2025.2.0)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - **Pipelines failing or missing bounding boxes when multiple devices/codecs are involved**: ViPPET lets you select the
   ``device`` for inference elements such as ``gvadetect`` and ``gvaclassify``. However, in the current implementation
@@ -162,14 +162,15 @@ Known Issues and Limitations (v2025.2)
 Learn More
 ##########
 
+- :doc:`Installation <./installation>`
+- :doc:`Usage <./usage>`
+- :doc:`API Reference <./api-reference>`
+
 .. toctree::
+   :hidden:
    :maxdepth: 2
 
-   docs/user-guide/installation
-   docs/user-guide/usage
-   docs/user-guide/api-reference
-
-External Resources
-##################
-
-- `GitHub Repository <https://github.com/open-edge-platform/edge-ai-libraries/tree/main/tools/visual-pipeline-and-platform-evaluation-tool>`_
+   installation
+   usage
+   api-reference
+   GitHub <https://github.com/open-edge-platform/edge-ai-libraries/tree/main/tools/visual-pipeline-and-platform-evaluation-tool>

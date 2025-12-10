@@ -107,9 +107,9 @@ By following this guide, the following tasks can be completed:
    docker compose ps
    ```
 
-5. **Access the application API documentation**:
+5. Access the application UI:
 
-   - Open a browser and navigate to `http://localhost:7860/docs` to access the Swagger UI.
+   - Open a browser and go to `http://<IP>:<PORT>` (e.g. http://localhost if the default port is used).
 
 ### Validation
 
@@ -157,8 +157,8 @@ This guide is intended for developers working directly with the source code.
 
 1. **Verify build success**:
    - Logs should be checked for confirmation messages indicating that the microservice has started successfully.
-2. **Access the application API documentation**:
-   - Open a browser and navigate to `http://localhost:7860/docs` to access the Swagger UI.
+2. **Access the application UI**:
+   - Open a browser and go to `http://<IP>:<PORT> (e.g. http://localhost if the default port is used).
 
 ## Optional: Building Video Generator
 
