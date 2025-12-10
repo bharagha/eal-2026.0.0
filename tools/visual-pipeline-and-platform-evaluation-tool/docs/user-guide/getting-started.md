@@ -141,7 +141,8 @@ Details about the changes, improvements, and known issues in this release of the
   runs, and similar). After a restart, only predefined pipelines remain available.
 - **Support limited to DLStreamer 2025.2.0 pipelines and models**: ViPPET currently supports only pipelines and models
   that are supported by DLStreamer 2025.2.0. For the full list of supported models, elements, and other details, see
-  the [DLStreamer release notes](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2025.2.0/libraries/dl-streamer/RELEASE_NOTES.md).
+  the [DLStreamer release
+  notes](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2025.2.0/libraries/dl-streamer/RELEASE_NOTES.md).
 - **Limited metrics in the ViPPET UI**: At this stage, the ViPPET UI shows only a limited set of metrics: current CPU
   utilization, current utilization of a single GPU, and the most recently measured FPS.
 - **Limited validation scope**: Validation and testing in this release focused mainly on sanity checks for predefined

@@ -65,8 +65,9 @@ If you see that the pipeline fails or runs without expected bounding boxes:
 Elements with suffixes like `D129`, `D130`, etc. are typically mapped to specific GPU indices (for example `GPU.1`,
 `GPU.2`). The exact mapping between `varenderD129*` / `varenderD130*` elements and `GPU.X` devices depends on your
 platform configuration and DLStreamer's GPU selection rules. For details on how these IDs map to GPU devices and how to
-choose the correct elements for each GPU, see the DLStreamer documentation on GPU device selection:
-[GPU device selection in DLStreamer](https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/dl-streamer/dev_guide/gpu_device_selection.html).
+choose the correct elements for each GPU, see the DLStreamer documentation on GPU device selection: [GPU device
+selection in
+DLStreamer](https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/dl-streamer/dev_guide/gpu_device_selection.html).
 
 ### Using DLSOptimizer
 
@@ -79,8 +80,8 @@ In the current implementation, it can also happen that while DLSOptimizer is sea
 ViPPET application is **restarted**.
 
 For more information about DLSOptimizer behavior and limitations, see the DLSOptimizer limitations section in the
-DLStreamer repository:
-[DLSOptimizer limitations](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2025.2.0/libraries/dl-streamer/scripts/optimizer/README.md#limitations).
+DLStreamer repository: [DLSOptimizer
+limitations](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2025.2.0/libraries/dl-streamer/scripts/optimizer/README.md#limitations).
 
 #### Risks related to application restart during optimization
 
@@ -146,8 +147,8 @@ When selecting the encoding device in the **"Save output"** dialog:
   matches the `varenderDXXX*` elements used by the final encoder or post-processing stage.
 
 For the precise and up-to-date mapping between `GPU.X` devices and `varenderDXXX*` elements on your platform, as well
-as additional examples, see the DLStreamer GPU device selection guide:
-[GPU device selection in DLStreamer](https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/dl-streamer/dev_guide/gpu_device_selection.html).
+as additional examples, see the DLStreamer GPU device selection guide: [GPU device selection in
+DLStreamer](https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/dl-streamer/dev_guide/gpu_device_selection.html).
 
 ## Running performance tests
 
