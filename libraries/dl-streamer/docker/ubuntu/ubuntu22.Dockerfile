@@ -474,9 +474,7 @@ WORKDIR /deb-pkg
 
 RUN \
     rm ./debian/control &&\
-    rm ./debian/intel-dlstreamer.install && \
-    mv ./debian/control-ubuntu22 ./debian/control && \
-    mv ./debian/intel-dlstreamer.install-ubuntu22 ./debian/intel-dlstreamer.install
+    mv ./debian/control-ubuntu22 ./debian/control
 
 RUN \
     debuild -z1 -us -uc && \
