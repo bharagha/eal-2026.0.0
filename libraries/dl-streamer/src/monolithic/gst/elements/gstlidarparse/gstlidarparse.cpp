@@ -195,55 +195,7 @@ static gboolean gst_lidar_parse_start(GstBaseTransform *trans) {
 
     GST_DEBUG_OBJECT(filter, "Location: %s", filter->location);
 
-    std::ifstream file(filter->location, std::ios::binary | std::ios::ate);
-    if (!file) {
-        GST_ERROR_OBJECT(filter, "Failed to open file: %s", filter->location);
-        GST_INFO_OBJECT(filter, "[START] Failed: Cannot open file");
-        return FALSE;
-    }
-
-    std::streamsize size = file.tellg();
-    file.seekg(0, std::ios::beg);
-    GST_INFO_OBJECT(filter, "File size: %ld bytes", (long)size);
-
-    gsize samples_to_read = size / sizeof(float);
-    GST_INFO_OBJECT(filter, "Samples to read: %lu", (unsigned long)samples_to_read);
-
-    filter->lidar_data.resize(samples_to_read);
-    file.read(reinterpret_cast<char*>(filter->lidar_data.data()), size);
-    filter->data_size = filter->lidar_data.size();
-    GST_INFO_OBJECT(filter, "Read data_size: %lu", (unsigned long)filter->data_size);
-
-    file.close();
-
-    GST_INFO_OBJECT(filter, "Loaded %lu float samples from %s",
-                   filter->data_size, filter->location);
-
-    filter->current_index = 0;
-
-    GstEvent *stream_start_event = gst_event_new_stream_start("lidarparse-stream");
-    if (!gst_pad_push_event(GST_BASE_TRANSFORM_SRC_PAD(trans), stream_start_event)) {
-        GST_ERROR_OBJECT(filter, "Failed to push stream-start event");
-        GST_INFO_OBJECT(filter, "[START] Failed: stream-start event");
-        return FALSE;
-    }
-    GST_DEBUG_OBJECT(filter, "Stream-start event pushed");
-
-    GstCaps *caps = gst_caps_new_simple("application/x-raw",
-                                        "format", G_TYPE_STRING, "F32_LE",
-                                        "channels", G_TYPE_INT, 1,
-                                        NULL);
-
-    if (!gst_pad_set_caps(GST_BASE_TRANSFORM_SRC_PAD(trans), caps)) {
-        GST_ERROR_OBJECT(filter, "Failed to set caps on src pad");
-        GST_INFO_OBJECT(filter, "[START] Failed: set caps");
-        gst_caps_unref(caps);
-        return FALSE;
-    }
-
-    GST_DEBUG_OBJECT(filter, "Caps set on src pad: %s", gst_caps_to_string(caps));
-    GST_INFO_OBJECT(filter, "[START] Success");
-    gst_caps_unref(caps);
+    GST_INFO_OBJECT(filter, "[START] lidarparse initialized, no file opening required.");
 
     return TRUE;
 }
@@ -284,34 +236,32 @@ static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBu
     GstLidarParse *filter = GST_LIDAR_PARSE(trans);
 
     GstMapInfo map;
-    gst_buffer_map(buffer, &map, GST_MAP_WRITE);
+    gst_buffer_map(buffer, &map, GST_MAP_READ);
 
-    GST_DEBUG_OBJECT(filter, "[TRANSFORM_IP] buffer size: %lu", (unsigned long)map.size);
-    GST_INFO_OBJECT(filter, "[TRANSFORM_IP] lidar_data size: %lu", (unsigned long)filter->data_size);
+    // Process GstBuffer data directly
+    gst_buffer_map(buffer, &map, GST_MAP_READ);
 
-    size_t stride = filter->stride > 0 ? filter->stride : 1;
-    size_t current = filter->current_index;
-    size_t remain = (current < filter->data_size) ? (filter->data_size - current) : 0;
-    size_t to_copy = (remain >= stride) ? stride : remain;
-
-    if (to_copy > 0) {
-        memcpy(map.data, &filter->lidar_data[current], to_copy * sizeof(float));
-        if (to_copy < stride) {
-            memset((char*)map.data + to_copy * sizeof(float), 0, (stride - to_copy) * sizeof(float));
-        }
-        filter->current_index += to_copy;
-    } else {
-        memset(map.data, 0, stride * sizeof(float));
+    // Ensure the buffer size is a multiple of sizeof(float)
+    if (map.size % sizeof(float) != 0) {
+        GST_ERROR_OBJECT(filter, "Buffer size (%lu) is not a multiple of float size (%lu)",
+                         map.size, sizeof(float));
+        gst_buffer_unmap(buffer, &map);
+        return GST_FLOW_ERROR;
     }
 
-    for (size_t i = 0; i < to_copy && i < 5; ++i) {
-        GST_DEBUG_OBJECT(filter, "[TRANSFORM_IP] sample[%zu]=%f", current + i, filter->lidar_data[current + i]);
-    }
-    GST_INFO_OBJECT(filter, "[TRANSFORM_IP] output_data size: %lu", (unsigned long)to_copy);
+    // Parse data as float
+    size_t num_floats = map.size / sizeof(float);
+    const float *data = reinterpret_cast<const float *>(map.data);
 
+    filter->lidar_data.assign(data, data + num_floats);
     gst_buffer_unmap(buffer, &map);
 
-    GST_DEBUG_OBJECT(filter, "[TRANSFORM_IP] buffer unmapped, returning GST_FLOW_OK");
+    // Log the first few parsed float values for debugging
+    size_t log_count = std::min(num_floats, static_cast<size_t>(10));
+    GST_INFO_OBJECT(filter, "Parsed %lu float samples. First %lu values: ", num_floats, log_count);
+    for (size_t i = 0; i < log_count; ++i) {
+        GST_INFO_OBJECT(filter, "Value[%lu]: %f", i, filter->lidar_data[i]);
+    }
 
     return GST_FLOW_OK;
 }
