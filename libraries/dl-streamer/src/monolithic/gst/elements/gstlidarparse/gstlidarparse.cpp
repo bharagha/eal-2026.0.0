@@ -238,6 +238,32 @@ static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBu
     GstMapInfo map;
     gst_buffer_map(buffer, &map, GST_MAP_READ);
 
+    // Frame rate control variables
+    static GstClockTime last_frame_time = GST_CLOCK_TIME_NONE;
+    GstClockTime current_time = gst_clock_get_time(gst_system_clock_obtain());
+
+    // Calculate frame interval based on frame_rate
+    GstClockTime frame_interval = (GstClockTime)(GST_SECOND / filter->frame_rate);
+
+    // Debug information for rate control
+    GST_DEBUG_OBJECT(filter, "Current time: %" GST_TIME_FORMAT, GST_TIME_ARGS(current_time));
+    GST_DEBUG_OBJECT(filter, "Last frame time: %" GST_TIME_FORMAT, GST_TIME_ARGS(last_frame_time));
+    GST_DEBUG_OBJECT(filter, "Frame interval: %" GST_TIME_FORMAT, GST_TIME_ARGS(frame_interval));
+
+    // If this is not the first frame, ensure the frame interval is respected
+    if (last_frame_time != GST_CLOCK_TIME_NONE) {
+        GstClockTime elapsed_time = current_time - last_frame_time;
+        GST_DEBUG_OBJECT(filter, "Elapsed time since last frame: %" GST_TIME_FORMAT, GST_TIME_ARGS(elapsed_time));
+        if (elapsed_time < frame_interval) {
+            GstClockTime sleep_time = frame_interval - elapsed_time;
+            GST_DEBUG_OBJECT(filter, "Sleeping for %" GST_TIME_FORMAT, GST_TIME_ARGS(sleep_time));
+            g_usleep(sleep_time / 1000); // Convert nanoseconds to microseconds
+        }
+    }
+
+    // Update last frame time
+    last_frame_time = gst_clock_get_time(gst_system_clock_obtain());
+
     // Process GstBuffer data directly
     gst_buffer_map(buffer, &map, GST_MAP_READ);
 
