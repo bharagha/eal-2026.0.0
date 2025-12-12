@@ -78,7 +78,7 @@ export MINIO_SECRET_KEY=<your-minio-password>
 ## Models Selection
 Refer to [supported models](./Overview.md#models-supported) for the list of models that can be used for transcription. You can specify which models to enable through the `ENABLED_WHISPER_MODELS` environment variable.
 
-# Quick Start
+## Quick Start
 
 User has following different options to start and use the application :
 
