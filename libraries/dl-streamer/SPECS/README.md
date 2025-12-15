@@ -63,7 +63,7 @@ This script will:
 sudo rm -rf /opt/intel/openvino*
 wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.3/linux/openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64.tgz
 tar -xvzf openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64.tgz
-sudo mv openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64.tgz /opt/intel/openvino_2025.3.0
+sudo mv openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64 /opt/intel/openvino_2025.3.0
 cd /opt/intel/openvino_2025.3.0/
 sudo -E python3 -m pip install -r ./python/requirements.txt
 cd /opt/intel
