@@ -162,6 +162,30 @@ static gboolean gst_lidar_parse_start(GstBaseTransform *trans) {
     GST_DEBUG_OBJECT(filter, "Starting lidar parser");
     GST_INFO_OBJECT(filter, "[START] lidarparse, location: %s", filter->location ? filter->location : "(null)");
 
+    if (!filter->current_index) { 
+        GstPad *sink_pad = GST_BASE_TRANSFORM_SINK_PAD(trans);
+        GstPad *peer_pad = gst_pad_get_peer(sink_pad);
+        if (peer_pad) {
+            GstElement *upstream_element = gst_pad_get_parent_element(peer_pad);
+            if (upstream_element && GST_IS_ELEMENT(upstream_element)) {
+                gchar *element_name = gst_element_get_name(upstream_element);
+                GST_INFO_OBJECT(filter, "Upstream element name: %s", element_name);
+                g_free(element_name);
+
+                if (g_object_class_find_property(G_OBJECT_GET_CLASS(upstream_element), "start-index")) {
+                    gint upstream_index = 0;
+                    g_object_get(upstream_element, "start-index", &upstream_index, NULL);
+                    GST_INFO_OBJECT(filter, "Retrieved upstream index: %d", upstream_index);
+                    filter->current_index = upstream_index; // Set initial current_index
+                } else {
+                    GST_WARNING_OBJECT(filter, "Upstream element does not have an 'index' property");
+                }
+
+                g_object_unref(upstream_element);
+            }
+            gst_object_unref(peer_pad);
+        }
+    }
     if (!filter->location) {
         GstPad *sink_pad = GST_BASE_TRANSFORM_SINK_PAD(trans);
         GstPad *peer_pad = gst_pad_get_peer(sink_pad);
@@ -196,6 +220,31 @@ static gboolean gst_lidar_parse_start(GstBaseTransform *trans) {
     GST_DEBUG_OBJECT(filter, "Location: %s", filter->location);
 
     GST_INFO_OBJECT(filter, "[START] lidarparse initialized, no file opening required.");
+
+    GstPad *sink_pad = GST_BASE_TRANSFORM_SINK_PAD(trans);
+    GstPad *peer_pad = gst_pad_get_peer(sink_pad);
+    GstElement *upstream = NULL;
+
+    if (peer_pad) {
+        upstream = gst_pad_get_parent_element(peer_pad);
+        gst_object_unref(peer_pad);
+    }
+
+    if (!upstream) {
+        GST_ERROR_OBJECT(filter, "Failed to retrieve upstream element.");
+        return FALSE;
+    }
+
+    gint start_index = 0;
+    g_object_get(G_OBJECT(upstream), "start-index", &start_index, NULL);
+
+    if (start_index < 0) {
+        GST_ERROR_OBJECT(filter, "Invalid start-index (%d)", start_index);
+        return FALSE;
+    }
+
+    filter->data_size = start_index + 1;
+    GST_DEBUG_OBJECT(filter, "Calculated data_size based on start-index (%d): %zu", start_index, filter->data_size);
 
     return TRUE;
 }
@@ -282,11 +331,39 @@ static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBu
     filter->lidar_data.assign(data, data + num_floats);
     gst_buffer_unmap(buffer, &map);
 
+    // Log the file being read before processing
+    static gchar *current_file_name = NULL;
+
+    // Ensure proper memory management for current_file_name
+    if (current_file_name) {
+        g_free(current_file_name);
+        current_file_name = NULL; 
+    }
+
+    // Construct the file name using the current index
+    current_file_name = g_strdup_printf(filter->location, filter->current_index);
+
+    // Check if the file exists
+    if (access(current_file_name, F_OK) != 0) {
+        GST_INFO_OBJECT(filter, "File not found: %s", current_file_name);
+        g_free(current_file_name);
+        current_file_name = NULL; 
+        return GST_FLOW_EOS; 
+    }
+
+    GST_INFO_OBJECT(filter, "Processing file: %s", current_file_name);
+
     // Log the first few parsed float values for debugging
     size_t log_count = std::min(num_floats, static_cast<size_t>(10));
     GST_INFO_OBJECT(filter, "Parsed %lu float samples. First %lu values: ", num_floats, log_count);
     for (size_t i = 0; i < log_count; ++i) {
         GST_INFO_OBJECT(filter, "Value[%lu]: %f", i, filter->lidar_data[i]);
+    }
+
+    // Free current_file_name after processing
+    if (current_file_name) {
+        g_free(current_file_name);
+        current_file_name = NULL; 
     }
 
     // Allocate a new GstBuffer
@@ -309,6 +386,9 @@ static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBu
         gst_buffer_unref(out_buffer); // Unref the buffer in case of failure
         return ret;
     }
+
+    filter->current_index += filter->stride;
+    GST_DEBUG_OBJECT(filter, "Updated current_index: %zu, stride: %d", filter->current_index, filter->stride);
 
     return GST_FLOW_OK;
 }
