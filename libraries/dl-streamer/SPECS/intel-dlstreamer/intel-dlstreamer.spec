@@ -138,9 +138,9 @@ rm -rf %{buildroot}
 /opt/intel/dlstreamer/lib/pkgconfig/*
 
 %changelog
+* Wed Dec 02 2025 DL Streamer Team <dlstreamer@intel.com> - 2025.2.0-1
+- Update DL Streamer version
 * Thu Aug 07 2025 DL Streamer Team <dlstreamer@intel.com> - 2025.1.2-1
 - Split into modular package architecture
 - Use Intel optimized dependencies
 - Added development and samples subpackages
-* Wed Dec 02 2025 DL Streamer Team <dlstreamer@intel.com> - 2025.2.0-1
-- Update DL Streamer version

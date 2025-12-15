@@ -87,7 +87,7 @@ rm -rf %{buildroot}
 /opt/intel/dlstreamer/gstreamer/lib/pkgconfig/
 
 %changelog
-* Thu Aug 25 2025 Gstreamer build - 1.26.1-1
-- Initial GStreamer build
 * Thu Dec 09 2025 Gstreamer build - 1.26.6-1
 - Update gstremer verison
+* Thu Aug 25 2025 Gstreamer build - 1.26.1-1
+- Initial GStreamer build
