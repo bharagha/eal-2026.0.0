@@ -289,6 +289,27 @@ static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBu
         GST_INFO_OBJECT(filter, "Value[%lu]: %f", i, filter->lidar_data[i]);
     }
 
+    // Allocate a new GstBuffer
+    GstBuffer *out_buffer = gst_buffer_new_allocate(NULL, filter->lidar_data.size() * sizeof(float), NULL);
+    if (!out_buffer) {
+        GST_ERROR_OBJECT(filter, "Failed to allocate GstBuffer");
+        return GST_FLOW_ERROR;
+    }
+
+    // Map the buffer for writing
+    GstMapInfo out_map;
+    gst_buffer_map(out_buffer, &out_map, GST_MAP_WRITE);
+    memcpy(out_map.data, filter->lidar_data.data(), filter->lidar_data.size() * sizeof(float));
+    gst_buffer_unmap(out_buffer, &out_map);
+
+    // Push the new buffer to the downstream element
+    GstFlowReturn ret = gst_pad_push(GST_BASE_TRANSFORM_SRC_PAD(trans), out_buffer);
+    if (ret != GST_FLOW_OK) {
+        GST_ERROR_OBJECT(filter, "Failed to push buffer to downstream: %s", gst_flow_get_name(ret));
+        gst_buffer_unref(out_buffer); // Unref the buffer in case of failure
+        return ret;
+    }
+
     return GST_FLOW_OK;
 }
 
