@@ -7,7 +7,7 @@
 set (TARGET_NAME "test_metapublish_kafka")
 
 find_package(PkgConfig REQUIRED)
-find_library(KAFKA rdkafka++ REQUIRED)
+pkg_check_modules(RDKAFKA REQUIRED rdkafka++)
 pkg_check_modules(GSTBASE gstreamer-base-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 
@@ -24,12 +24,13 @@ target_include_directories(${TARGET_NAME}
 PRIVATE
     ${GLIB2_INCLUDE_DIRS}
     ${GSTREAMER_INCLUDE_DIRS}
+    ${RDKAFKA_INCLUDE_DIRS}
 )
 target_link_libraries(${TARGET_NAME}
 PRIVATE
     gtest
     gmock
-    ${KAFKA}
+    ${RDKAFKA_LIBRARIES}
     gvametapublishkafka
     ${GSTREAMER_LIBRARIES}
     ${GSTBASE_LIBRARIES}

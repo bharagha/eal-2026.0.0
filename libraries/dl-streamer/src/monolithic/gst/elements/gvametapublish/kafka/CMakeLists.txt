@@ -7,9 +7,8 @@
 set (TARGET_NAME "gvametapublishkafka")
 
 find_package(PkgConfig REQUIRED)
-find_library(KAFKA rdkafka++ REQUIRED)
+pkg_check_modules(RDKAFKA REQUIRED rdkafka++)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
-
 
 file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
@@ -27,6 +26,7 @@ PUBLIC
 PRIVATE
     ${GLIB2_INCLUDE_DIRS}
     ${GSTREAMER_INCLUDE_DIRS}
+    ${RDKAFKA_INCLUDE_DIRS}
 )
 
 target_link_libraries(${TARGET_NAME}
@@ -34,7 +34,7 @@ PUBLIC
     gvametapublish
 PRIVATE
     ${GSTREAMER_LIBRARIES}
-    ${KAFKA}
+    ${RDKAFKA_LIBRARIES}
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
