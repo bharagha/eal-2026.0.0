@@ -33,7 +33,7 @@
     "@types/react-dom": "^18.2.22",
     "@typescript-eslint/eslint-plugin": "^8.50.0",
     "@typescript-eslint/parser": "^8.50.0",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^5.1.2",
     "eslint": "^9.39.2",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.25",
@@ -41,9 +41,9 @@
     "postcss": "^8.4.38",
     "postcss-preset-mantine": "^1.15.0",
     "postcss-simple-vars": "^7.0.1",
-    "sass": "1.64.2",
+    "sass": "1.96.0",
     "typescript": "^5.2.2",
-    "vite": "^5.2.13",
-    "vitest": "^1.6.0"
+    "vite": "^7.3.0",
+    "vitest": "^4.0.15"
   }
 }
