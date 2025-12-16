@@ -4,7 +4,7 @@ Performs inference with Vision Language Models using OpenVINO™ GenAI.
 Accepts video and text prompts as input, and outputs text description.
 It can be used to generate text summarizations from video.
 
-[Prerequisites steps](https://docs.openedgeplatform.intel.com/oep/edge-ai-libraries/dl-streamer/dev_guide/advanced_install/advanced_install_guide_compilation.html#step-6-install-openvino-genai-only-for-ubuntu-optional)
+[Prerequisites steps](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dl-streamer/dev_guide/advanced_install/advanced_install_guide_compilation.html#step-6-install-openvino-genai-only-for-ubuntu-optional)
 
 ## Configuration
 
@@ -104,6 +104,11 @@ Pad Templates:
                  height: [ 1, 2147483647 ]
               framerate: [ 0/1, 2147483647/1 ]
       video/x-raw(memory:VAMemory)
+                 format: { (string)NV12 }
+                  width: [ 1, 2147483647 ]
+                 height: [ 1, 2147483647 ]
+              framerate: [ 0/1, 2147483647/1 ]
+      video/x-raw(memory:D3D11Memory)
                  format: { (string)NV12 }
                   width: [ 1, 2147483647 ]
                  height: [ 1, 2147483647 ]
