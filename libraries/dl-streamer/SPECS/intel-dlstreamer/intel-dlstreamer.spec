@@ -81,6 +81,7 @@ cmake -DCMAKE_INSTALL_PREFIX=/opt/intel/dlstreamer \
       -DENABLE_VAAPI=ON \
       -DENABLE_SAMPLES=ON \
       -DCMAKE_CXX_FLAGS="-Wno-error" \
+      -DCMAKE_C_FLAGS="-Wno-error" \
       ..
 
 make -j "$(nproc)"

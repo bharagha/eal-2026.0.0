@@ -166,7 +166,7 @@ install_build_deps() {
         "python3-devel" "libXaw-devel" "ncurses-devel" 
         "libva2" "intel-compute-runtime" "intel-opencl" 
         "intel-level-zero-gpu" "intel-ocloc-devel"
-        "gobject-introspection"
+        "gobject-introspection" "libtiff-devel"
     )
     
     if command -v dnf &> /dev/null; then
