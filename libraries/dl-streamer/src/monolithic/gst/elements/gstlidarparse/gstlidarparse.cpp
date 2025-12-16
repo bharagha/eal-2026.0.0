@@ -2,6 +2,7 @@
 #include <string.h>
 #include <vector>
 #include <fstream>
+#include <unistd.h> 
 
 GST_DEBUG_CATEGORY_STATIC(gst_lidar_parse_debug);
 #define GST_CAT_DEFAULT gst_lidar_parse_debug
@@ -39,9 +40,9 @@ static gboolean gst_lidar_parse_start(GstBaseTransform *trans);
 static gboolean gst_lidar_parse_stop(GstBaseTransform *trans);
 static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBuffer *buffer);
 static GstCaps *gst_lidar_parse_transform_caps(GstBaseTransform *trans,
-                                                GstPadDirection direction,
-                                                GstCaps *caps,
-                                                GstCaps *filter);
+                                               GstPadDirection direction,  
+                                               GstCaps *caps,
+                                               GstCaps *filter);
 
 static void gst_lidar_parse_class_init(GstLidarParseClass *klass);
 static void gst_lidar_parse_init(GstLidarParse *filter);
@@ -59,9 +60,9 @@ static void gst_lidar_parse_class_init(GstLidarParseClass *klass) {
 
     g_object_class_install_property(gobject_class, PROP_LOCATION,
         g_param_spec_string("location", "Location",
-                           "Location of the binary file to parse",
+                           "Location of the binary file to parse (read-only, inherited from upstream)",
                            NULL,
-                           (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+                           (GParamFlags)(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property(gobject_class, PROP_STRIDE,
         g_param_spec_int("stride", "Stride",
@@ -121,8 +122,7 @@ static void gst_lidar_parse_set_property(GObject *object, guint prop_id,
 
     switch (prop_id) {
         case PROP_LOCATION:
-            g_free(filter->location);
-            filter->location = g_value_dup_string(value);
+            GST_WARNING_OBJECT(filter, "Location property is read-only and inherited from upstream");
             break;
         case PROP_STRIDE:
             filter->stride = g_value_get_int(value);
@@ -147,7 +147,7 @@ static void gst_lidar_parse_get_property(GObject *object, guint prop_id,
         case PROP_STRIDE:
             g_value_set_int(value, filter->stride);
             break;
-        case PROP_FRAME_RATE:
+        case PROP_FRAME_RATE:  
             g_value_set_float(value, filter->frame_rate);
             break;
         default:
@@ -160,91 +160,65 @@ static gboolean gst_lidar_parse_start(GstBaseTransform *trans) {
     GstLidarParse *filter = GST_LIDAR_PARSE(trans);
 
     GST_DEBUG_OBJECT(filter, "Starting lidar parser");
-    GST_INFO_OBJECT(filter, "[START] lidarparse, location: %s", filter->location ? filter->location : "(null)");
+    GST_INFO_OBJECT(filter, "[START] lidarparse");
 
-    if (!filter->current_index) { 
-        GstPad *sink_pad = GST_BASE_TRANSFORM_SINK_PAD(trans);
-        GstPad *peer_pad = gst_pad_get_peer(sink_pad);
-        if (peer_pad) {
-            GstElement *upstream_element = gst_pad_get_parent_element(peer_pad);
-            if (upstream_element && GST_IS_ELEMENT(upstream_element)) {
-                gchar *element_name = gst_element_get_name(upstream_element);
-                GST_INFO_OBJECT(filter, "Upstream element name: %s", element_name);
-                g_free(element_name);
+    // Get location from upstream element
+    GstPad *sink_pad = GST_BASE_TRANSFORM_SINK_PAD(trans);
+    GstPad *peer_pad = gst_pad_get_peer(sink_pad);
 
-                if (g_object_class_find_property(G_OBJECT_GET_CLASS(upstream_element), "start-index")) {
-                    gint upstream_index = 0;
-                    g_object_get(upstream_element, "start-index", &upstream_index, NULL);
-                    GST_INFO_OBJECT(filter, "Retrieved upstream index: %d", upstream_index);
-                    filter->current_index = upstream_index; // Set initial current_index
-                } else {
-                    GST_WARNING_OBJECT(filter, "Upstream element does not have an 'index' property");
-                }
-
-                g_object_unref(upstream_element);
-            }
-            gst_object_unref(peer_pad);
-        }
+    if (!peer_pad) {
+        GST_ERROR_OBJECT(filter, "No upstream element connected");
+        GST_INFO_OBJECT(filter, "[START] Failed: No upstream element");
+        return FALSE;
     }
-    if (!filter->location) {
-        GstPad *sink_pad = GST_BASE_TRANSFORM_SINK_PAD(trans);
-        GstPad *peer_pad = gst_pad_get_peer(sink_pad);
 
-        if (peer_pad) {
-            GstElement *upstream_element = gst_pad_get_parent_element(peer_pad);
-            if (upstream_element) {
-                gchar *upstream_location = NULL;
-                g_object_get(upstream_element, "location", &upstream_location, NULL);
+    GstElement *upstream_element = gst_pad_get_parent_element(peer_pad);
+    if (!upstream_element) {
+        GST_ERROR_OBJECT(filter, "Failed to get upstream element");
+        gst_object_unref(peer_pad);
+        GST_INFO_OBJECT(filter, "[START] Failed: Cannot get upstream element");
+        return FALSE;
+    }
 
-                if (upstream_location) {
-                    filter->location = g_strdup(upstream_location);
-                    GST_INFO_OBJECT(filter, "Inherited location from upstream: %s", filter->location);
-                    g_free(upstream_location);
-                } else {
-                    GST_ERROR_OBJECT(filter, "Upstream element does not have a 'location' property");
-                    GST_WARNING_OBJECT(filter, "Upstream element has no location property");
-                }
+    // Get location from upstream
+    gchar *upstream_location = NULL;
+    g_object_get(upstream_element, "location", &upstream_location, NULL);
 
-                g_object_unref(upstream_element);
-            }
-            gst_object_unref(peer_pad);
+    if (!upstream_location) {
+        GST_ERROR_OBJECT(filter, "Upstream element does not have a 'location' property");
+        gst_object_unref(upstream_element);
+        gst_object_unref(peer_pad);
+        GST_INFO_OBJECT(filter, "[START] Failed: No location property in upstream");
+        return FALSE;
+    }
+
+    filter->location = g_strdup(upstream_location);
+    GST_INFO_OBJECT(filter, "Inherited location from upstream: %s", filter->location);
+    g_free(upstream_location);
+
+    // Get start-index from upstream if available
+    if (!filter->current_index) {
+        if (g_object_class_find_property(G_OBJECT_GET_CLASS(upstream_element), "start-index")) {
+            gint upstream_index = 0;
+            g_object_get(upstream_element, "start-index", &upstream_index, NULL);
+            GST_INFO_OBJECT(filter, "Retrieved upstream index: %d", upstream_index);
+            filter->current_index = upstream_index;
+        } else {
+            GST_WARNING_OBJECT(filter, "Upstream element does not have a 'start-index' property");
         }
     }
 
+    gst_object_unref(upstream_element);
+    gst_object_unref(peer_pad);
+
     if (!filter->location) {
-        GST_ERROR_OBJECT(filter, "No location specified");
-        GST_INFO_OBJECT(filter, "[START] Failed: No location");
+        GST_ERROR_OBJECT(filter, "No location specified after upstream query");
+        GST_INFO_OBJECT(filter, "[START] Failed: No location after upstream query");
         return FALSE;
     }
 
     GST_DEBUG_OBJECT(filter, "Location: %s", filter->location);
-
     GST_INFO_OBJECT(filter, "[START] lidarparse initialized, no file opening required.");
-
-    GstPad *sink_pad = GST_BASE_TRANSFORM_SINK_PAD(trans);
-    GstPad *peer_pad = gst_pad_get_peer(sink_pad);
-    GstElement *upstream = NULL;
-
-    if (peer_pad) {
-        upstream = gst_pad_get_parent_element(peer_pad);
-        gst_object_unref(peer_pad);
-    }
-
-    if (!upstream) {
-        GST_ERROR_OBJECT(filter, "Failed to retrieve upstream element.");
-        return FALSE;
-    }
-
-    gint start_index = 0;
-    g_object_get(G_OBJECT(upstream), "start-index", &start_index, NULL);
-
-    if (start_index < 0) {
-        GST_ERROR_OBJECT(filter, "Invalid start-index (%d)", start_index);
-        return FALSE;
-    }
-
-    filter->data_size = start_index + 1;
-    GST_DEBUG_OBJECT(filter, "Calculated data_size based on start-index (%d): %zu", start_index, filter->data_size);
 
     return TRUE;
 }
@@ -258,7 +232,6 @@ static gboolean gst_lidar_parse_stop(GstBaseTransform *trans) {
     filter->lidar_data.clear();
     filter->data_size = 0;
     filter->current_index = 0;
-    filter->frame_count = 0;
 
     GST_INFO_OBJECT(filter, "[STOP] Data cleared");
 
@@ -283,9 +256,6 @@ static GstCaps *gst_lidar_parse_transform_caps(GstBaseTransform *trans,
 
 static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBuffer *buffer) {
     GstLidarParse *filter = GST_LIDAR_PARSE(trans);
-
-    GstMapInfo map;
-    gst_buffer_map(buffer, &map, GST_MAP_READ);
 
     // Frame rate control variables
     static GstClockTime last_frame_time = GST_CLOCK_TIME_NONE;
@@ -314,6 +284,7 @@ static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBu
     last_frame_time = gst_clock_get_time(gst_system_clock_obtain());
 
     // Process GstBuffer data directly
+    GstMapInfo map;
     gst_buffer_map(buffer, &map, GST_MAP_READ);
 
     // Ensure the buffer size is a multiple of sizeof(float)
@@ -388,7 +359,7 @@ static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBu
     }
 
     filter->current_index += filter->stride;
-    GST_DEBUG_OBJECT(filter, "Updated current_index: %zu, stride: %d", filter->current_index, filter->stride);
+    GST_DEBUG_OBJECT(filter, "Updated current_index %zu, stride: %d", filter->current_index, filter->stride);
 
     return GST_FLOW_OK;
 }

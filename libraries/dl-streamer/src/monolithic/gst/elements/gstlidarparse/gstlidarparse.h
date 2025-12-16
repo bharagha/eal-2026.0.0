@@ -27,8 +27,6 @@ struct _GstLidarParse {
     std::vector<float> lidar_data;
     size_t data_size;
     size_t current_index; // Updated to track the current file index based on stride
-
-    guint frame_count;
 };
 
 struct _GstLidarParseClass {
