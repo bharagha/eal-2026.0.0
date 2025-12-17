@@ -309,5 +309,12 @@ static void gst_gvawatermark3d_finalize(GObject *object) {
     G_OBJECT_CLASS(gst_gvawatermark3d_parent_class)->finalize(object);
 }
 
+static gboolean plugin_init(GstPlugin *plugin) {
+    if (!gst_element_register(plugin, "gvawatermark3d", GST_RANK_NONE, GST_TYPE_GVAWATERMARK3D))
+        return FALSE;
+
+    return TRUE;
+}
+
 GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, gvawatermark3d, PRODUCT_FULL_NAME " gvawatermark3d element",
                   plugin_init, PLUGIN_VERSION, PLUGIN_LICENSE, PACKAGE_NAME, GST_PACKAGE_ORIGIN)
