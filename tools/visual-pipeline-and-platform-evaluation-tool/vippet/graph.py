@@ -8,10 +8,13 @@ from pathlib import Path
 from utils import generate_unique_filename
 from videos import get_videos_manager, OUTPUT_VIDEO_DIR
 from models import get_supported_models_manager
+from resources import get_labels_manager, get_modules_manager
 
 logger = logging.getLogger(__name__)
 models_manager = get_supported_models_manager()
 videos_manager = get_videos_manager()
+labels_manager = get_labels_manager()
+modules_manager = get_modules_manager()
 
 # Internal reserved key used to mark special node kinds inside Node.data.
 # We cannot extend the public Node schema with a new top-level field, so we
@@ -209,10 +212,12 @@ class Graph:
 
             node_id += 1
 
-        # Post-process models and video paths so stored graphs reference
-        # display names / filenames instead of absolute paths.
+        # Post-process models, video paths labels and module paths so stored
+        # graphs reference display names / filenames instead of absolute paths.
         _model_path_to_display_name(nodes)
         _input_video_path_to_display_name(nodes)
+        _labels_path_to_display_name(nodes)
+        _module_path_to_display_name(nodes)
 
         logger.debug(f"Nodes:\n{nodes}")
         logger.debug(f"Edges:\n{edges}")
@@ -250,6 +255,8 @@ class Graph:
         _validate_models_supported_on_devices(nodes)
         _model_display_name_to_path(nodes)
         _input_video_name_to_path(nodes)
+        _labels_name_to_path(nodes)
+        _module_name_to_path(nodes)
 
         nodes_by_id = {node.id: node for node in nodes}
 
@@ -888,3 +895,91 @@ def _input_video_name_to_path(nodes: list[Node]) -> None:
 
             node.data[key] = path
             logger.debug(f"Converted video filename to path: {name} -> {path}")
+
+
+def _labels_path_to_display_name(nodes: list[Node]) -> None:
+    """
+    Convert absolute labels paths into filenames for gvadetect and gvaclassify nodes.
+
+    This ensures that stored graphs are independent of the specific
+    filesystem layout and instead reference logical labels filenames only.
+    """
+    for node in nodes:
+        if node.type not in ("gvadetect", "gvaclassify"):
+            continue
+        for key in ("labels", "labels-file"):
+            path = node.data.get(key)
+            if path is None:
+                continue
+
+            filename = labels_manager.get_filename(path)
+            node.data[key] = filename
+            logger.debug(f"Converted labels path to filename: {path} -> {filename}")
+
+
+def _labels_name_to_path(nodes: list[Node]) -> None:
+    """
+    Convert logical labels filenames back into absolute paths for gvadetect and gvaclassify nodes.
+
+    This is performed when creating a runnable pipeline description from a stored graph.
+    """
+    for node in nodes:
+        if node.type not in ("gvadetect", "gvaclassify"):
+            continue
+        for key in ("labels", "labels-file"):
+            name = node.data.get(key)
+            if name is None:
+                continue
+
+            if not (path := labels_manager.get_path(name)):
+                raise ValueError(
+                    f"Labels file '{name}' not found for {node.type} element. "
+                    f"Please ensure the labels file name is correct."
+                )
+
+            node.data[key] = path
+            logger.debug(f"Converted labels filename to path: {name} -> {path}")
+
+
+def _module_path_to_display_name(nodes: list[Node]) -> None:
+    """
+    Convert absolute python module paths into filenames for gvadetect and gvaclassify nodes.
+
+    This ensures that stored graphs are independent of the specific
+    filesystem layout and instead reference logical python module filenames only.
+    """
+    for node in nodes:
+        if node.type != "gvapython":
+            continue
+
+        path = node.data.get("module")
+        if path is None:
+            continue
+
+        filename = modules_manager.get_filename(path)
+        node.data["module"] = filename
+        logger.debug(f"Converted modules path to filename: {path} -> {filename}")
+
+
+def _module_name_to_path(nodes: list[Node]) -> None:
+    """
+    Convert logical modules filenames back into absolute paths for gvadetect and gvaclassify nodes.
+
+    This is performed when creating a runnable pipeline description from a stored graph.
+    """
+    for node in nodes:
+        if node.type != "gvapython":
+            continue
+
+        name = node.data.get("module")
+        if name is None:
+            continue
+
+        if not (path := modules_manager.get_path(name)):
+            raise ValueError(
+                f"Module file '{name}' not found for {node.type} element. "
+                f"Please verify the file name is correct and the file exists in the shared/modules directory."
+            )
+
+        node.data["module"] = path
+        logger.debug(f"Converted module filename to path: {name} -> {path}")
