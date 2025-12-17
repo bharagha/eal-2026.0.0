@@ -21,11 +21,11 @@ set_compile_flags(${TARGET_NAME})
 target_include_directories(${TARGET_NAME}
 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${GSTREAMER_INCLUDE_DIRS}
 )
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-    dlstreamer_gst
     json-hpp
     json-schema-validator
 )

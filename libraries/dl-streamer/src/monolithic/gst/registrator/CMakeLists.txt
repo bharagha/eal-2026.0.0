@@ -44,7 +44,6 @@ PRIVATE
     inference_elements
     audio_inference_elements
     gvatrack
-    gstdlstreamer_bins
     gvametapublish
 )
 

@@ -103,6 +103,7 @@ cmake_dependent_option(ENABLE_PAHO_INSTALLATION "Enables paho-mqtt3c installatio
 cmake_dependent_option(ENABLE_TESTS "Parameter to enable tests building" ON "UNIX" OFF)
 cmake_dependent_option(ENABLE_FUZZING "Parameter to enable fuzzy tests building" OFF "UNIX" OFF)
 cmake_dependent_option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF "UNIX" OFF)
+cmake_dependent_option(ENABLE_ARCHITECTURE_2_0 "Enables Architecture 2.0" ON "UNIX" OFF)
 option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_REALSENSE "Parameter to enable RelaseSense plugin compilation" OFF)
 option(ENABLE_GENAI "Enables GenAI elements" OFF)

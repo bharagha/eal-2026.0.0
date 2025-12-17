@@ -52,7 +52,7 @@ target_include_directories(gstgvamotiondetect PRIVATE
   ${CMAKE_SOURCE_DIR}/thirdparty/itt/include  # restore ITT header path for ENABLE_ITT builds
 )
 
-target_link_libraries(gstgvamotiondetect PRIVATE PkgConfig::GST dlstreamer_gst dlstreamer_gst_meta gstvideoanalyticsmeta)
+target_link_libraries(gstgvamotiondetect PRIVATE PkgConfig::GST dlstreamer_gst_meta gstvideoanalyticsmeta)
 
 if(NOT MSVC)
   # VAAPI / GstVA only for non-Windows builds
