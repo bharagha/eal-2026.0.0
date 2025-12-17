@@ -303,10 +303,6 @@ static void gst_gvawatermark3d_init(GstGvaWatermark3D *self) {
     self->K = cv::Mat();
 }
 
-static gboolean plugin_init(GstPlugin *plugin) {
-    return gst_element_register(plugin, "gvawatermark3d", GST_RANK_NONE, GST_TYPE_GVAWATERMARK3D);
-}
-
 static void gst_gvawatermark3d_finalize(GObject *object) {
     GstGvaWatermark3D *self = GST_GVAWATERMARK3D(object);
     g_free(self->intrinsics_file);

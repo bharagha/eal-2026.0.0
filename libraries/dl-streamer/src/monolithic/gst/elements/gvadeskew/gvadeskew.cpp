@@ -418,9 +418,5 @@ static void gst_gvadeskew_init(GstGvaDeskew *self) {
     self->K = cv::Mat();
 }
 
-static gboolean plugin_init(GstPlugin *plugin) {
-    return gst_element_register(plugin, "gvadeskew", GST_RANK_NONE, GST_TYPE_GVADESKEW);
-}
-
 GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, gvadeskew, PRODUCT_FULL_NAME " gvadeskew element", plugin_init,
                   PLUGIN_VERSION, PLUGIN_LICENSE, PACKAGE_NAME, GST_PACKAGE_ORIGIN)
