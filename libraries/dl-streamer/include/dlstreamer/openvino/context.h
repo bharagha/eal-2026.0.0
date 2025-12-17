@@ -52,7 +52,7 @@ class OpenVINOContext : public BaseContext {
 #endif
         }
         if (!_remote_context)
-            _remote_context = core.get_default_context(device); 
+            _remote_context = core.get_default_context(device);
     }
 
     OpenVINOContext(ov::CompiledModel compiled_model) : BaseContext(MemoryType::OpenVINO) {

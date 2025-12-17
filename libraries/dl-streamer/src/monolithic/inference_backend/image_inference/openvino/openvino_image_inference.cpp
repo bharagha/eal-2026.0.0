@@ -1447,7 +1447,8 @@ class OpenVinoNewApiImpl {
                     }
 
                 } else if (_memory_type == MemoryType::VAAPI) {
-                    throw std::runtime_error("Display must be provided for GPU device with vaapi-surface-sharing backend");
+                    throw std::runtime_error(
+                        "Display must be provided for GPU device with vaapi-surface-sharing backend");
                 }
             }
 #endif
