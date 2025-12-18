@@ -1,4 +1,5 @@
-
+# This file was downloaded from https://github.com/intel-retail/automated-self-checkout
+# This script is not part of the ViPPET tool. It was obtained from the above repository and is used here for the retail pipeline purposes.
 '''
 * Copyright (C) 2023 Intel Corporation.
 *

@@ -8,13 +8,13 @@ from pathlib import Path
 from utils import generate_unique_filename
 from videos import get_videos_manager, OUTPUT_VIDEO_DIR
 from models import get_supported_models_manager
-from resources import get_labels_manager, get_modules_manager
+from resources import get_labels_manager, get_scripts_manager
 
 logger = logging.getLogger(__name__)
 models_manager = get_supported_models_manager()
 videos_manager = get_videos_manager()
 labels_manager = get_labels_manager()
-modules_manager = get_modules_manager()
+scripts_manager = get_scripts_manager()
 
 # Internal reserved key used to mark special node kinds inside Node.data.
 # We cannot extend the public Node schema with a new top-level field, so we
@@ -956,14 +956,14 @@ def _module_path_to_display_name(nodes: list[Node]) -> None:
         if path is None:
             continue
 
-        filename = modules_manager.get_filename(path)
+        filename = scripts_manager.get_filename(path)
         node.data["module"] = filename
-        logger.debug(f"Converted modules path to filename: {path} -> {filename}")
+        logger.debug(f"Converted module path to filename: {path} -> {filename}")
 
 
 def _module_name_to_path(nodes: list[Node]) -> None:
     """
-    Convert logical modules filenames back into absolute paths for gvadetect and gvaclassify nodes.
+    Convert logical scripts filenames back into absolute paths for gvadetect and gvaclassify nodes.
 
     This is performed when creating a runnable pipeline description from a stored graph.
     """
@@ -975,10 +975,10 @@ def _module_name_to_path(nodes: list[Node]) -> None:
         if name is None:
             continue
 
-        if not (path := modules_manager.get_path(name)):
+        if not (path := scripts_manager.get_path(name)):
             raise ValueError(
                 f"Module file '{name}' not found for {node.type} element. "
-                f"Please verify the file name is correct and the file exists in the shared/modules directory."
+                f"Please verify the file name is correct and the file exists in the shared/scripts directory."
             )
 
         node.data["module"] = path
