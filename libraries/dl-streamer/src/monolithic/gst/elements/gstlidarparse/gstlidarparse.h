@@ -1,5 +1,5 @@
-#ifndef __GST_RADAR_PARSE_H__
-#define __GST_RADAR_PARSE_H__
+#ifndef __GST_LIDAR_PARSE_H__
+#define __GST_LIDAR_PARSE_H__
 
 #include <gst/gst.h>
 #include <gst/base/gstbasetransform.h>
