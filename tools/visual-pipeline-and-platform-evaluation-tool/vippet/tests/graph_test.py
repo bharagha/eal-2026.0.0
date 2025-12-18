@@ -8,6 +8,7 @@ mock_models_manager = MagicMock()
 mock_videos_manager = MagicMock()
 mock_model_proc_manager = MagicMock()
 
+
 def _mock_get_video_filename(path: str) -> str:
     return os.path.basename(path)
 
@@ -70,6 +71,7 @@ mock_videos_manager.get_video_path.side_effect = _mock_get_video_path
 mock_model_proc_manager.get_path.side_effect = (
     lambda configured_model_proc: os.path.join("/models/proc", configured_model_proc)
 )
+
 
 @dataclass
 class ParseTestCase:
