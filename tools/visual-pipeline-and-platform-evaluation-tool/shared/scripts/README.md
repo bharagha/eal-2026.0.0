@@ -8,4 +8,4 @@ To add and use a new script:
 2. In your pipeline description, set the `module` property on the `gvapython` element to the script filename.
    Example: `gvapython module=tracked_object_filter.py`.
 
-No additional effort is needed—referencing the filename via `module` is sufficient after the file is placed in this directory.
+No additional effort is needed — referencing the filename via `module` is sufficient after the file is placed in this directory.
