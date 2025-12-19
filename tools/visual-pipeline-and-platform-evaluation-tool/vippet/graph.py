@@ -999,7 +999,7 @@ def _labels_name_to_path(nodes: list[Node]) -> None:
 
 def _module_path_to_display_name(nodes: list[Node]) -> None:
     """
-    Convert absolute python module paths into filenames for gvadetect and gvaclassify nodes.
+    Convert absolute python module paths into filenames for gvapython nodes.
 
     This ensures that stored graphs are independent of the specific
     filesystem layout and instead reference logical python module filenames only.
@@ -1019,7 +1019,7 @@ def _module_path_to_display_name(nodes: list[Node]) -> None:
 
 def _module_name_to_path(nodes: list[Node]) -> None:
     """
-    Convert logical scripts filenames back into absolute paths for gvadetect and gvaclassify nodes.
+    Convert logical scripts filenames back into absolute paths for gvapython nodes.
 
     This is performed when creating a runnable pipeline description from a stored graph.
     """

@@ -16,6 +16,6 @@
     "**/node_modules",
     "**/__pycache__",
     ".git",
-    "shared/scripts", // Exclude shared/scripts to avoid formatting user created scripts
+    "shared/scripts"
   ],
 }
