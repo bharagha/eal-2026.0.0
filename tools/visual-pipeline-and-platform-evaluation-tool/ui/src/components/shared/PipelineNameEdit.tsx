@@ -19,12 +19,17 @@ export const PipelineNameEdit = ({ pipelineId }: PipelineNamePropsEdit) => {
   };
 
   const handleSave = async () => {
-    if (editedName.trim() === "") return;
+    if (editedName.trim() === "") {
+      // Reset to the original name and exit edit mode when the edited name is empty
+      setEditedName(name);
+      setIsEditing(false);
+      return;
+    }
     try {
       await updatePipeline({
         pipelineId,
         pipelineUpdate: {
-          name: editedName,
+          name: editedName.trim(),
         },
       }).unwrap();
       setIsEditing(false);
