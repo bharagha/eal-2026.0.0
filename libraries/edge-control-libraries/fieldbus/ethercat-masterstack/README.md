@@ -13,7 +13,7 @@ Based on the native, Intel® made the following optimizations:
 * Support user-mode runtime
 * Support multiple master
 
-For User-space EtherCAT Master Stack, please visit [Userspace EtherCAT Master Stack](./docs/igh_userspace.md) for details.
+For User-space EtherCAT Master Stack, please visit [Userspace EtherCAT Master Stack](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/edge-control-libraries/fieldbus/ethercat-masterstack/docs/igh_userspace.md) for details.
 
 ## Architecture Overview
 
@@ -84,7 +84,7 @@ which Following with below commands to build EtherCAT Master Stack:
    make modules all
 ```
 
-**Note:** If you need DKMS to compile ``master`` and ``device`` modules, please refer to [How to build EtherCAT with DKMS](./docs/igh_dkms.md)
+**Note:** If you need DKMS to compile ``master`` and ``device`` modules, please refer to [How to build EtherCAT with DKMS](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/edge-control-libraries/fieldbus/ethercat-masterstack/docs/igh_dkms.md)
 
 ### Installing The Software
 
