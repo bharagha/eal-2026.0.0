@@ -33,6 +33,18 @@ export const PipelineNameEdit = ({ pipelineId }: PipelineNamePropsEdit) => {
     }
   };
 
+  const handleCancel = () => {
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      handleCancel();
+    }
+  };
+
   if (isEditing) {
     return (
       <div className="flex flex-row items-center">
@@ -40,11 +52,18 @@ export const PipelineNameEdit = ({ pipelineId }: PipelineNamePropsEdit) => {
           type="text"
           value={editedName}
           onChange={(e) => setEditedName(e.target.value)}
+          onKeyDown={handleKeyDown}
           className="w-[450px] border border-gray-300 px-2 py-1"
           autoFocus
           aria-label="Edit pipeline name"
         />
-        <Save className="w-5 h-5 mx-2 cursor-pointer" onClick={handleSave} />
+        <button
+          onClick={handleSave}
+          aria-label="Save pipeline name"
+          className="mx-2 cursor-pointer"
+        >
+          <Save className="w-5 h-5" />
+        </button>
       </div>
     );
   }
@@ -52,10 +71,13 @@ export const PipelineNameEdit = ({ pipelineId }: PipelineNamePropsEdit) => {
   return (
     <div className="group flex flex-row items-center">
       {name}
-      <Pencil
-        className="w-5 h-5 mx-1 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+      <button
         onClick={handleEdit}
-      />
+        aria-label="Edit pipeline name"
+        className="mx-1 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <Pencil className="w-5 h-5" />
+      </button>
     </div>
   );
 };
