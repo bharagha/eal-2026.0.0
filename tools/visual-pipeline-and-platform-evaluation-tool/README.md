@@ -2,6 +2,8 @@
 <!-- required for catalog, do not remove -->
 Assess Intel® hardware options, benchmark performance, and analyze key metrics to optimize hardware selection for AI workloads.
 
+![Overview](docs/user-guide/_assets/ViPPET-README.gif)
+
 <!--
 **Guidelines for Authors**:
 - Clearly explain the application’s purpose in one or two paragraphs.
@@ -50,19 +52,6 @@ can be adjusted to create tailored performance tests.
 
 **Automated Video Generation**: Synthetic test videos can be generated to evaluate system performance under
 controlled conditions.
-
-## How It Works
-
-<!--
-**Guidelines for Authors**:
-- Use a high-level diagram to illustrate the system.
-- Describe the key processing steps in a structured workflow.
--->
-
-The Visual Pipeline and Platform Evaluation Tool integrates with AI-based video processing pipelines to support
-hardware performance evaluation.
-
-![System Architecture Diagram](docs/user-guide/_assets/architecture.png)
 
 ### **Workflow Overview**
 
