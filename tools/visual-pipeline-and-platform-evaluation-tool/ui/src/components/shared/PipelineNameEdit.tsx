@@ -19,6 +19,7 @@ export const PipelineNameEdit = ({ pipelineId }: PipelineNamePropsEdit) => {
   };
 
   const handleSave = async () => {
+    if (editedName.trim() === "") return;
     try {
       await updatePipeline({
         pipelineId,
