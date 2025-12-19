@@ -42,6 +42,7 @@ export const PipelineNameEdit = ({ pipelineId }: PipelineNamePropsEdit) => {
           onChange={(e) => setEditedName(e.target.value)}
           className="w-[450px] border border-gray-300 px-2 py-1"
           autoFocus
+          aria-label="Edit pipeline name"
         />
         <Save className="w-5 h-5 mx-2 cursor-pointer" onClick={handleSave} />
       </div>
