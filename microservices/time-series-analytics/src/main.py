@@ -314,7 +314,7 @@ async def receive_data(data_point: DataPoint):
     try:
         # Convert JSON to line protocol
         line_protocol = json_to_line_protocol(data_point)
-        logger.info("Received data point: %s", line_protocol)
+        logger.debug("Received data point: %s", line_protocol)
         response = Response()
         result = health_check(response)
         if result["status"] != "kapacitor daemon is running":
@@ -486,7 +486,7 @@ async def config_file_change(config_data: Config, background_tasks: BackgroundTa
         config["udfs"] = config_data.udfs
         if config_data.alerts:
             config["alerts"] = config_data.alerts
-        logger.debug("Received configuration data: %s", config)
+        logger.info("Received configuration data: %s", config)
     except json.JSONDecodeError as error:
         logger.error("Invalid JSON format in configuration data: %s", error)
         raise HTTPException(status_code=422,
