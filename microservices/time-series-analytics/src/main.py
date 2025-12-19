@@ -314,7 +314,7 @@ async def receive_data(data_point: DataPoint):
     try:
         # Convert JSON to line protocol
         line_protocol = json_to_line_protocol(data_point)
-        logger.debug("Received data point: %s", line_protocol)
+        logger.info("Received data point: %s", line_protocol)
         response = Response()
         result = health_check(response)
         if result["status"] != "kapacitor daemon is running":
