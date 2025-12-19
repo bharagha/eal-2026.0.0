@@ -10,6 +10,7 @@ To add and use a new script:
 
 No additional effort is needed — referencing the filename via `module` is sufficient after the file is placed in this directory.
 
-# Note
+## Note
 
-The `shared/scripts` directory is excluded from linter checks, as it contains custom scripts that may not conform to standard linting rules.
+The `shared/scripts` directory is excluded from linter checks,
+as it contains custom scripts that may not conform to standard linting rules.
