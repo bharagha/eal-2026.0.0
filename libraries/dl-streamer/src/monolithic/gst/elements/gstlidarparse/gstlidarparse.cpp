@@ -41,10 +41,6 @@ static void gst_lidar_parse_finalize(GObject *object);
 static gboolean gst_lidar_parse_start(GstBaseTransform *trans);
 static gboolean gst_lidar_parse_stop(GstBaseTransform *trans);
 static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBuffer *buffer);
-static GstCaps *gst_lidar_parse_transform_caps(GstBaseTransform *trans,
-                                               GstPadDirection direction,  
-                                               GstCaps *caps,
-                                               GstCaps *filter);
 static gboolean gst_lidar_parse_sink_event(GstBaseTransform *trans, GstEvent *event);
 
 static void gst_lidar_parse_class_init(GstLidarParseClass *klass);
@@ -91,7 +87,6 @@ static void gst_lidar_parse_class_init(GstLidarParseClass *klass) {
     base_transform_class->start = GST_DEBUG_FUNCPTR(gst_lidar_parse_start);
     base_transform_class->stop = GST_DEBUG_FUNCPTR(gst_lidar_parse_stop);
     base_transform_class->transform_ip = GST_DEBUG_FUNCPTR(gst_lidar_parse_transform_ip);
-    base_transform_class->transform_caps = GST_DEBUG_FUNCPTR(gst_lidar_parse_transform_caps);
     base_transform_class->sink_event = GST_DEBUG_FUNCPTR(gst_lidar_parse_sink_event);
     base_transform_class->passthrough_on_same_caps = TRUE;
 }
@@ -273,21 +268,6 @@ static gboolean gst_lidar_parse_stop(GstBaseTransform *trans) {
     return TRUE;
 }
 
-static GstCaps *gst_lidar_parse_transform_caps(GstBaseTransform *trans,
-                                                GstPadDirection direction,
-                                                GstCaps *caps,
-                                                GstCaps *filter) {
-    if (direction == GST_PAD_SINK) {
-        return gst_caps_ref(caps);
-    } else {
-        GstCaps *result = gst_caps_new_simple("application/x-raw",
-                                              "format", G_TYPE_STRING, "F32_LE",
-                                              "channels", G_TYPE_INT, 1,
-                                              "layout", G_TYPE_STRING, "interleaved",
-                                              NULL);
-        return result;
-    }
-}
 
 static gboolean gst_lidar_parse_sink_event(GstBaseTransform *trans, GstEvent *event) {
     GstLidarParse *filter = GST_LIDAR_PARSE(trans);
