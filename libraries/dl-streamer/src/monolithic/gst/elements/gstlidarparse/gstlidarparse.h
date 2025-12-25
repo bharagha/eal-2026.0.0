@@ -27,7 +27,6 @@ struct _GstLidarParse {
     std::vector<float> lidar_data;
     size_t data_size;
     size_t current_index;
-    guint64 file_counter;  // Instance variable for stride counting
     guint total_files; // Total number of files to process
 };
 

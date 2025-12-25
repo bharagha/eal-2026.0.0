@@ -99,7 +99,6 @@ static void gst_lidar_parse_init(GstLidarParse *filter) {
 
     filter->data_size = 0;
     filter->current_index = 0;
-    filter->file_counter = 0;
     filter->total_files = 0;
     filter->lidar_data.clear();
 }
@@ -113,7 +112,6 @@ static void gst_lidar_parse_finalize(GObject *object) {
     filter->lidar_data.clear();
     filter->data_size = 0;
     filter->current_index = 0;
-    filter->file_counter = 0;
 
     G_OBJECT_CLASS(gst_lidar_parse_parent_class)->finalize(object);
 }
@@ -261,7 +259,6 @@ static gboolean gst_lidar_parse_stop(GstBaseTransform *trans) {
     filter->lidar_data.clear();
     filter->data_size = 0;
     filter->current_index = 0;
-    filter->file_counter = 0;
 
     GST_INFO_OBJECT(filter, "[STOP] Data cleared");
 
@@ -275,13 +272,11 @@ static gboolean gst_lidar_parse_sink_event(GstBaseTransform *trans, GstEvent *ev
     switch (GST_EVENT_TYPE(event)) {
         case GST_EVENT_EOS:
             GST_INFO_OBJECT(filter, "Received EOS event, resetting counters and stopping processing");
-            filter->file_counter = 0;
             filter->current_index = 0;
             break;
         case GST_EVENT_SEGMENT:
         case GST_EVENT_FLUSH_START:
         case GST_EVENT_FLUSH_STOP:
-            filter->file_counter = 0;
             filter->current_index = 0;
             GST_INFO_OBJECT(filter, "Reset counters for event: %s", GST_EVENT_TYPE_NAME(event));
             break;
@@ -321,10 +316,10 @@ static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBu
     // Update last frame time
     last_frame_time = gst_clock_get_time(gst_system_clock_obtain());
 
-    if (filter->file_counter % filter->stride != 0) {
+    if (filter->current_index % filter->stride != 0) {
         GST_DEBUG_OBJECT(filter, "Skipping file #%lu (stride=%d, remainder=%lu)", 
-                        filter->file_counter, filter->stride, filter->file_counter % filter->stride);
-        filter->file_counter++;
+                        filter->current_index, filter->stride, filter->current_index % filter->stride);
+        filter->current_index++;
         return GST_FLOW_OK;
     }
 
@@ -333,8 +328,8 @@ static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBu
         return GST_FLOW_EOS;
     }
 
-    GST_INFO_OBJECT(filter, "Processing file #%lu (stride=%d)", filter->file_counter, filter->stride);
-    filter->file_counter++;
+    GST_INFO_OBJECT(filter, "Processing file #%lu (stride=%d)", filter->current_index, filter->stride);
+    filter->current_index++;
 
     // Process GstBuffer data directly
     GstMapInfo map;
@@ -389,9 +384,6 @@ static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBu
         gst_buffer_unref(out_buffer); // Unref the buffer in case of failure
         return ret;
     }
-
-    filter->current_index += filter->stride;
-    GST_DEBUG_OBJECT(filter, "Updated current_index %zu, stride: %d", filter->current_index, filter->stride);
 
 
     if (filter->total_files > 0 && filter->current_index >= filter->total_files) {
