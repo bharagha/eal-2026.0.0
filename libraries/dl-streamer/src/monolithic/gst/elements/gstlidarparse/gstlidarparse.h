@@ -19,7 +19,6 @@ typedef struct _GstLidarParseClass GstLidarParseClass;
 struct _GstLidarParse {
     GstBaseTransform parent;
 
-    gchar *location;
     gint stride;
     gfloat frame_rate;
     GMutex mutex;
@@ -27,7 +26,7 @@ struct _GstLidarParse {
     std::vector<float> lidar_data;
     size_t data_size;
     size_t current_index;
-    guint total_files; // Total number of files to process
+    gboolean is_single_file; 
 };
 
 struct _GstLidarParseClass {

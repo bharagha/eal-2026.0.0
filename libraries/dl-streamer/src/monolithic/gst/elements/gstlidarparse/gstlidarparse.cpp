@@ -11,7 +11,6 @@ GST_DEBUG_CATEGORY_STATIC(gst_lidar_parse_debug);
 
 enum {
     PROP_0,
-    PROP_LOCATION,
     PROP_STRIDE,
     PROP_FRAME_RATE
 };
@@ -57,11 +56,6 @@ static void gst_lidar_parse_class_init(GstLidarParseClass *klass) {
     gobject_class->get_property = gst_lidar_parse_get_property;
     gobject_class->finalize = gst_lidar_parse_finalize;
 
-    g_object_class_install_property(gobject_class, PROP_LOCATION,
-        g_param_spec_string("location", "Location",
-                           "Location of the binary file to parse (read-only, inherited from upstream)",
-                           NULL,
-                           (GParamFlags)(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property(gobject_class, PROP_STRIDE,
         g_param_spec_int("stride", "Stride",
@@ -78,7 +72,7 @@ static void gst_lidar_parse_class_init(GstLidarParseClass *klass) {
     gst_element_class_set_static_metadata(gstelement_class,
         "Lidar Binary Parser",
         "Filter/Converter",
-        "Parses binary lidar data to vector float format",
+        "Parses binary lidar data to vector float format with stride and frame rate control",
         "Your Name <your.email@example.com>");
 
     gst_element_class_add_static_pad_template(gstelement_class, &sink_template);
@@ -92,26 +86,25 @@ static void gst_lidar_parse_class_init(GstLidarParseClass *klass) {
 }
 
 static void gst_lidar_parse_init(GstLidarParse *filter) {
-    filter->location = NULL;
     filter->stride = 1;
     filter->frame_rate = 0.0;
     g_mutex_init(&filter->mutex);
 
     filter->data_size = 0;
     filter->current_index = 0;
-    filter->total_files = 0;
+    filter->is_single_file = FALSE;
     filter->lidar_data.clear();
 }
 
 static void gst_lidar_parse_finalize(GObject *object) {
     GstLidarParse *filter = GST_LIDAR_PARSE(object);
 
-    g_free(filter->location);
     g_mutex_clear(&filter->mutex);
 
     filter->lidar_data.clear();
     filter->data_size = 0;
     filter->current_index = 0;
+    filter->is_single_file = FALSE;
 
     G_OBJECT_CLASS(gst_lidar_parse_parent_class)->finalize(object);
 }
@@ -121,9 +114,6 @@ static void gst_lidar_parse_set_property(GObject *object, guint prop_id,
     GstLidarParse *filter = GST_LIDAR_PARSE(object);
 
     switch (prop_id) {
-        case PROP_LOCATION:
-            GST_WARNING_OBJECT(filter, "Location property is read-only and inherited from upstream");
-            break;
         case PROP_STRIDE:
             filter->stride = g_value_get_int(value);
             break;
@@ -141,9 +131,6 @@ static void gst_lidar_parse_get_property(GObject *object, guint prop_id,
     GstLidarParse *filter = GST_LIDAR_PARSE(object);
 
     switch (prop_id) {
-        case PROP_LOCATION:
-            g_value_set_string(value, filter->location);
-            break;
         case PROP_STRIDE:
             g_value_set_int(value, filter->stride);
             break;
@@ -162,7 +149,6 @@ static gboolean gst_lidar_parse_start(GstBaseTransform *trans) {
     GST_DEBUG_OBJECT(filter, "Starting lidar parser");
     GST_INFO_OBJECT(filter, "[START] lidarparse");
 
-    // Get location from upstream element
     GstPad *sink_pad = GST_BASE_TRANSFORM_SINK_PAD(trans);
     GstPad *peer_pad = gst_pad_get_peer(sink_pad);
 
@@ -192,60 +178,15 @@ static gboolean gst_lidar_parse_start(GstBaseTransform *trans) {
         return FALSE;
     }
 
-    filter->location = g_strdup(upstream_location);
-    GST_INFO_OBJECT(filter, "Inherited location from upstream: %s", filter->location);
-    g_free(upstream_location);
+    GST_INFO_OBJECT(filter, "Inherited location from upstream: %s", upstream_location);
 
-    // Get start-index from upstream if available
-    if (!filter->current_index) {
-        if (g_object_class_find_property(G_OBJECT_GET_CLASS(upstream_element), "start-index")) {
-            gint upstream_index = 0;
-            g_object_get(upstream_element, "start-index", &upstream_index, NULL);
-            GST_INFO_OBJECT(filter, "Retrieved upstream index: %d", upstream_index);
-            filter->current_index = upstream_index;
-        } else {
-            GST_WARNING_OBJECT(filter, "Upstream element does not have a 'start-index' property");
-        }
-    }
+    if (g_file_test(upstream_location, G_FILE_TEST_IS_REGULAR)) {
+        filter->is_single_file = TRUE; 
+        GST_INFO_OBJECT(filter, "Location is a single file. is_single_file set to TRUE.");
+    } 
 
     gst_object_unref(upstream_element);
     gst_object_unref(peer_pad);
-
-    if (!filter->location) {
-        GST_ERROR_OBJECT(filter, "No location specified after upstream query");
-        GST_INFO_OBJECT(filter, "[START] Failed: No location after upstream query");
-        return FALSE;
-    }
-
-    gint start_index = 0, stop_index = -1;
-    g_object_get(G_OBJECT(trans), "start-index", &start_index, "stop-index", &stop_index, NULL);
-
-    GST_INFO_OBJECT(filter, "Debug: start-index=%d, stop-index=%d", start_index, stop_index);
-
-    if (g_file_test(filter->location, G_FILE_TEST_IS_REGULAR)) {
-        filter->total_files = 1; 
-        GST_INFO_OBJECT(filter, "Location is a single file. Total files set to 1.");
-    } else if (stop_index >= start_index && stop_index >= 0) {
-        filter->total_files = stop_index - start_index + 1; 
-        GST_INFO_OBJECT(filter, "Using start-index=%d and stop-index=%d. Total files set to %d.",
-                        start_index, stop_index, filter->total_files);
-    } else {
-        guint num_files = 0;
-        gchar *pattern = g_path_get_dirname(filter->location);
-        GDir *dir = g_dir_open(pattern, 0, NULL);
-        if (dir) {
-            while (g_dir_read_name(dir)) {
-                num_files++;
-            }
-            g_dir_close(dir);
-        }
-        g_free(pattern);
-        filter->total_files = num_files;
-        GST_INFO_OBJECT(filter, "Location is a directory. Total files set to %u.", num_files);
-    }
-
-    GST_DEBUG_OBJECT(filter, "Location: %s", filter->location);
-    GST_INFO_OBJECT(filter, "[START] lidarparse initialized, no file opening required.");
 
     return TRUE;
 }
@@ -323,7 +264,7 @@ static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBu
         return GST_FLOW_OK;
     }
 
-    if (filter->total_files > 0 && filter->current_index >= filter->total_files) {
+    if (filter->is_single_file == TRUE && filter->current_index >= 1) {
         GST_INFO_OBJECT(filter, "All files processed. Sending EOS.");
         return GST_FLOW_EOS;
     }
@@ -386,7 +327,7 @@ static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBu
     }
 
 
-    if (filter->total_files > 0 && filter->current_index >= filter->total_files) {
+    if (filter->is_single_file == TRUE && filter->current_index >= 1) {
         GST_INFO_OBJECT(filter, "All files processed after update. Sending EOS.");
         return GST_FLOW_EOS;
     }
