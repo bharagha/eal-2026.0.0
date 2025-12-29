@@ -56,7 +56,7 @@ export const useWebSocketConnection = () => {
     clearReconnectTimeout();
 
     const delay = getReconnectDelay();
-    console.log(
+    console.debug(
       `Scheduling reconnection attempt ${reconnectAttemptRef.current + 1} in ${delay}ms`,
     );
 
@@ -85,7 +85,7 @@ export const useWebSocketConnection = () => {
       webSocketRef.current = ws;
 
       ws.onopen = () => {
-        console.log("WebSocket connected");
+        console.debug("WebSocket connected");
         reconnectAttemptRef.current = 0;
         dispatch(wsConnected());
       };
@@ -100,7 +100,7 @@ export const useWebSocketConnection = () => {
       };
 
       ws.onclose = (event) => {
-        console.log("WebSocket disconnected", event.code, event.reason);
+        console.debug("WebSocket disconnected", event.code, event.reason);
         dispatch(wsDisconnected());
         webSocketRef.current = null;
 
