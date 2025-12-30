@@ -12,7 +12,7 @@ import AddPipelineButton from "@/components/shared/AddPipelineButton.tsx";
 import CopyPipelineButton from "@/components/shared/CopyPipelineButton.tsx";
 import { useAppSelector } from "@/store/hooks";
 import { selectPipelines } from "@/store/reducers/pipelines";
-import { BookOpen, Sparkles, Code } from "lucide-react";
+import { BookOpen, Code, Sparkles } from "lucide-react";
 import pipeline0 from "@/assets/pipeline_0.png";
 import pipeline1 from "@/assets/pipeline_1.png";
 import pipeline2 from "@/assets/pipeline_2.png";
@@ -20,7 +20,6 @@ import type { Pipeline } from "@/api/api.generated";
 import { selectHasGPU1, selectHasNPU } from "@/store/reducers/devices.ts";
 import { NpuUsageProgress } from "@/features/metrics/NpuUsageProgress.tsx";
 import { Gpu1UsageProgress } from "@/features/metrics/Gpu1UsageProgress.tsx";
-import { ExampleChart } from "@/components/shared/ExampleChart";
 
 const pipelineImages = [pipeline0, pipeline1, pipeline2];
 
@@ -110,7 +109,6 @@ const Home = () => {
             </div>
 
             <div>
-              <ExampleChart />
               <h1 className="font-medium text-2xl mb-4">
                 User Defined Pipelines
               </h1>
