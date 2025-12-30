@@ -20,6 +20,7 @@ import type { Pipeline } from "@/api/api.generated";
 import { selectHasGPU1, selectHasNPU } from "@/store/reducers/devices.ts";
 import { NpuUsageProgress } from "@/features/metrics/NpuUsageProgress.tsx";
 import { Gpu1UsageProgress } from "@/features/metrics/Gpu1UsageProgress.tsx";
+import { ExampleChart } from "@/components/shared/ExampleChart";
 
 const pipelineImages = [pipeline0, pipeline1, pipeline2];
 
@@ -109,6 +110,7 @@ const Home = () => {
             </div>
 
             <div>
+              <ExampleChart />
               <h1 className="font-medium text-2xl mb-4">
                 User Defined Pipelines
               </h1>
