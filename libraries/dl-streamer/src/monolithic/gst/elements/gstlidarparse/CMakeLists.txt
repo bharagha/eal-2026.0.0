@@ -5,6 +5,7 @@ project(gstlidarparse)
 
 add_library(gstlidarparse SHARED
     gstlidarparse.cpp
+    gstlidarmeta.cpp
 )
 
 target_include_directories(gstlidarparse

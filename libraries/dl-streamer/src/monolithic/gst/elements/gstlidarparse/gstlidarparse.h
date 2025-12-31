@@ -23,10 +23,8 @@ struct _GstLidarParse {
     gfloat frame_rate;
     GMutex mutex;
 
-    std::vector<float> lidar_data;
-    size_t data_size;
     size_t current_index;
-    gboolean is_single_file; 
+    gboolean is_single_file;
 };
 
 struct _GstLidarParseClass {

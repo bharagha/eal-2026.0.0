@@ -1,3 +1,4 @@
+#include "gstlidarmeta.h" 
 #include "gstlidarparse.h"
 #include <string.h>
 #include <vector>
@@ -5,6 +6,7 @@
 #include <unistd.h> 
 #include <iomanip>
 #include <sstream>
+#include <gst/gstinfo.h> 
 
 GST_DEBUG_CATEGORY_STATIC(gst_lidar_parse_debug);
 #define GST_CAT_DEFAULT gst_lidar_parse_debug
@@ -26,9 +28,7 @@ static GstStaticPadTemplate src_template = GST_STATIC_PAD_TEMPLATE(
     "src",
     GST_PAD_SRC,
     GST_PAD_ALWAYS,
-    GST_STATIC_CAPS("application/x-raw, "
-                    "format=(string)F32_LE, "
-                    "channels=(int)1")
+    GST_STATIC_CAPS(LIDAR_META_CAPS) 
 );
 
 static void gst_lidar_parse_set_property(GObject *object, guint prop_id,
@@ -39,7 +39,7 @@ static void gst_lidar_parse_finalize(GObject *object);
 
 static gboolean gst_lidar_parse_start(GstBaseTransform *trans);
 static gboolean gst_lidar_parse_stop(GstBaseTransform *trans);
-static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBuffer *buffer);
+static GstFlowReturn gst_lidar_parse_transform(GstBaseTransform *trans, GstBuffer *inbuf, GstBuffer *outbuf);
 static gboolean gst_lidar_parse_sink_event(GstBaseTransform *trans, GstEvent *event);
 
 static void gst_lidar_parse_class_init(GstLidarParseClass *klass);
@@ -80,9 +80,9 @@ static void gst_lidar_parse_class_init(GstLidarParseClass *klass) {
 
     base_transform_class->start = GST_DEBUG_FUNCPTR(gst_lidar_parse_start);
     base_transform_class->stop = GST_DEBUG_FUNCPTR(gst_lidar_parse_stop);
-    base_transform_class->transform_ip = GST_DEBUG_FUNCPTR(gst_lidar_parse_transform_ip);
+    base_transform_class->transform = GST_DEBUG_FUNCPTR(gst_lidar_parse_transform);
     base_transform_class->sink_event = GST_DEBUG_FUNCPTR(gst_lidar_parse_sink_event);
-    base_transform_class->passthrough_on_same_caps = TRUE;
+    base_transform_class->passthrough_on_same_caps = FALSE;
 }
 
 static void gst_lidar_parse_init(GstLidarParse *filter) {
@@ -90,10 +90,8 @@ static void gst_lidar_parse_init(GstLidarParse *filter) {
     filter->frame_rate = 0.0;
     g_mutex_init(&filter->mutex);
 
-    filter->data_size = 0;
     filter->current_index = 0;
     filter->is_single_file = FALSE;
-    filter->lidar_data.clear();
 }
 
 static void gst_lidar_parse_finalize(GObject *object) {
@@ -101,8 +99,6 @@ static void gst_lidar_parse_finalize(GObject *object) {
 
     g_mutex_clear(&filter->mutex);
 
-    filter->lidar_data.clear();
-    filter->data_size = 0;
     filter->current_index = 0;
     filter->is_single_file = FALSE;
 
@@ -194,13 +190,8 @@ static gboolean gst_lidar_parse_start(GstBaseTransform *trans) {
 static gboolean gst_lidar_parse_stop(GstBaseTransform *trans) {
     GstLidarParse *filter = GST_LIDAR_PARSE(trans);
 
-    GST_DEBUG_OBJECT(filter, "Stopping lidar parser");
-    GST_INFO_OBJECT(filter, "[STOP] lidarparse, clearing data, previous size: %lu", (unsigned long)filter->lidar_data.size());
-
-    filter->lidar_data.clear();
-    filter->data_size = 0;
+    GST_INFO_OBJECT(filter, "[STOP] Stopping lidar parser");
     filter->current_index = 0;
-
     GST_INFO_OBJECT(filter, "[STOP] Data cleared");
 
     return TRUE;
@@ -228,14 +219,28 @@ static gboolean gst_lidar_parse_sink_event(GstBaseTransform *trans, GstEvent *ev
     return GST_BASE_TRANSFORM_CLASS(gst_lidar_parse_parent_class)->sink_event(trans, event);
 }
 
-static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBuffer *buffer) {
+static GstFlowReturn gst_lidar_parse_transform(GstBaseTransform *trans, GstBuffer *inbuf, GstBuffer *outbuf) {
     GstLidarParse *filter = GST_LIDAR_PARSE(trans);
+    g_mutex_lock(&filter->mutex);
+
+    // Stride control
+    if (filter->current_index % filter->stride != 0) {
+        GST_DEBUG_OBJECT(filter, "Skipping file #%lu (stride=%d, remainder=%lu)", 
+                        filter->current_index, filter->stride, filter->current_index % filter->stride);
+        filter->current_index++;
+        g_mutex_unlock(&filter->mutex);
+        return GST_BASE_TRANSFORM_FLOW_DROPPED;
+    }
+
+    if (filter->is_single_file == TRUE && filter->current_index >= 1) {
+        GST_INFO_OBJECT(filter, "All files processed. Sending EOS.");
+        g_mutex_unlock(&filter->mutex);
+        return GST_FLOW_EOS;
+    }
 
     // Frame rate control variables
     static GstClockTime last_frame_time = GST_CLOCK_TIME_NONE;
     GstClockTime current_time = gst_clock_get_time(gst_system_clock_obtain());
-
-    // Calculate frame interval based on frame_rate
     GstClockTime frame_interval = (GstClockTime)(GST_SECOND / filter->frame_rate);
 
     // Debug information for rate control
@@ -250,90 +255,75 @@ static GstFlowReturn gst_lidar_parse_transform_ip(GstBaseTransform *trans, GstBu
         if (elapsed_time < frame_interval) {
             GstClockTime sleep_time = frame_interval - elapsed_time;
             GST_DEBUG_OBJECT(filter, "Sleeping for %" GST_TIME_FORMAT, GST_TIME_ARGS(sleep_time));
-            g_usleep(sleep_time / 1000); // Convert nanoseconds to microseconds
+            g_usleep(sleep_time / 1000);
         }
     }
 
-    // Update last frame time
     last_frame_time = gst_clock_get_time(gst_system_clock_obtain());
-
-    if (filter->current_index % filter->stride != 0) {
-        GST_DEBUG_OBJECT(filter, "Skipping file #%lu (stride=%d, remainder=%lu)", 
-                        filter->current_index, filter->stride, filter->current_index % filter->stride);
-        filter->current_index++;
-        return GST_FLOW_OK;
-    }
-
-    if (filter->is_single_file == TRUE && filter->current_index >= 1) {
-        GST_INFO_OBJECT(filter, "All files processed. Sending EOS.");
-        return GST_FLOW_EOS;
-    }
 
     GST_INFO_OBJECT(filter, "Processing file #%lu (stride=%d)", filter->current_index, filter->stride);
     filter->current_index++;
 
-    // Process GstBuffer data directly
-    GstMapInfo map;
-    if (!gst_buffer_map(buffer, &map, GST_MAP_READ)) {
-        GST_ERROR_OBJECT(filter, "Failed to map buffer for reading");
+    // Process GstBuffer
+    GstMapInfo in_map;  
+    if (!gst_buffer_map(inbuf, &in_map, GST_MAP_READ)) {
+        GST_ERROR_OBJECT(filter, "Failed to map input buffer for reading");
+        g_mutex_unlock(&filter->mutex);
         return GST_FLOW_ERROR;
     }
 
-    // Ensure the buffer size is a multiple of sizeof(float)
-    if (map.size % sizeof(float) != 0) {
+    if (in_map.size % sizeof(float) != 0) {
         GST_ERROR_OBJECT(filter, "Buffer size (%lu) is not a multiple of float size (%lu)",
-                         map.size, sizeof(float));
-        gst_buffer_unmap(buffer, &map);
+                         in_map.size, sizeof(float));
+        gst_buffer_unmap(inbuf, &in_map);
+        g_mutex_unlock(&filter->mutex);
         return GST_FLOW_ERROR;
     }
 
-    // Parse data as float
-    size_t num_floats = map.size / sizeof(float);
-    const float *data = reinterpret_cast<const float *>(map.data);
+    size_t num_floats = in_map.size / sizeof(float);
+    const float *data = reinterpret_cast<const float *>(in_map.data);
 
-    filter->lidar_data.assign(data, data + num_floats);
-    gst_buffer_unmap(buffer, &map);
+    std::vector<float> float_data(data, data + num_floats);
+    gst_buffer_unmap(inbuf, &in_map);
 
-    // Allocate a new GstBuffer
-    GstBuffer *out_buffer = gst_buffer_new_allocate(NULL, filter->lidar_data.size() * sizeof(float), NULL);
-    if (!out_buffer) {
-        GST_ERROR_OBJECT(filter, "Failed to allocate GstBuffer");
+    gst_buffer_remove_all_memory(outbuf);
+    if (!gst_buffer_copy_into(outbuf, inbuf, GST_BUFFER_COPY_ALL, 0, -1)) {
+        GST_ERROR_OBJECT(filter, "Failed to copy input buffer to output buffer");
+        g_mutex_unlock(&filter->mutex);
         return GST_FLOW_ERROR;
     }
 
-    GST_LOG_OBJECT(filter, "Lidar data (vector<float>):");
-    for (size_t i = 0; i < filter->lidar_data.size(); ++i) {
-        GST_LOG_OBJECT(filter, "Data[%zu]: %f", i, filter->lidar_data[i]);
+    LidarMeta *lidar_meta = add_lidar_meta(outbuf, num_floats, float_data);
+    if (!lidar_meta) {
+        GST_ERROR_OBJECT(filter, "Failed to add lidar meta to buffer");
+        g_mutex_unlock(&filter->mutex);
+        return GST_FLOW_ERROR;
     }
 
+    // Debug dump: print float_count and first few floats
     GstMapInfo out_map;
-    gst_buffer_map(out_buffer, &out_map, GST_MAP_WRITE);
-    memcpy(out_map.data, filter->lidar_data.data(), filter->lidar_data.size() * sizeof(float));
-
-    GST_LOG_OBJECT(filter, "GstBuffer data:");
-    const float *buffer_data = reinterpret_cast<const float *>(out_map.data);
-    for (size_t i = 0; i < filter->lidar_data.size(); ++i) {
-        GST_LOG_OBJECT(filter, "Buffer[%zu]: %f", i, buffer_data[i]);
+    if (gst_buffer_map(outbuf, &out_map, GST_MAP_READ)) {
+        const float *f = reinterpret_cast<const float *>(out_map.data);
+        gsize n = out_map.size / sizeof(float);
+        gsize dump = MIN(n, 5); /
+        std::ostringstream oss;
+        oss << "float_count=" << lidar_meta->float_count << " dump(" << dump << "/" << n << "): ";
+        for (gsize i = 0; i < dump; ++i) {
+            oss << std::fixed << std::setprecision(6) << f[i] << " ";
+        }
+        GST_INFO_OBJECT(filter, "%s", oss.str().c_str());
+        gst_buffer_unmap(outbuf, &out_map);
+    } else {
+        GST_WARNING_OBJECT(filter, "Failed to map outbuf for dump");
     }
 
-    gst_buffer_unmap(out_buffer, &out_map);
+    GST_INFO_OBJECT(filter, "Successfully processed lidar buffer with %u floats", lidar_meta->float_count);
 
-    // Push the new buffer to the downstream element
-    GstFlowReturn ret = gst_pad_push(GST_BASE_TRANSFORM_SRC_PAD(trans), out_buffer);
-    if (ret != GST_FLOW_OK) {
-        GST_ERROR_OBJECT(filter, "Failed to push buffer to downstream: %s", gst_flow_get_name(ret));
-        gst_buffer_unref(out_buffer); // Unref the buffer in case of failure
-        return ret;
-    }
-
-
-    if (filter->is_single_file == TRUE && filter->current_index >= 1) {
-        GST_INFO_OBJECT(filter, "All files processed after update. Sending EOS.");
-        return GST_FLOW_EOS;
-    }
+    g_mutex_unlock(&filter->mutex);
 
     return GST_FLOW_OK;
 }
+
 
 static gboolean plugin_init(GstPlugin *plugin) {
     GST_DEBUG_CATEGORY_INIT(gst_lidar_parse_debug, "lidarparse", 0, "Lidar Binary Parser");
