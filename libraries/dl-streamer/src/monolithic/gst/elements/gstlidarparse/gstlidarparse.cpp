@@ -14,7 +14,8 @@ GST_DEBUG_CATEGORY_STATIC(gst_lidar_parse_debug);
 enum {
     PROP_0,
     PROP_STRIDE,
-    PROP_FRAME_RATE
+    PROP_FRAME_RATE,
+    PROP_FILE_TYPE // New property for file type
 };
 
 static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE(
@@ -47,6 +48,19 @@ static void gst_lidar_parse_init(GstLidarParse *filter);
 
 G_DEFINE_TYPE(GstLidarParse, gst_lidar_parse, GST_TYPE_BASE_TRANSFORM);
 
+GType file_type_get_type(void) {
+    static GType file_type = 0;
+    if (!file_type) {
+        static const GEnumValue values[] = {
+            {FILE_TYPE_BIN, "BIN", "bin"},
+            {FILE_TYPE_PCD, "PCD", "pcd"},
+            {0, NULL, NULL}
+        };
+        file_type = g_enum_register_static("FileType", values);
+    }
+    return file_type;
+}
+
 static void gst_lidar_parse_class_init(GstLidarParseClass *klass) {
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
     GstElementClass *gstelement_class = GST_ELEMENT_CLASS(klass);
@@ -59,15 +73,21 @@ static void gst_lidar_parse_class_init(GstLidarParseClass *klass) {
 
     g_object_class_install_property(gobject_class, PROP_STRIDE,
         g_param_spec_int("stride", "Stride",
-                        "Stride for processing",
+                        "Specifies the interval of frames to process. 1 means every frame is processed, 2 means every second frame is processed.",
                         1, G_MAXINT, 1,
                         (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property(gobject_class, PROP_FRAME_RATE,
         g_param_spec_float("frame-rate", "Frame Rate",
-                          "Frame rate for output",
+                          "Desired output frame rate in frames per second. A value of 0 means no frame rate control.",
                           0.0, G_MAXFLOAT, 0.0,
                           (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(gobject_class, PROP_FILE_TYPE,
+        g_param_spec_enum("file-type", "File Type",
+                      "Specifies the type of input file: BIN for binary files, PCD for point cloud data files.",
+                      file_type_get_type(), FILE_TYPE_BIN,
+                      (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     gst_element_class_set_static_metadata(gstelement_class,
         "Lidar Binary Parser",
@@ -92,6 +112,7 @@ static void gst_lidar_parse_init(GstLidarParse *filter) {
 
     filter->current_index = 0;
     filter->is_single_file = FALSE;
+    filter->file_type = FILE_TYPE_BIN; // Default to BIN
 }
 
 static void gst_lidar_parse_finalize(GObject *object) {
@@ -116,6 +137,9 @@ static void gst_lidar_parse_set_property(GObject *object, guint prop_id,
         case PROP_FRAME_RATE:
             filter->frame_rate = g_value_get_float(value);
             break;
+        case PROP_FILE_TYPE:
+            filter->file_type = (FileType)g_value_get_enum(value);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
             break;
@@ -132,6 +156,9 @@ static void gst_lidar_parse_get_property(GObject *object, guint prop_id,
             break;
         case PROP_FRAME_RATE:  
             g_value_set_float(value, filter->frame_rate);
+            break;
+        case PROP_FILE_TYPE:
+            g_value_set_enum(value, filter->file_type);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -241,7 +268,11 @@ static GstFlowReturn gst_lidar_parse_transform(GstBaseTransform *trans, GstBuffe
     // Frame rate control variables
     static GstClockTime last_frame_time = GST_CLOCK_TIME_NONE;
     GstClockTime current_time = gst_clock_get_time(gst_system_clock_obtain());
-    GstClockTime frame_interval = (GstClockTime)(GST_SECOND / filter->frame_rate);
+    GstClockTime frame_interval = GST_CLOCK_TIME_NONE;
+
+    if (filter->frame_rate > 0) {
+        frame_interval = (GstClockTime)(GST_SECOND / filter->frame_rate);
+    }
 
     // Debug information for rate control
     GST_DEBUG_OBJECT(filter, "Current time: %" GST_TIME_FORMAT, GST_TIME_ARGS(current_time));
@@ -249,7 +280,7 @@ static GstFlowReturn gst_lidar_parse_transform(GstBaseTransform *trans, GstBuffe
     GST_DEBUG_OBJECT(filter, "Frame interval: %" GST_TIME_FORMAT, GST_TIME_ARGS(frame_interval));
 
     // If this is not the first frame, ensure the frame interval is respected
-    if (last_frame_time != GST_CLOCK_TIME_NONE) {
+    if (last_frame_time != GST_CLOCK_TIME_NONE && frame_interval != GST_CLOCK_TIME_NONE) {
         GstClockTime elapsed_time = current_time - last_frame_time;
         GST_DEBUG_OBJECT(filter, "Elapsed time since last frame: %" GST_TIME_FORMAT, GST_TIME_ARGS(elapsed_time));
         if (elapsed_time < frame_interval) {
@@ -264,27 +295,35 @@ static GstFlowReturn gst_lidar_parse_transform(GstBaseTransform *trans, GstBuffe
     GST_INFO_OBJECT(filter, "Processing file #%lu (stride=%d)", filter->current_index, filter->stride);
     filter->current_index++;
 
-    // Process GstBuffer
-    GstMapInfo in_map;  
-    if (!gst_buffer_map(inbuf, &in_map, GST_MAP_READ)) {
-        GST_ERROR_OBJECT(filter, "Failed to map input buffer for reading");
-        g_mutex_unlock(&filter->mutex);
-        return GST_FLOW_ERROR;
-    }
+    size_t num_floats = 0;
+    std::vector<float> float_data;
 
-    if (in_map.size % sizeof(float) != 0) {
-        GST_ERROR_OBJECT(filter, "Buffer size (%lu) is not a multiple of float size (%lu)",
-                         in_map.size, sizeof(float));
+    if (filter->file_type == FILE_TYPE_BIN) {
+        // Process BIN file
+        GstMapInfo in_map;
+        if (!gst_buffer_map(inbuf, &in_map, GST_MAP_READ)) {
+            GST_ERROR_OBJECT(filter, "Failed to map input buffer for reading");
+            g_mutex_unlock(&filter->mutex);
+            return GST_FLOW_ERROR;
+        }
+
+        if (in_map.size % sizeof(float) != 0) {
+            GST_ERROR_OBJECT(filter, "Buffer size (%lu) is not a multiple of float size (%lu)",
+                             in_map.size, sizeof(float));
+            gst_buffer_unmap(inbuf, &in_map);
+            g_mutex_unlock(&filter->mutex);
+            return GST_FLOW_ERROR;
+        }
+
+        num_floats = in_map.size / sizeof(float);
+        const float *data = reinterpret_cast<const float *>(in_map.data);
+        float_data.assign(data, data + num_floats);
         gst_buffer_unmap(inbuf, &in_map);
-        g_mutex_unlock(&filter->mutex);
-        return GST_FLOW_ERROR;
+    } else if (filter->file_type == FILE_TYPE_PCD) {
+        // Process PCD file (example logic, adjust as needed)
+        GST_INFO_OBJECT(filter, "Processing PCD file");
+        // Add PCD-specific parsing logic here
     }
-
-    size_t num_floats = in_map.size / sizeof(float);
-    const float *data = reinterpret_cast<const float *>(in_map.data);
-
-    std::vector<float> float_data(data, data + num_floats);
-    gst_buffer_unmap(inbuf, &in_map);
 
     gst_buffer_remove_all_memory(outbuf);
     if (!gst_buffer_copy_into(outbuf, inbuf, GST_BUFFER_COPY_ALL, 0, -1)) {
@@ -305,7 +344,7 @@ static GstFlowReturn gst_lidar_parse_transform(GstBaseTransform *trans, GstBuffe
     if (gst_buffer_map(outbuf, &out_map, GST_MAP_READ)) {
         const float *f = reinterpret_cast<const float *>(out_map.data);
         gsize n = out_map.size / sizeof(float);
-        gsize dump = MIN(n, 5); /
+        gsize dump = MIN(n, 5); 
         std::ostringstream oss;
         oss << "float_count=" << lidar_meta->float_count << " dump(" << dump << "/" << n << "): ";
         for (gsize i = 0; i < dump; ++i) {
